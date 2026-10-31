@@ -1,8 +1,10 @@
 package com.fangjet.weather.worker
 
 import androidx.work.ListenableWorker.Result
+import com.fangjet.weather.domain.AirQuality
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
+import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WeatherUnits
@@ -12,6 +14,7 @@ import com.fangjet.weather.ui.formatEpochTime
 import com.fangjet.weather.ui.pets.PetMood
 import com.fangjet.weather.ui.pets.WalkAdvice
 import com.fangjet.weather.ui.pets.WalkRating
+import com.fangjet.weather.ui.pets.hasBadAirForWalking
 import com.fangjet.weather.ui.pets.isPrecipitating
 import com.fangjet.weather.ui.pets.petMoodFor
 import com.fangjet.weather.ui.pets.walkAdviceFor
@@ -129,7 +132,8 @@ internal class NotificationWorkerLogic(
         }
 
         if (!briefingOn) return Result.success()
-        val (title, body) = buildBriefingContent(weather, todayForecast, walk.takeIf { hasDog() })
+        val badAir = forecast?.let { badAirPhrase(it, weather.offsetSeconds, now, thresholds) }
+        val (title, body) = buildBriefingContent(weather, todayForecast, walk.takeIf { hasDog() }, badAir)
         postNotification(
             WeatherNotification(
                 NotificationKind.MORNING_BRIEFING,
@@ -187,7 +191,7 @@ internal class WalkTimeLogic(
         val thresholds = runCatching { petWeatherThresholds() }.getOrDefault(PetWeatherThresholds.DEFAULT)
         val walk = walkAdviceNow(weather, forecast, thresholds, nowEpochSeconds())
         if (walk?.rating != WalkRating.GREAT) return Result.success()
-        val (title, body) = buildWalkTimeContent(weather)
+        val (title, body) = buildWalkTimeContent(weather, badAirPhrase(forecast, weather.offsetSeconds, nowEpochSeconds(), thresholds))
         postNotification(
             WeatherNotification(
                 NotificationKind.WALK_TIME,
@@ -226,13 +230,40 @@ private fun moodFor(
 private const val BRIEFING_RAIN_CHANCE = 40
 
 /**
+ * "Smoky air today" when bad air rules out walking hours from the one under way to the end of the
+ * city's day, named by the worst hour's main pollutant: particles read as smoke, ozone by name,
+ * anything else as poor air. Null on a clean day.
+ */
+internal fun badAirPhrase(
+    forecast: List<DayForecast>,
+    utcOffsetSeconds: Int,
+    nowEpochSeconds: Long,
+    thresholds: PetWeatherThresholds,
+): String? {
+    fun localDay(epochSeconds: Long) = Math.floorDiv(epochSeconds + utcOffsetSeconds, 86_400L)
+    val worst = forecast
+        .flatMap { it.hourlySlots }
+        .filter { slot: HourlySlot ->
+            val start = slot.epochSeconds ?: return@filter false
+            start + 3600 > nowEpochSeconds && localDay(start) == localDay(nowEpochSeconds) && slot.hasBadAirForWalking(thresholds)
+        }.maxByOrNull { it.airQuality?.index ?: 0 } ?: return null
+    return when (worst.airQuality?.mainPollutant) {
+        AirQuality.Pollutant.FINE_PARTICLES, AirQuality.Pollutant.COARSE_PARTICLES -> "Smoky air today"
+        AirQuality.Pollutant.OZONE -> "High ozone today"
+        else -> "Poor air today"
+    }
+}
+
+/**
  * "52° and partly cloudy in Knoxville" / "High 70°, low 45°, 60% chance of rain. Sunny's picked
- * 1 PM for a walk." The walk sentence only comes with [walk], which is null without a dog.
+ * 1 PM for a walk." The walk sentence only comes with [walk], which is null without a dog. Bad-air
+ * hours are left out of the walk silently, so [badAir] ("Smoky air today") says why.
  */
 internal fun buildBriefingContent(
     weather: CurrentWeather,
     todayForecast: DayForecast?,
     walk: WalkAdvice?,
+    badAir: String? = null,
 ): Pair<String, String> {
     val high = (todayForecast?.tempMax ?: weather.tempMax).roundToInt()
     val low = (todayForecast?.tempMin ?: weather.tempMin).roundToInt()
@@ -243,23 +274,32 @@ internal fun buildBriefingContent(
             ?.takeIf { it >= BRIEFING_RAIN_CHANCE }
             ?.let { append(", $it% chance of rain") }
         append(".")
-        walkSentence(walk)?.let { append(" ").append(it) }
+        walkSentence(walk, badAir)?.let { append(" ").append(it) }
     }
     return title to body
 }
 
-private fun walkSentence(walk: WalkAdvice?): String? =
-    when {
+private fun walkSentence(
+    walk: WalkAdvice?,
+    badAir: String?,
+): String? {
+    val shortOne = badAir?.let { " $it, so keep it short." }.orEmpty()
+    return when {
         walk == null -> null
-        walk.rating == WalkRating.GREAT -> "Sunny says now's a great time for a walk."
-        walk.bestTimeLabel != null && !walk.bestTimeIsTomorrow -> "Sunny's picked ${walk.bestTimeLabel} for a walk."
-        else -> "Not a good day for walkies."
+        walk.rating == WalkRating.GREAT -> "Sunny says now's a great time for a walk.$shortOne"
+        walk.bestTimeLabel != null && !walk.bestTimeIsTomorrow -> "Sunny's picked ${walk.bestTimeLabel} for a walk.$shortOne"
+        else -> badAir?.let { "$it, so potty breaks only." } ?: "Not a good day for walkies."
     }
+}
 
-/** "Time for a walk" / "64° and clear in Knoxville. Sunny's waiting by the door." */
-internal fun buildWalkTimeContent(weather: CurrentWeather): Pair<String, String> =
+/** "Time for a walk" / "64° and clear in Knoxville. Sunny's waiting by the door. Smoky air today, so a short one." */
+internal fun buildWalkTimeContent(
+    weather: CurrentWeather,
+    badAir: String? = null,
+): Pair<String, String> =
     "Time for a walk" to
-        "${weather.temperature.roundToInt()}° and ${conditionPhrase(weather)} in ${weather.cityName}. Sunny's waiting by the door."
+        "${weather.temperature.roundToInt()}° and ${conditionPhrase(weather)} in ${weather.cityName}. Sunny's waiting by the door." +
+        badAir?.let { " $it, so a short one." }.orEmpty()
 
 /** Rain, drizzle, snow and storms by their own description ("light rain"); otherwise the sky ("partly cloudy"). */
 internal fun conditionPhrase(weather: CurrentWeather): String {

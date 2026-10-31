@@ -1,9 +1,11 @@
 package com.fangjet.weather.worker
 
 import androidx.work.ListenableWorker.Result
+import com.fangjet.weather.domain.AirQuality
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
+import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.QuarterHour
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WeatherUnits
@@ -316,6 +318,46 @@ class NotificationWorkerLogicTest {
         assertEquals("High 70°, low 50°. Not a good day for walkies.", body(WalkAdvice(WalkRating.POOR, null)))
     }
 
+    @Test
+    fun `with a dog the briefing says when bad air shortens the walk`() {
+        fun body(
+            walk: WalkAdvice,
+            badAir: String,
+        ) = buildBriefingContent(weather(tempMin = 50.0, tempMax = 70.0), null, walk, badAir).second
+
+        assertEquals(
+            "High 70°, low 50°. Sunny says now's a great time for a walk. Smoky air today, so keep it short.",
+            body(WalkAdvice(WalkRating.GREAT, null), "Smoky air today"),
+        )
+        assertEquals(
+            "High 70°, low 50°. Sunny's picked 1 PM for a walk. High ozone today, so keep it short.",
+            body(WalkAdvice(WalkRating.OKAY, "1 PM"), "High ozone today"),
+        )
+        assertEquals(
+            "High 70°, low 50°. Poor air today, so potty breaks only.",
+            body(WalkAdvice(WalkRating.BAD_AIR, null), "Poor air today"),
+        )
+    }
+
+    @Test
+    fun `bad air is named by the worst walking hour left today`() {
+        fun phrase(vararg slots: HourlySlot) = badAirPhrase(listOf(forecast(slots = slots.toList())), 0, NOW, PetWeatherThresholds.DEFAULT)
+
+        assertEquals("Smoky air today", phrase(slot(9, rain = 0, air = AirQuality.Pollutant.FINE_PARTICLES)))
+        assertEquals(
+            "High ozone today",
+            phrase(
+                slot(9, rain = 0, air = AirQuality.Pollutant.FINE_PARTICLES, index = 155),
+                slot(15, rain = 0, air = AirQuality.Pollutant.OZONE, index = 210),
+            ),
+        )
+        assertEquals("Poor air today", phrase(slot(9, rain = 0, air = AirQuality.Pollutant.NITROGEN_DIOXIDE)))
+        // Clean air, an hour already over, and a night hour don't count.
+        assertNull(phrase(slot(9, rain = 0)))
+        assertNull(phrase(slot(7, rain = 0, air = AirQuality.Pollutant.FINE_PARTICLES)))
+        assertNull(phrase(slot(23, rain = 0, air = AirQuality.Pollutant.FINE_PARTICLES)))
+    }
+
     // --- walk time planning ---
 
     @Test
@@ -572,6 +614,8 @@ class NotificationWorkerLogicTest {
         fun slot(
             hour: Int,
             rain: Int,
+            air: AirQuality.Pollutant? = null,
+            index: Int = 160,
         ) = HourlySlot(
             timeLabel = if (hour < 12) {
                 "$hour AM"
@@ -592,6 +636,8 @@ class NotificationWorkerLogicTest {
             precipitationChance = rain,
             localHour = hour,
             epochSeconds = DAY_START + hour * HOUR,
+            // Unhealthy on the US index by default, the default bad-air band.
+            airQuality = air?.let { AirQuality(index, AirQuality.Scale.US, it) },
         )
 
         /** Rain until 11 AM, then dry. */
