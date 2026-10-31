@@ -4,10 +4,35 @@ import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.util.PavementBand
 import com.fangjet.weather.util.pavementBand
+import com.fangjet.weather.util.windForce
 import java.time.Instant
 import java.time.ZoneOffset
+import kotlin.math.roundToInt
 
 enum class WalkRating { GREAT, OKAY, POOR, PAWS_HOT, TOO_COLD, BAD_AIR }
+
+/** What changes after a walk window that's open now, for the card's second line. */
+sealed interface WalkOutlook {
+    /** Good until [timeLabel], then [change]. */
+    data class Until(
+        val timeLabel: String,
+        val change: WalkChange,
+    ) : WalkOutlook
+
+    /** Sunset in about [hours] (0 is under half an hour). */
+    data class DarkIn(
+        val hours: Int,
+    ) : WalkOutlook
+
+    /** Air a band short of bad: fine for most dogs, not for older or flat-faced ones. */
+    data object ModerateAir : WalkOutlook
+}
+
+/**
+ * Why the walk window ends. The MAYBE kinds are a chance of rain at or above the walk limit but
+ * under [LIKELY_RAIN_CHANCE].
+ */
+enum class WalkChange { STORMS, MAYBE_STORMS, RAIN, MAYBE_RAIN, SNOW, MAYBE_SNOW, WIND, HEAT, HOT_PAVEMENT, COLD, BAD_AIR }
 
 /**
  * [bestTimeLabel] is null when now is a good time, or when there is no good window soon.
@@ -16,6 +41,7 @@ enum class WalkRating { GREAT, OKAY, POOR, PAWS_HOT, TOO_COLD, BAD_AIR }
  * the next calendar day in the city's own time zone. [pavementBand] is what [pavementNow] means for
  * paws (the Today tile's band), so the caption can say whether the pavement is the problem.
  * [bestTimeEpochSeconds] is when [bestTimeLabel] starts, for the walk-time notification.
+ * [outlook] is set only when now is a great time.
  */
 data class WalkAdvice(
     val rating: WalkRating,
@@ -24,10 +50,20 @@ data class WalkAdvice(
     val bestTimeIsTomorrow: Boolean = false,
     val pavementBand: PavementBand? = null,
     val bestTimeEpochSeconds: Long? = null,
+    val outlook: WalkOutlook? = null,
 )
 
 private const val LOOKAHEAD_SLOTS = 24 // a day of hourly slots
 private const val LOOKAHEAD_SECONDS = 24 * 60 * 60L // and never more than a day, for 3-hourly slots
+
+/** A walk window is only described when it closes within this long; further out it isn't news. */
+private const val OUTLOOK_SECONDS = 6 * 60 * 60L
+
+/** Sunset this close is worth a mention. */
+private const val DARK_SOON_SECONDS = 3 * 60 * 60L
+
+/** A chance of rain at or above this is "rain"; from the walk limit up to it, "maybe rain". */
+internal const val LIKELY_RAIN_CHANCE = 60
 
 // The walk thresholds (pavement heat, rain chance, comfort range, walking hours) are Remote Config
 // values; see PetWeatherThresholds. Defaults: pavement under 45 C (about 113 F; at 52 C, about
@@ -43,6 +79,8 @@ private fun HourlySlot.isDaytime(t: PetWeatherThresholds): Boolean =
 
 private fun HourlySlot.pavementC(): Double? = pavementTemperature?.let { units.toCelsius(it) }
 
+private fun HourlySlot.isTooWindy(t: PetWeatherThresholds): Boolean = windForce(windSpeed, units).ordinal >= t.windyForce
+
 /**
  * Feels-like rather than air temperature: humid heat and wind chill are what the dog feels. Pavement
  * that's only getting hot already rules an hour out, so the suggested hour is a cooler one.
@@ -52,6 +90,7 @@ private fun HourlySlot.isWalkable(t: PetWeatherThresholds): Boolean {
     val pavementOk = (pavementC() ?: 0.0) < t.warmPavementC
     return isDaytime(t) &&
         !hasBadAir(t) &&
+        !isTooWindy(t) &&
         pavementOk &&
         precipitationChance < t.maxRainChancePercent &&
         c in t.comfortMinC..t.comfortMaxC
@@ -73,6 +112,7 @@ fun isPrecipitating(conditionMain: String): Boolean = conditionMain.lowercase() 
  *
  * [precipitatingNow] is the current observation. The hourly forecast can say the hour in progress
  * is dry while it is raining, so when it's raining now, now is never the walk time.
+ * [sunsetEpochSeconds] is today's sunset, for the "gets dark" line.
  */
 fun walkAdviceFor(
     currentFeelsLikeC: Double,
@@ -82,6 +122,7 @@ fun walkAdviceFor(
     utcOffsetSeconds: Int = 0,
     nowEpochSeconds: Long = Instant.now().epochSecond,
     precipitatingNow: Boolean = false,
+    sunsetEpochSeconds: Long? = null,
 ): WalkAdvice? {
     val slots = upcoming
         .take(LOOKAHEAD_SLOTS)
@@ -102,7 +143,53 @@ fun walkAdviceFor(
     val bestSlot = if (rating == WalkRating.GREAT) null else firstGood
     val bestIsTomorrow = bestSlot?.epochSeconds?.let { isNextDay(it, nowEpochSeconds, utcOffsetSeconds) } == true
     val band = slots.first().pavementC()?.let { pavementBand(it, slots.first().groundWet, currentFeelsLikeC, thresholds) }
-    return WalkAdvice(rating, bestSlot?.timeLabel, pavementNow, bestIsTomorrow, band, bestSlot?.epochSeconds)
+    val outlook = if (rating == WalkRating.GREAT) walkOutlook(slots, sunsetEpochSeconds, nowEpochSeconds, thresholds) else null
+    return WalkAdvice(rating, bestSlot?.timeLabel, pavementNow, bestIsTomorrow, band, bestSlot?.epochSeconds, outlook)
+}
+
+/**
+ * For a walk now: when the good spell ends and why, if that's within a few hours. Otherwise air
+ * that's not quite bad, or sunset coming up.
+ */
+private fun walkOutlook(
+    slots: List<HourlySlot>,
+    sunsetEpochSeconds: Long?,
+    nowEpochSeconds: Long,
+    t: PetWeatherThresholds,
+): WalkOutlook? {
+    val end = slots.drop(1).firstOrNull { !it.isWalkable(t) }
+    val change = end?.takeIf { (it.epochSeconds ?: Long.MAX_VALUE) <= nowEpochSeconds + OUTLOOK_SECONDS }?.changeHere(t)
+    if (end != null && change != null) return WalkOutlook.Until(end.timeLabel, change)
+    val band = slots.first().airQuality?.band ?: 0
+    if (band >= 2 && band < t.badAirBand) return WalkOutlook.ModerateAir
+    val untilSunset = sunsetEpochSeconds?.minus(nowEpochSeconds) ?: return null
+    if (untilSunset <= 0 || untilSunset > DARK_SOON_SECONDS) return null
+    return WalkOutlook.DarkIn((untilSunset / 3600.0).roundToInt())
+}
+
+/**
+ * Why this slot isn't walkable, as something worth saying. Null for darkness and the end of the
+ * walking hours, which the sunset line covers.
+ */
+private fun HourlySlot.changeHere(t: PetWeatherThresholds): WalkChange? {
+    if (!isDaytime(t)) return null
+    if (precipitationChance >= t.maxRainChancePercent) {
+        val likely = precipitationChance >= LIKELY_RAIN_CHANCE
+        return when (iconCode.take(2)) {
+            "11" -> if (likely) WalkChange.STORMS else WalkChange.MAYBE_STORMS
+            "13" -> if (likely) WalkChange.SNOW else WalkChange.MAYBE_SNOW
+            else -> if (likely) WalkChange.RAIN else WalkChange.MAYBE_RAIN
+        }
+    }
+    val feelsLikeC = units.toCelsius(feelsLike)
+    return when {
+        isTooWindy(t) -> WalkChange.WIND
+        hasBadAir(t) -> WalkChange.BAD_AIR
+        (pavementC() ?: 0.0) >= t.warmPavementC -> WalkChange.HOT_PAVEMENT
+        feelsLikeC > t.comfortMaxC -> WalkChange.HEAT
+        feelsLikeC < t.comfortMinC -> WalkChange.COLD
+        else -> null
+    }
 }
 
 /** True when [epochSeconds] falls on the calendar day after [nowEpochSeconds], in the city's zone. */

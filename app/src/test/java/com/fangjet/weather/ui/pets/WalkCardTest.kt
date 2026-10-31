@@ -16,6 +16,23 @@ class WalkCardTest {
         pavementBand: PavementBand? = null,
     ) = WalkAdvice(rating, bestTimeLabel, pavementNow, bestTimeIsTomorrow, pavementBand)
 
+    // --- after a walk now ---
+
+    @Test
+    fun `a walk now says what comes next`() {
+        val great = WalkAdvice(WalkRating.GREAT, null, outlook = WalkOutlook.Until("5 PM", WalkChange.MAYBE_RAIN))
+        assertEquals(WalkText(R.string.walk_until_maybe_rain, listOf("5 PM")), walkCaption(great))
+        assertNull(walkCaption(WalkAdvice(WalkRating.GREAT, null)))
+    }
+
+    @Test
+    fun `sunset is soon, in an hour, or in hours`() {
+        assertEquals(WalkText(R.string.walk_dark_soon), outlookText(WalkOutlook.DarkIn(0)))
+        assertEquals(WalkText(R.string.walk_dark_in_an_hour), outlookText(WalkOutlook.DarkIn(1)))
+        assertEquals(WalkText(R.string.walk_dark_in_hours, listOf(3)), outlookText(WalkOutlook.DarkIn(3)))
+        assertEquals(WalkText(R.string.walk_moderate_air), outlookText(WalkOutlook.ModerateAir))
+    }
+
     // --- the sentence ---
 
     @Test

@@ -6,6 +6,7 @@ import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.util.PavementBand
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class WalkAdvisorTest {
@@ -287,6 +288,100 @@ class WalkAdvisorTest {
         listOf("Clear", "Clouds", "Mist", "Fog").forEach { assertEquals(it, false, isPrecipitating(it)) }
     }
 
+    // --- after a walk now ---
+
+    /** 3 PM; the slots below are an hour apart from it. */
+    private val t0 = 1_800_000_000L
+
+    private fun outlook(
+        slots: List<HourlySlot>,
+        feelsLikeC: Double = 20.0,
+        sunsetIn: Long? = null,
+    ): WalkOutlook? = walkAdviceFor(feelsLikeC, slots, nowEpochSeconds = t0, sunsetEpochSeconds = sunsetIn?.let { t0 + it })?.outlook
+
+    @Test
+    fun `a walk now says when storms arrive`() {
+        val slots = listOf(
+            slot("3 PM", 20.0, 0, epoch = t0),
+            slot("4 PM", 20.0, 10, epoch = t0 + 3600),
+            slot("5 PM", 20.0, 80, epoch = t0 + 7200, icon = "11d"),
+        )
+        assertEquals(WalkOutlook.Until("5 PM", WalkChange.STORMS), outlook(slots))
+    }
+
+    @Test
+    fun `a modest chance of rain is maybe and snow is snow`() {
+        assertEquals(
+            WalkOutlook.Until("4 PM", WalkChange.MAYBE_RAIN),
+            outlook(listOf(slot("3 PM", 20.0, 0, epoch = t0), slot("4 PM", 20.0, 40, epoch = t0 + 3600, icon = "10d"))),
+        )
+        assertEquals(
+            WalkOutlook.Until("4 PM", WalkChange.SNOW),
+            outlook(listOf(slot("3 PM", 5.0, 0, epoch = t0), slot("4 PM", 5.0, 70, epoch = t0 + 3600, icon = "13d")), feelsLikeC = 5.0),
+        )
+    }
+
+    @Test
+    fun `a near gale ends the window and rules an hour out`() {
+        val calm = slot("3 PM", 20.0, 0, epoch = t0)
+        val gale = slot("4 PM", 20.0, 0, epoch = t0 + 3600, wind = 15.0) // force 7, about 34 mph
+        assertEquals(WalkOutlook.Until("4 PM", WalkChange.WIND), outlook(listOf(calm, gale)))
+        val windyNow = listOf(slot("3 PM", 20.0, 0, wind = 15.0), slot("4 PM", 20.0, 0))
+        assertEquals(WalkAdvice(WalkRating.OKAY, "4 PM"), walkAdviceFor(20.0, windyNow))
+    }
+
+    @Test
+    fun `heat, hot pavement, cold and bad air later end the window`() {
+        val now = slot("3 PM", 20.0, 0, epoch = t0)
+        assertEquals(WalkOutlook.Until("4 PM", WalkChange.HEAT), outlook(listOf(now, slot("4 PM", 29.0, 0, epoch = t0 + 3600))))
+        assertEquals(
+            WalkOutlook.Until("4 PM", WalkChange.HOT_PAVEMENT),
+            outlook(listOf(now, slot("4 PM", 22.0, 0, pavement = 48.0, epoch = t0 + 3600))),
+        )
+        assertEquals(WalkOutlook.Until("4 PM", WalkChange.COLD), outlook(listOf(now, slot("4 PM", 1.0, 0, epoch = t0 + 3600))))
+        assertEquals(
+            WalkOutlook.Until("4 PM", WalkChange.BAD_AIR),
+            outlook(listOf(now, slot("4 PM", 20.0, 0, epoch = t0 + 3600, airBand = 3))),
+        )
+    }
+
+    @Test
+    fun `a change more than six hours away is not news`() {
+        val slots = listOf(slot("9 AM", 20.0, 0, epoch = t0), slot("4 PM", 20.0, 90, epoch = t0 + 7 * 3600, icon = "11d"))
+        assertNull(outlook(slots))
+    }
+
+    @Test
+    fun `the end of the walking hours falls back to sunset`() {
+        val slots = listOf(slot("7 PM", 20.0, 0, epoch = t0), slot("9 PM", 20.0, 0, epoch = t0 + 7200))
+        assertNull(outlook(slots))
+        assertEquals(WalkOutlook.DarkIn(2), outlook(slots, sunsetIn = 2 * 3600L))
+    }
+
+    @Test
+    fun `sunset soon is mentioned and rounded to the hour`() {
+        val slots = listOf(slot("5 PM", 20.0, 0, epoch = t0))
+        assertEquals(WalkOutlook.DarkIn(1), outlook(slots, sunsetIn = 50 * 60L))
+        assertEquals(WalkOutlook.DarkIn(0), outlook(slots, sunsetIn = 20 * 60L))
+        assertNull(outlook(slots, sunsetIn = 4 * 3600L))
+        assertNull(outlook(slots, sunsetIn = -600L))
+    }
+
+    @Test
+    fun `weather outranks so-so air, which outranks sunset`() {
+        val soSoAir = slot("3 PM", 20.0, 0, epoch = t0, airBand = 2)
+        assertEquals(WalkOutlook.ModerateAir, outlook(listOf(soSoAir), sunsetIn = 3600L))
+        val storm = slot("4 PM", 20.0, 80, epoch = t0 + 3600, icon = "11d")
+        assertEquals(WalkOutlook.Until("4 PM", WalkChange.STORMS), outlook(listOf(soSoAir, storm), sunsetIn = 3600L))
+        assertNull(outlook(listOf(slot("3 PM", 20.0, 0, epoch = t0, airBand = 1))))
+    }
+
+    @Test
+    fun `only a walk now has an outlook`() {
+        val slots = listOf(slot("3 PM", 20.0, 80, epoch = t0), slot("4 PM", 20.0, 0, epoch = t0 + 3600))
+        assertNull(outlook(slots, sunsetIn = 3600L))
+    }
+
     private fun slot(
         label: String,
         temp: Double,
@@ -297,13 +392,14 @@ class WalkAdvisorTest {
         epoch: Long? = null,
         icon: String = "01d",
         airBand: Int? = null,
+        wind: Double = 1.0,
     ) = HourlySlot(
         timeLabel = label,
         iconCode = icon,
         description = "clear",
         temperature = temp,
         feelsLike = temp,
-        windSpeed = 1.0,
+        windSpeed = wind,
         windDeg = 0,
         humidity = 50,
         pressure = 1013,

@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Sunny &amp; Misty</string>
     <!-- Home-screen label: short, so launchers don't truncate it. -->
     <string name="app_launcher_name">Sunny &amp; Misty</string>
@@ -227,6 +227,23 @@
     <string name="walk_too_hot">Too hot for paws.</string>
     <string name="walk_too_cold">Too cold for paws.</string>
     <string name="walk_bad_air">Bad air. Potty breaks only.</string>
+    <!-- After "Now is a great time": the good spell ends at %1$s (an hour, such as "5 PM"). -->
+    <string name="walk_until_storms">Good until %1$s, then storms.</string>
+    <string name="walk_until_maybe_storms">Good until %1$s, then maybe storms.</string>
+    <string name="walk_until_rain">Good until %1$s, then rain.</string>
+    <string name="walk_until_maybe_rain">Good until %1$s, then maybe rain.</string>
+    <string name="walk_until_snow">Good until %1$s, then snow.</string>
+    <string name="walk_until_maybe_snow">Good until %1$s, then maybe snow.</string>
+    <string name="walk_until_wind">Good until %1$s, then very windy.</string>
+    <string name="walk_until_heat">Good until %1$s, then too hot.</string>
+    <string name="walk_until_hot_pavement">Good until %1$s, then hot pavement.</string>
+    <string name="walk_until_cold">Good until %1$s, then too cold.</string>
+    <string name="walk_until_bad_air">Good until %1$s, then bad air.</string>
+    <string name="walk_dark_soon">Getting dark soon.</string>
+    <string name="walk_dark_in_an_hour">Gets dark in about an hour.</string>
+    <!-- Only ever 2 or 3 hours; one hour has its own string. -->
+    <string name="walk_dark_in_hours" tools:ignore="PluralsCandidate">Gets dark in about %1$d hours.</string>
+    <string name="walk_moderate_air">Air\'s not great. Short walks for older and flat-faced dogs.</string>
 
     <!-- UV index -->
     <string name="label_uv_index">UV index</string>

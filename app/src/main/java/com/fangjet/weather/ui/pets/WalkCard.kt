@@ -116,6 +116,7 @@ internal fun walkDetail(advice: WalkAdvice): WalkText =
  * the reason, otherwise the air. Null for the other ratings.
  */
 internal fun walkCaption(advice: WalkAdvice): WalkText? {
+    if (advice.rating == WalkRating.GREAT) return advice.outlook?.let(::outlookText)
     val pavement = advice.pavementNow?.roundToInt()
     return when {
         pavement == null -> null
@@ -134,6 +135,35 @@ internal fun walkCaption(advice: WalkAdvice): WalkText? {
         else -> null
     }
 }
+
+/** After a walk now: when the good spell ends and why, sunset coming up, or so-so air. */
+internal fun outlookText(outlook: WalkOutlook): WalkText =
+    when (outlook) {
+        is WalkOutlook.Until -> WalkText(untilRes(outlook.change), listOf(outlook.timeLabel))
+        is WalkOutlook.DarkIn ->
+            when (outlook.hours) {
+                0 -> WalkText(R.string.walk_dark_soon)
+                1 -> WalkText(R.string.walk_dark_in_an_hour)
+                else -> WalkText(R.string.walk_dark_in_hours, listOf(outlook.hours))
+            }
+        WalkOutlook.ModerateAir -> WalkText(R.string.walk_moderate_air)
+    }
+
+@StringRes
+private fun untilRes(change: WalkChange): Int =
+    when (change) {
+        WalkChange.STORMS -> R.string.walk_until_storms
+        WalkChange.MAYBE_STORMS -> R.string.walk_until_maybe_storms
+        WalkChange.RAIN -> R.string.walk_until_rain
+        WalkChange.MAYBE_RAIN -> R.string.walk_until_maybe_rain
+        WalkChange.SNOW -> R.string.walk_until_snow
+        WalkChange.MAYBE_SNOW -> R.string.walk_until_maybe_snow
+        WalkChange.WIND -> R.string.walk_until_wind
+        WalkChange.HEAT -> R.string.walk_until_heat
+        WalkChange.HOT_PAVEMENT -> R.string.walk_until_hot_pavement
+        WalkChange.COLD -> R.string.walk_until_cold
+        WalkChange.BAD_AIR -> R.string.walk_until_bad_air
+    }
 
 /**
  * The rating's colour: the dark shade on the light theme's card and the pale one on the dark
