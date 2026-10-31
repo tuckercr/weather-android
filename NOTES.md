@@ -41,7 +41,10 @@ Finished items move to Done at the bottom.
 
 ## More tiles to consider (10-30)
 
-- [ ] Wind gusts in the Wind tile; sunshine hours; snow depth feeding the paw check.
+- [ ] **Wind:** gusts in the Wind tile ("14 mph, gusts 30"), and wind in the words too: the
+      pets' captions, the walk card and the night "stroll" caption don't consider strong wind
+      yet. (10-26, 10-31)
+- [ ] Sunshine hours; snow depth feeding the paw check.
 - Decided: no Storm watch tile (mocked up 10-30). Storms go in the walk line instead (Do soon).
 - Decided: Pollen is a version 2 feature (see Version 2). (10-31)
 
@@ -58,7 +61,6 @@ Finished items move to Done at the bottom.
 
 ## Walk planner and pet safety
 
-- [ ] Strong wind isn't considered for the night "stroll" caption. (10-26)
 - [ ] Retune the pavement heat model after an outdoor check of your own. (10-27)
 
 ## Store and release
@@ -107,17 +109,17 @@ Finished items move to Done at the bottom.
 
 ## Ideas
 
-- [ ] Home screen widget: the pets reacting to the weather, plus the next walk time. (10-26)
 - [ ] Small touches: tap the pets (Sunny wags, Misty ignores you), a "Sunny's take / Misty's
       take" line in the day detail. (10-26)
 - [ ] **Seasonal scenes**, starting with Halloween: an orange card by day with a jack-o'-lantern,
       Misty in a witch hat and Sunny in a pumpkin bandana; a purple card after dark with bats and
       a glowing pumpkin ("Too many doorbells. Misty is under the bed."). Mocked up 10-31. Best
       after the new hero art, and behind a Remote Config switch. (10-31)
-- [ ] Kotlin Multiplatform, as a learning project. Low priority. (09-24)
 
 ## Version 2
 
+- [ ] Home screen widget: the pets reacting to the weather, plus the next walk time. (10-26)
+- [ ] Kotlin Multiplatform, as a learning project. Low priority. (09-24)
 - [x] Pollen: free from Open-Meteo for Europe only. The US needs a paid provider (Google Pollen,
       Tomorrow.io, Ambee). Moved to version 2. (10-30, decided 10-31)
 - [x] Per-pet thresholds: small, short-haired and flat-faced dogs struggle sooner. Moved to
