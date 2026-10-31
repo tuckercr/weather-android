@@ -3,7 +3,7 @@
     "id": "halloween",
     "dates": { "type": "fixed", "month": 10, "day": 31 },
     "colors": {
-      "heroDay": "#F5A94E",
+      "heroDay": "#EB8A2F",
       "heroNight": "#26215C",
       "inkDay": "#412402",
       "inkNight": "#EEEDFE",

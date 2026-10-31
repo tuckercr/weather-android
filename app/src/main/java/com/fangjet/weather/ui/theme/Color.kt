@@ -46,7 +46,7 @@ val PetInkOnNight = Color(0xFFF1EFE8)
 // Pet scene: placeholder illustration colours (replaced by real art later).
 val PetCatFur = Color(0xFF5F5E5A)
 val PetCatBelly = Color(0xFFF1EFE8)
-val PetDogFur = Color(0xFFEF9F27)
+val PetDogFur = Color(0xFFE9B158)
 val PetDogFace = Color(0xFFFAC775)
 val PetDogEar = Color(0xFFBA7517)
 val PetOutline = Color(0xFF10324A)
