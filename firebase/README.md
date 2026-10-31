@@ -5,7 +5,7 @@ the repo so it's versioned alongside the code that depends on it.
 
 | File | What it is |
 |------|------------|
-| `remoteconfig.template.json` | Remote Config parameters — the 36 server-tunable values. Keys mirror [`RemoteConfigRepository`](../app/src/main/java/com/fangjet/weather/data/RemoteConfigRepository.kt) and the in-app defaults in [`remote_config_defaults.xml`](../app/src/main/res/xml/remote_config_defaults.xml). |
+| `remoteconfig.template.json` | Remote Config parameters — the 38 server-tunable values. Keys mirror [`RemoteConfigRepository`](../app/src/main/java/com/fangjet/weather/data/RemoteConfigRepository.kt) and the in-app defaults in [`remote_config_defaults.xml`](../app/src/main/res/xml/remote_config_defaults.xml). |
 
 ## Deploying Remote Config
 

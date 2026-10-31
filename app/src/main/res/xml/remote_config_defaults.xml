@@ -154,4 +154,14 @@
         <key>tile_sky_enabled</key>
         <value>true</value>
     </entry>
+    <!-- Seasonal themes (SeasonalTheme): a master switch, and the themes as JSON, which replaces the
+         list shipped in res/raw/seasonal_themes.json when it's valid. Empty uses the shipped list. -->
+    <entry>
+        <key>seasonal_themes_enabled</key>
+        <value>true</value>
+    </entry>
+    <entry>
+        <key>seasonal_themes</key>
+        <value></value>
+    </entry>
 </defaultsMap>

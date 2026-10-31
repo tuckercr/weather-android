@@ -1,0 +1,23 @@
+[
+  {
+    "id": "halloween",
+    "dates": { "type": "fixed", "month": 10, "day": 31 },
+    "colors": {
+      "heroDay": "#F5A94E",
+      "heroNight": "#26215C",
+      "inkDay": "#412402",
+      "inkNight": "#EEEDFE",
+      "cardLight": "#FCE9D2",
+      "cardDark": "#3A2A1A",
+      "accentLight": "#A34F0B",
+      "accentDark": "#F5A94E",
+      "tileHeaderLight": "#C25E00",
+      "tileHeaderDark": "#F5A94E"
+    },
+    "captions": {
+      "day": ["Misty's going as a witch. Sunny's going as Sunny."],
+      "night": ["Too many doorbells. Misty is under the bed."]
+    },
+    "decorations": ["bats", "witchHat", "bandana", "jackOLantern"]
+  }
+]

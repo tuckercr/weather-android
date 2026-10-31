@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.fangjet.weather.R
+import com.fangjet.weather.ui.seasonalCardColor
 import com.fangjet.weather.ui.theme.WalkColdBg
 import com.fangjet.weather.ui.theme.WalkColdText
 import com.fangjet.weather.ui.theme.WalkGreatBg
@@ -50,7 +51,7 @@ fun WalkCard(
     val tint = ratingTint(advice.rating)
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = seasonalCardColor()),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),

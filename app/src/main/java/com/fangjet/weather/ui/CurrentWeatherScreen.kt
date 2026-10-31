@@ -104,6 +104,8 @@ import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.SavedLocation
+import com.fangjet.weather.domain.SeasonalTheme
+import com.fangjet.weather.domain.SeasonalThemes
 import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.model.CityListViewModel
@@ -351,6 +353,7 @@ fun CurrentWeatherRoute(onOpenSettings: () -> Unit = {}) {
             dogWalking = showWalkCard,
             airQualityEnabled = weatherForecastViewModel.airQualityEnabled,
             todayTiles = weatherForecastViewModel.todayTiles,
+            seasonalThemes = weatherForecastViewModel.seasonalThemes,
             petWeatherThresholds = weatherForecastViewModel.petWeatherThresholds,
             onTabSelected = cityListViewModel::setActiveIndex,
             onOpenSettings = {
@@ -438,6 +441,8 @@ fun CurrentWeatherScreen(
     airQualityEnabled: Boolean = true,
     // Remote Config tile_*_enabled: which Today tiles show.
     todayTiles: TodayTileSwitches = TodayTileSwitches(),
+    // Remote Config seasonal_themes (or the shipped list).
+    seasonalThemes: List<SeasonalTheme> = emptyList(),
     petWeatherThresholds: PetWeatherThresholds = PetWeatherThresholds.DEFAULT,
     onTabSelected: (Int) -> Unit,
     onOpenSettings: () -> Unit = {},
@@ -613,6 +618,7 @@ fun CurrentWeatherScreen(
                                         dogWalking = dogWalking,
                                         airQualityEnabled = airQualityEnabled,
                                         todayTiles = todayTiles,
+                                        seasonalThemes = seasonalThemes,
                                         petWeatherThresholds = petWeatherThresholds,
                                         refreshCount = pullCount,
                                         onForecastRetry = onRetry,
@@ -832,6 +838,7 @@ private fun CurrentWeatherContent(
     dogWalking: Boolean = true,
     airQualityEnabled: Boolean = true,
     todayTiles: TodayTileSwitches = TodayTileSwitches(),
+    seasonalThemes: List<SeasonalTheme> = emptyList(),
     petWeatherThresholds: PetWeatherThresholds = PetWeatherThresholds.DEFAULT,
     refreshCount: Int = 0,
     onForecastRetry: () -> Unit = {},
@@ -877,6 +884,20 @@ private fun CurrentWeatherContent(
     val currentSlots = remember(forecastDays, nowEpochSeconds) {
         forecastDays.flatMap { it.hourlySlots }.fromCurrentSlot(nowEpochSeconds)
     }
+    // Today's seasonal theme by the city's own date, worked out again whenever "now" moves on, so
+    // it ends by itself when its day does.
+    val seasonalTheme = remember(nowEpochSeconds, weather.offsetSeconds, seasonalThemes) {
+        SeasonalThemes.themeOn(nowEpochSeconds, weather.offsetSeconds, seasonalThemes)
+    }
+    val night = mood == PetMood.NIGHT
+    val heroInk = seasonalTheme?.heroInk(night) ?: ink
+    val heroCaption = seasonalTheme?.caption(
+        night,
+        java.time.Instant
+            .ofEpochSecond(nowEpochSeconds)
+            .atOffset(java.time.ZoneOffset.ofTotalSeconds(weather.offsetSeconds))
+            .toLocalDate(),
+    ) ?: petCaption(mood, weather.offsetSeconds)
     val walkAdvice =
         remember(currentSlots, feelsLikeC, weather.conditionMain, weather.offsetSeconds, nowEpochSeconds, petWeatherThresholds) {
             walkAdviceFor(
@@ -891,211 +912,208 @@ private fun CurrentWeatherContent(
 
     // Landscape phones and tablets put the hero beside today's details instead of stacking
     // everything in one stretched column.
-    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        val wide = maxWidth >= WIDE_LAYOUT_MIN_WIDTH
-        val heroSection: @Composable () -> Unit = {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(
-                        if (todayForecast != null) {
-                            Modifier.clickable { selectedDay = todayForecast }
-                        } else {
-                            Modifier
-                        },
-                    ),
-                colors = CardDefaults.cardColors(containerColor = mood.skyColor),
-            ) {
-                Column(
+    CompositionLocalProvider(LocalSeasonalTheme provides seasonalTheme) {
+        BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+            val wide = maxWidth >= WIDE_LAYOUT_MIN_WIDTH
+            val heroSection: @Composable () -> Unit = {
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    // Kept a bit smaller than the card so the scene doesn't dominate, especially on wide screens.
-                    PetScene(
-                        mood = mood,
-                        modifier = Modifier
-                            .fillMaxWidth(PET_SCENE_WIDTH_FRACTION)
-                            .widthIn(max = PET_SCENE_MAX_WIDTH),
-                    )
-                    Text(
-                        text = weather.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = ink,
-                    )
-                    if (location != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.LocationOn,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = ink,
-                            )
-                            Text(
-                                text = weather.cityName,
-                                style = MaterialTheme.typography.titleLarge,
-                                color = ink,
-                            )
-                        }
-                    }
-                    Text(
-                        text = formatTemperature(weather.temperature, weather.units),
-                        style = MaterialTheme.typography.displayMedium,
-                        // Baloo 2 reserves a lot of empty space above its digits; pull the number up
-                        // into it so it sits close under the city name.
-                        modifier = Modifier.layout { measurable, constraints ->
-                            val placeable = measurable.measure(constraints)
-                            val cut = TEMP_TOP_TRIM.roundToPx()
-                            layout(placeable.width, placeable.height - cut) { placeable.place(0, -cut) }
-                        },
-                        fontWeight = FontWeight.Bold,
-                        color = ink,
-                    )
-                    val (high, low) = heroHighLow(weather, todayForecast)
-                    val spokenRange = stringResource(
-                        R.string.label_temp_range_spoken,
-                        high.roundToInt(),
-                        low.roundToInt(),
-                    )
-                    Text(
-                        text = stringResource(
-                            R.string.label_temp_range,
-                            high.roundToInt(),
-                            low.roundToInt(),
+                        .then(
+                            if (todayForecast != null) {
+                                Modifier.clickable { selectedDay = todayForecast }
+                            } else {
+                                Modifier
+                            },
                         ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = ink,
-                        // "H 64°" would be read as the letter H.
-                        modifier = Modifier.clearAndSetSemantics { text = AnnotatedString(spokenRange) },
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = petCaption(mood, weather.offsetSeconds),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = ink,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-            }
-        }
-        // "Rain starting around 3:15 PM", only when rain or snow is due in the next 2 hours.
-        val nextRain = remember(forecastDays, nowEpochSeconds) {
-            nextRain(forecastDays.firstOrNull()?.quarterHours.orEmpty(), nowEpochSeconds)
-        }
-        val nextRainSection: @Composable () -> Unit = {
-            nextRain?.let { NextRainLine(it, weather.offsetSeconds) }
-        }
-        val walkSection: @Composable () -> Unit = {
-            // walk_card_enabled: Remote Config can hide the card.
-            if (walkCardEnabled) walkAdvice?.let { WalkCard(advice = it) }
-        }
-        val detailsSection: @Composable () -> Unit = {
-            SectionHeader(R.string.section_today)
-            // UV is always 0 after dark, so only show it in the daytime (OWM night icons end in "n").
-            val isNight = weather.iconCode.endsWith("n")
-            TodayTiles(
-                weather = weather,
-                showingForecast = showingForecast,
-                // Paw check goes with the walk card: Settings' Dog walking switch hides both.
-                pavementNow = currentSlots.firstOrNull()?.pavementTemperature?.takeIf { dogWalking },
-                groundWet = currentSlots.firstOrNull()?.groundWet == true || isPrecipitating(weather.conditionMain),
-                uvIndex = currentSlots.firstOrNull()?.uvIndex?.takeUnless { isNight },
-                uvPeak = todayForecast?.hourlySlots?.filter { it.uvIndex != null }?.maxByOrNull { it.uvIndex ?: 0.0 },
-                // The forecast's hour in progress, so it shows offline too.
-                airQuality = currentSlots.firstOrNull()?.airQuality?.takeIf { airQualityEnabled },
-                hasDog = dogWalking,
-                nowEpochSeconds = nowEpochSeconds,
-                thresholds = petWeatherThresholds,
-                switches = todayTiles,
-            )
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (wide) {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        heroSection()
-                        nextRainSection()
-                        walkSection()
-                    }
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        detailsSection()
-                    }
-                }
-            } else {
-                heroSection()
-                nextRainSection()
-                walkSection()
-            }
-            // Hourly strip (next 24h), starting at the slot in progress — see currentSlots above.
-            val hourly = remember(currentSlots) { currentSlots.take(HOURLY_STRIP_COUNT) }
-            if (hourly.isNotEmpty()) {
-                Text(
-                    text = stringResource(R.string.section_hourly),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-                HourlyStrip(slots = hourly)
-            }
-
-            if (!wide) detailsSection()
-            // Weather radar (shared by the phone and wide layouts). Off via Remote Config
-            // radar_enabled: not composing RadarCard means no RainViewer or tile requests.
-            if (radarEnabled) {
-                SectionHeader(R.string.section_radar)
-                RadarCard(location = location, utcOffsetSeconds = weather.offsetSeconds)
-            }
-
-            // Upcoming days section (excludes today)
-            if (upcomingDays.isNotEmpty() ||
-                forecastState is LoadingState.Loading ||
-                forecastState is LoadingState.Error
-            ) {
-                Text(
-                    text = stringResource(R.string.section_upcoming),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-                when {
-                    // Wide screens show the days in two columns rather than stretched rows.
-                    upcomingDays.isNotEmpty() -> upcomingDays.chunked(if (wide) 2 else 1).forEach { row ->
-                        Row(
-                            modifier = Modifier.height(IntrinsicSize.Min),
-                            horizontalArrangement = Arrangement.spacedBy(24.dp),
-                        ) {
-                            row.forEach { day ->
-                                UpcomingDayRow(day = day, onClick = { selectedDay = day }, modifier = Modifier.weight(1f).fillMaxHeight())
-                            }
-                            if (row.size < 2 && wide) Spacer(modifier = Modifier.weight(1f).fillMaxHeight())
-                        }
-                    }
-
-                    forecastState is LoadingState.Loading -> Box(
+                    colors = CardDefaults.cardColors(containerColor = seasonalTheme?.heroBackground(night) ?: mood.skyColor),
+                ) {
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 24.dp),
-                        contentAlignment = Alignment.Center,
+                            .padding(horizontal = 20.dp, vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        CircularProgressIndicator()
-                    }
-
-                    forecastState is LoadingState.Error -> Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            text = weatherErrorMessage(forecastState.errorKey),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error,
+                        // Kept a bit smaller than the card so the scene doesn't dominate, especially on wide screens.
+                        PetScene(
+                            mood = mood,
+                            modifier = Modifier
+                                .fillMaxWidth(PET_SCENE_WIDTH_FRACTION)
+                                .widthIn(max = PET_SCENE_MAX_WIDTH),
+                            decorations = seasonalTheme?.decorations.orEmpty(),
                         )
-                        if (forecastState.canRetry) {
-                            TextButton(onClick = onForecastRetry) {
-                                Text(stringResource(R.string.action_retry))
+                        Text(
+                            text = weather.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = heroInk,
+                        )
+                        if (location != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = heroInk,
+                                )
+                                Text(
+                                    text = weather.cityName,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = heroInk,
+                                )
+                            }
+                        }
+                        Text(
+                            text = formatTemperature(weather.temperature, weather.units),
+                            style = MaterialTheme.typography.displayMedium,
+                            // Baloo 2 reserves a lot of empty space above its digits; pull the number up
+                            // into it so it sits close under the city name.
+                            modifier = Modifier.layout { measurable, constraints ->
+                                val placeable = measurable.measure(constraints)
+                                val cut = TEMP_TOP_TRIM.roundToPx()
+                                layout(placeable.width, placeable.height - cut) { placeable.place(0, -cut) }
+                            },
+                            fontWeight = FontWeight.Bold,
+                            color = heroInk,
+                        )
+                        val (high, low) = heroHighLow(weather, todayForecast)
+                        val spokenRange = stringResource(
+                            R.string.label_temp_range_spoken,
+                            high.roundToInt(),
+                            low.roundToInt(),
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.label_temp_range,
+                                high.roundToInt(),
+                                low.roundToInt(),
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = heroInk,
+                            // "H 64°" would be read as the letter H.
+                            modifier = Modifier.clearAndSetSemantics { text = AnnotatedString(spokenRange) },
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = heroCaption,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = heroInk,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+            }
+            // "Rain starting around 3:15 PM", only when rain or snow is due in the next 2 hours.
+            val nextRain = remember(forecastDays, nowEpochSeconds) {
+                nextRain(forecastDays.firstOrNull()?.quarterHours.orEmpty(), nowEpochSeconds)
+            }
+            val nextRainSection: @Composable () -> Unit = {
+                nextRain?.let { NextRainLine(it, weather.offsetSeconds) }
+            }
+            val walkSection: @Composable () -> Unit = {
+                // walk_card_enabled: Remote Config can hide the card.
+                if (walkCardEnabled) walkAdvice?.let { WalkCard(advice = it) }
+            }
+            val detailsSection: @Composable () -> Unit = {
+                SectionHeader(R.string.section_today)
+                // UV is always 0 after dark, so only show it in the daytime (OWM night icons end in "n").
+                val isNight = weather.iconCode.endsWith("n")
+                TodayTiles(
+                    weather = weather,
+                    showingForecast = showingForecast,
+                    // Paw check goes with the walk card: Settings' Dog walking switch hides both.
+                    pavementNow = currentSlots.firstOrNull()?.pavementTemperature?.takeIf { dogWalking },
+                    groundWet = currentSlots.firstOrNull()?.groundWet == true || isPrecipitating(weather.conditionMain),
+                    uvIndex = currentSlots.firstOrNull()?.uvIndex?.takeUnless { isNight },
+                    uvPeak = todayForecast?.hourlySlots?.filter { it.uvIndex != null }?.maxByOrNull { it.uvIndex ?: 0.0 },
+                    // The forecast's hour in progress, so it shows offline too.
+                    airQuality = currentSlots.firstOrNull()?.airQuality?.takeIf { airQualityEnabled },
+                    hasDog = dogWalking,
+                    nowEpochSeconds = nowEpochSeconds,
+                    thresholds = petWeatherThresholds,
+                    switches = todayTiles,
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (wide) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            heroSection()
+                            nextRainSection()
+                            walkSection()
+                        }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            detailsSection()
+                        }
+                    }
+                } else {
+                    heroSection()
+                    nextRainSection()
+                    walkSection()
+                }
+                // Hourly strip (next 24h), starting at the slot in progress — see currentSlots above.
+                val hourly = remember(currentSlots) { currentSlots.take(HOURLY_STRIP_COUNT) }
+                if (hourly.isNotEmpty()) {
+                    SectionHeader(R.string.section_hourly)
+                    HourlyStrip(slots = hourly)
+                }
+
+                if (!wide) detailsSection()
+                // Weather radar (shared by the phone and wide layouts). Off via Remote Config
+                // radar_enabled: not composing RadarCard means no RainViewer or tile requests.
+                if (radarEnabled) {
+                    SectionHeader(R.string.section_radar)
+                    RadarCard(location = location, utcOffsetSeconds = weather.offsetSeconds)
+                }
+
+                // Upcoming days section (excludes today)
+                if (upcomingDays.isNotEmpty() ||
+                    forecastState is LoadingState.Loading ||
+                    forecastState is LoadingState.Error
+                ) {
+                    SectionHeader(R.string.section_upcoming)
+                    when {
+                        // Wide screens show the days in two columns rather than stretched rows.
+                        upcomingDays.isNotEmpty() -> upcomingDays.chunked(if (wide) 2 else 1).forEach { row ->
+                            Row(
+                                modifier = Modifier.height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                            ) {
+                                row.forEach { day ->
+                                    UpcomingDayRow(
+                                        day = day,
+                                        onClick = { selectedDay = day },
+                                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    )
+                                }
+                                if (row.size < 2 && wide) Spacer(modifier = Modifier.weight(1f).fillMaxHeight())
+                            }
+                        }
+
+                        forecastState is LoadingState.Loading -> Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator()
+                        }
+
+                        forecastState is LoadingState.Error -> Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = weatherErrorMessage(forecastState.errorKey),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            if (forecastState.canRetry) {
+                                TextButton(onClick = onForecastRetry) {
+                                    Text(stringResource(R.string.action_retry))
+                                }
                             }
                         }
                     }
@@ -1121,7 +1139,7 @@ private fun HourlyStrip(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = seasonalCardColor()),
     ) {
         LazyRow(
             modifier = Modifier
@@ -1184,7 +1202,7 @@ private fun NextRainLine(
     }
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = seasonalCardColor()),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -1569,7 +1587,7 @@ private fun SectionHeader(
     Text(
         text = stringResource(text),
         style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = seasonalSectionHeaderColor(),
         modifier = Modifier.padding(top = 4.dp),
     )
 }

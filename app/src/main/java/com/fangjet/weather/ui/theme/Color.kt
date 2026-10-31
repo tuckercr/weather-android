@@ -66,6 +66,26 @@ val PetMoonUnlit = Color(0xFF34416E)
 val PetGround = Color(0x33000000)
 val PetRouter = Color(0xFF4A5A6A)
 val PetRouterLight = Color(0xFF97C459)
+val PetCatInnerEar = Color(0xFFED93B1)
+val PetCatNose = Color(0xFFE8849A)
+val PetCollar = Color(0xFF185FA5)
+val PetMouth = Color(0xFF412402)
+val PetTongueSoft = Color(0xFFED93B1)
+val PetShine = Color(0xFFFFFFFF)
+
+// Seasonal decorations (SeasonalTheme).
+val PetBat = Color(0xFF412402)
+val PetBatNight = Color(0xFF0B0B0B)
+val PetBatPurple = Color(0xFF7F77DD)
+val PetStar = Color(0xFFCECBF6)
+val PetWitchHat = Color(0xFF26215C)
+val PetHatBand = Color(0xFFEF9F27)
+val PetBandana = Color(0xFFD85A30)
+val PetPumpkin = Color(0xFFD85A30)
+val PetPumpkinLit = Color(0xFFEF9F27)
+val PetPumpkinFace = Color(0xFF412402)
+val PetPumpkinGlow = Color(0xFFFAEEDA)
+val PetPumpkinStem = Color(0xFF3B6D11)
 
 // "Showing weather from ..." banner over cached data (background, text: 8.9:1). Fixed in both
 // themes, like the hero card it sits above.
