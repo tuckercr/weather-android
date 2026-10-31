@@ -300,6 +300,10 @@
         <item>carbon monoxide</item>
     </string-array>
     <string name="today_uv">UV %1$d · %2$s</string>
+    <string name="uv_peak">Peak %1$d at %2$s</string>
+    <string name="uv_pale_noses">Shade for pale noses</string>
+    <string name="uv_at_peak">At today\'s peak</string>
+    <string name="uv_easing_off">Easing off now</string>
     <!-- What screen readers hear on the Wind tile, which shows the direction only as an arrow. -->
     <string name="today_wind_from_spoken">From the %1$s, %2$s</string>
     <string-array name="compass_points_spoken">

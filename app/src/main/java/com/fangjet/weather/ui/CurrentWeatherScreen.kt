@@ -104,6 +104,7 @@ import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.SavedLocation
+import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.model.CityListViewModel
 import com.fangjet.weather.model.GeoLocationViewModel
@@ -349,6 +350,7 @@ fun CurrentWeatherRoute(onOpenSettings: () -> Unit = {}) {
             walkCardEnabled = weatherForecastViewModel.walkCardEnabled && showWalkCard,
             dogWalking = showWalkCard,
             airQualityEnabled = weatherForecastViewModel.airQualityEnabled,
+            todayTiles = weatherForecastViewModel.todayTiles,
             petWeatherThresholds = weatherForecastViewModel.petWeatherThresholds,
             onTabSelected = cityListViewModel::setActiveIndex,
             onOpenSettings = {
@@ -434,6 +436,8 @@ fun CurrentWeatherScreen(
     dogWalking: Boolean = true,
     // Remote Config air_quality_enabled: off hides the Air quality tile.
     airQualityEnabled: Boolean = true,
+    // Remote Config tile_*_enabled: which Today tiles show.
+    todayTiles: TodayTileSwitches = TodayTileSwitches(),
     petWeatherThresholds: PetWeatherThresholds = PetWeatherThresholds.DEFAULT,
     onTabSelected: (Int) -> Unit,
     onOpenSettings: () -> Unit = {},
@@ -608,6 +612,7 @@ fun CurrentWeatherScreen(
                                         walkCardEnabled = walkCardEnabled,
                                         dogWalking = dogWalking,
                                         airQualityEnabled = airQualityEnabled,
+                                        todayTiles = todayTiles,
                                         petWeatherThresholds = petWeatherThresholds,
                                         refreshCount = pullCount,
                                         onForecastRetry = onRetry,
@@ -826,6 +831,7 @@ private fun CurrentWeatherContent(
     // Settings' Dog walking switch: off hides the Paw check tile (the walk card follows walkCardEnabled).
     dogWalking: Boolean = true,
     airQualityEnabled: Boolean = true,
+    todayTiles: TodayTileSwitches = TodayTileSwitches(),
     petWeatherThresholds: PetWeatherThresholds = PetWeatherThresholds.DEFAULT,
     refreshCount: Int = 0,
     onForecastRetry: () -> Unit = {},
@@ -999,11 +1005,13 @@ private fun CurrentWeatherContent(
                 pavementNow = currentSlots.firstOrNull()?.pavementTemperature?.takeIf { dogWalking },
                 groundWet = currentSlots.firstOrNull()?.groundWet == true || isPrecipitating(weather.conditionMain),
                 uvIndex = currentSlots.firstOrNull()?.uvIndex?.takeUnless { isNight },
+                uvPeak = todayForecast?.hourlySlots?.filter { it.uvIndex != null }?.maxByOrNull { it.uvIndex ?: 0.0 },
                 // The forecast's hour in progress, so it shows offline too.
                 airQuality = currentSlots.firstOrNull()?.airQuality?.takeIf { airQualityEnabled },
                 hasDog = dogWalking,
                 nowEpochSeconds = nowEpochSeconds,
                 thresholds = petWeatherThresholds,
+                switches = todayTiles,
             )
         }
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -60,7 +60,9 @@ import androidx.compose.ui.unit.sp
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.AirQuality
 import com.fangjet.weather.domain.CurrentWeather
+import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
+import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.ui.theme.PetSun
 import com.fangjet.weather.ui.theme.WalkGreatBg
@@ -73,6 +75,7 @@ import com.fangjet.weather.util.Daylight
 import com.fangjet.weather.util.DistanceUnit
 import com.fangjet.weather.util.PavementBand
 import com.fangjet.weather.util.SkyCondition
+import com.fangjet.weather.util.UvLine
 import com.fangjet.weather.util.VisibilityBand
 import com.fangjet.weather.util.WindForce
 import com.fangjet.weather.util.daylight
@@ -80,15 +83,17 @@ import com.fangjet.weather.util.dewPointC
 import com.fangjet.weather.util.keepUnitsTogether
 import com.fangjet.weather.util.pavementBand
 import com.fangjet.weather.util.skyCondition
+import com.fangjet.weather.util.uvLine
 import com.fangjet.weather.util.visibilityBand
 import com.fangjet.weather.util.visibilityDistance
 import com.fangjet.weather.util.windForce
 import kotlin.math.roundToInt
 
 /**
- * Today's details as a grid of tiles: feels like, wind, humidity, pavement and air quality in pairs (an odd
- * one out takes the full width), then daylight (with the UV index) and the sky across the full width. Each tile has a plain fact under its number; only
- * the pavement and sky tiles speak for the pets.
+ * Today's details as a grid of tiles: feels like, wind, humidity, pavement, UV and air quality in pairs (an
+ * odd one out takes the full width), then daylight (with the UV index, when UV has no tile) and the sky across
+ * the full width. Each tile has a plain fact under its number; only the pavement, UV, air and sky tiles speak
+ * for the pets. Remote Config can hide any of them. Same layout as iOS's TodayTiles.
  */
 @Composable
 internal fun TodayTiles(
@@ -102,6 +107,8 @@ internal fun TodayTiles(
     groundWet: Boolean,
     // Today's UV index, or null after dark or when not forecast.
     uvIndex: Double?,
+    // Today's hour with the highest UV, for the UV tile's peak.
+    uvPeak: HourlySlot?,
     // Null until it's fetched, or when it can't be.
     airQuality: AirQuality?,
     // Air quality speaks of walks with a dog, of people without one.
@@ -109,19 +116,23 @@ internal fun TodayTiles(
     nowEpochSeconds: Long,
     thresholds: PetWeatherThresholds,
     modifier: Modifier = Modifier,
+    switches: TodayTileSwitches = TodayTileSwitches(),
 ) {
     val units = weather.units
     val sunrise = weather.sunriseEpoch
     val sunset = weather.sunsetEpoch
+    val showsDaylight = switches.daylight && sunrise != null && sunset != null
+    // UV gets its own tile when switched on, or when there's no Daylight tile to carry it.
+    val showsUvTile = uvIndex != null && (switches.uv || !showsDaylight)
     val small = buildList<@Composable (Modifier) -> Unit> {
-        add { FeelsLikeTile(weather, it) }
-        add { WindTile(weather, it) }
-        add { HumidityTile(weather, it) }
-        if (pavementNow != null) add { PavementTile(pavementNow, groundWet, weather.feelsLike, units, thresholds, it) }
+        if (switches.feelsLike) add { FeelsLikeTile(weather, it) }
+        if (switches.wind) add { WindTile(weather, it) }
+        if (switches.humidity) add { HumidityTile(weather, it) }
+        if (switches.pawCheck && pavementNow != null) {
+            add { PavementTile(pavementNow, groundWet, weather.feelsLike, units, thresholds, it) }
+        }
+        if (showsUvTile && uvIndex != null) add { UvTile(uvIndex, uvLine(uvPeak, nowEpochSeconds, hasDog), it) }
         if (airQuality != null) add { AirQualityTile(airQuality, hasDog, it) }
-        // UV normally rides in the Daylight tile's header; only without sunrise and sunset does it
-        // need a tile of its own.
-        if (uvIndex != null && (sunrise == null || sunset == null)) add { UvTile(uvIndex, it) }
     }
     // Two tiles side by side leave too little room for large text, so it gets one per row.
     val perRow = if (LocalDensity.current.fontScale >= LARGE_FONT_SCALE) 1 else 2
@@ -133,10 +144,16 @@ internal fun TodayTiles(
             small.take(paired).forEach { tile -> tile(Modifier) }
         }
         small.drop(paired).forEach { tile -> tile(Modifier.fillMaxWidth()) }
-        if (sunrise != null && sunset != null) {
-            DaylightTile(daylight(nowEpochSeconds, sunrise, sunset), sunrise, sunset, weather.offsetSeconds, uvIndex)
+        if (showsDaylight && sunrise != null && sunset != null) {
+            DaylightTile(
+                daylight(nowEpochSeconds, sunrise, sunset),
+                sunrise,
+                sunset,
+                weather.offsetSeconds,
+                uvIndex.takeUnless { showsUvTile },
+            )
         }
-        SkyTile(weather, showingForecast)
+        if (switches.sky) SkyTile(weather, showingForecast)
     }
 }
 
@@ -477,11 +494,25 @@ private fun airTint(band: Int): Color {
 @Composable
 private fun UvTile(
     uv: Double,
+    line: UvLine?,
     modifier: Modifier,
 ) {
     Tile(Icons.Default.LightMode, stringResource(R.string.label_uv_index), modifier) {
-        TileValue(uv.roundToInt().toString())
-        TileNote(stringResource(uvLevelRes(uv)))
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            TileValue(uv.roundToInt().toString())
+            Text(
+                stringResource(uvLevelRes(uv)),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        when (line) {
+            is UvLine.Peak -> TileNote(stringResource(R.string.uv_peak, line.uv, line.timeLabel))
+            UvLine.PaleNoses -> TileNote(stringResource(R.string.uv_pale_noses), color = petLineTint())
+            UvLine.AtPeak -> TileNote(stringResource(R.string.uv_at_peak))
+            UvLine.EasingOff -> TileNote(stringResource(R.string.uv_easing_off))
+            null -> Unit
+        }
     }
 }
 

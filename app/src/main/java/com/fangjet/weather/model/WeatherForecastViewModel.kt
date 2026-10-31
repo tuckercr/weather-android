@@ -11,6 +11,7 @@ import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.SavedLocation
+import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.util.resolveWeatherUnits
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -55,6 +56,7 @@ class WeatherForecastViewModel internal constructor(
     private val onSettingsOpened: () -> Unit = {},
     isWalkCardEnabled: () -> Boolean = { true },
     isAirQualityEnabled: () -> Boolean = { true },
+    readTodayTiles: () -> TodayTileSwitches = { TodayTileSwitches() },
     readPetWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
     // Remote Config foreground_refresh_min_minutes, read on every foreground resume. 0 = never throttle.
     private val foregroundRefreshMinMinutes: () -> Long = { 0L },
@@ -119,6 +121,7 @@ class WeatherForecastViewModel internal constructor(
         onSettingsOpened = { analyticsRepository.logSettingsOpened() },
         isWalkCardEnabled = remoteConfigRepository::walkCardEnabled,
         isAirQualityEnabled = remoteConfigRepository::airQualityEnabled,
+        readTodayTiles = remoteConfigRepository::todayTiles,
         readPetWeatherThresholds = remoteConfigRepository::petWeatherThresholds,
         foregroundRefreshMinMinutes = remoteConfigRepository::foregroundRefreshMinMinutes,
     )
@@ -131,6 +134,9 @@ class WeatherForecastViewModel internal constructor(
      * forecast cached before it went off.
      */
     val airQualityEnabled: Boolean = isAirQualityEnabled()
+
+    /** Remote Config `tile_*_enabled`: which Today tiles show. */
+    val todayTiles: TodayTileSwitches = readTodayTiles()
 
     /** Remote Config pet-mood and walk-advice thresholds (validated; Celsius). */
     val petWeatherThresholds: PetWeatherThresholds = readPetWeatherThresholds()

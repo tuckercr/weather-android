@@ -124,4 +124,34 @@
         <key>analytics_enabled</key>
         <value>true</value>
     </entry>
+    <!-- One switch per Today tile, so any can be hidden for everyone. The UV tile is new and starts
+         off; without it, UV stays in the Daylight tile's header. Air quality has air_quality_enabled. -->
+    <entry>
+        <key>tile_feels_like_enabled</key>
+        <value>true</value>
+    </entry>
+    <entry>
+        <key>tile_wind_enabled</key>
+        <value>true</value>
+    </entry>
+    <entry>
+        <key>tile_humidity_enabled</key>
+        <value>true</value>
+    </entry>
+    <entry>
+        <key>tile_paw_check_enabled</key>
+        <value>true</value>
+    </entry>
+    <entry>
+        <key>tile_uv_enabled</key>
+        <value>false</value>
+    </entry>
+    <entry>
+        <key>tile_daylight_enabled</key>
+        <value>true</value>
+    </entry>
+    <entry>
+        <key>tile_sky_enabled</key>
+        <value>true</value>
+    </entry>
 </defaultsMap>
