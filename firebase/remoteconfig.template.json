@@ -144,6 +144,41 @@
       "defaultValue": { "value": "3" },
       "valueType": "NUMBER",
       "description": "Air quality band (0 good to 5 worst) from which hours aren't suggested for a walk and the walk rating is Bad air. 3 is US \"Unhealthy\" and Europe's \"Poor\". Valid 1–5; anything else uses 3."
+    },
+    "tile_feels_like_enabled": {
+      "defaultValue": { "value": "true" },
+      "valueType": "BOOLEAN",
+      "description": "Feels like tile on the Today screen: false hides it for everyone"
+    },
+    "tile_wind_enabled": {
+      "defaultValue": { "value": "true" },
+      "valueType": "BOOLEAN",
+      "description": "Wind tile on the Today screen: false hides it for everyone"
+    },
+    "tile_humidity_enabled": {
+      "defaultValue": { "value": "true" },
+      "valueType": "BOOLEAN",
+      "description": "Humidity tile on the Today screen: false hides it for everyone"
+    },
+    "tile_paw_check_enabled": {
+      "defaultValue": { "value": "true" },
+      "valueType": "BOOLEAN",
+      "description": "Paw check tile on the Today screen: false hides it for everyone"
+    },
+    "tile_uv_enabled": {
+      "defaultValue": { "value": "false" },
+      "valueType": "BOOLEAN",
+      "description": "UV index tile on the Today screen: false hides it for everyone. Starts off; while off, UV stays in the Daylight tile"
+    },
+    "tile_daylight_enabled": {
+      "defaultValue": { "value": "true" },
+      "valueType": "BOOLEAN",
+      "description": "Daylight tile on the Today screen: false hides it for everyone"
+    },
+    "tile_sky_enabled": {
+      "defaultValue": { "value": "true" },
+      "valueType": "BOOLEAN",
+      "description": "Sky tile on the Today screen: false hides it for everyone"
     }
   }
 }

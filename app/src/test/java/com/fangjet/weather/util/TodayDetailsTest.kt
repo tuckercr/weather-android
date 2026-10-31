@@ -1,9 +1,13 @@
 package com.fangjet.weather.util
 
+import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
+import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.WeatherUnits
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TodayDetailsTest {
@@ -131,5 +135,45 @@ class TodayDetailsTest {
         assertEquals("7:53\u00A0AM", keepUnitsTogether("7:53\u202FAM"))
         // Words after numbers are left alone.
         assertEquals("2 h 15 min left", keepUnitsTogether("2 h 15 min left"))
+    }
+
+    private fun uvSlot(
+        uv: Double,
+        epoch: Long,
+    ) = HourlySlot(
+        timeLabel = "1 PM",
+        iconCode = "01d",
+        description = "clear",
+        temperature = 25.0,
+        feelsLike = 25.0,
+        windSpeed = 2.0,
+        windDeg = 0,
+        humidity = 40,
+        pressure = 1013,
+        units = WeatherUnits.METRIC,
+        uvIndex = uv,
+        epochSeconds = epoch,
+    )
+
+    @Test
+    fun `the UV tile says when today's peak is while it's ahead`() {
+        assertEquals(UvLine.Peak(8, "1 PM"), uvLine(uvSlot(7.6, 13 * 3600L), 10 * 3600L, hasDog = true))
+    }
+
+    @Test
+    fun `from a high peak on the UV tile minds pale noses with a dog`() {
+        val peak = uvSlot(7.0, 13 * 3600L)
+        assertEquals(UvLine.PaleNoses, uvLine(peak, 16 * 3600L, hasDog = true))
+        assertEquals(UvLine.AtPeak, uvLine(peak, 13 * 3600L + 600, hasDog = false))
+        assertEquals(UvLine.EasingOff, uvLine(peak, 16 * 3600L, hasDog = false))
+        assertEquals(UvLine.EasingOff, uvLine(uvSlot(4.0, 13 * 3600L), 16 * 3600L, hasDog = true))
+        assertNull(uvLine(null, 0, hasDog = true))
+    }
+
+    @Test
+    fun `every tile shows by default except UV`() {
+        val switches = TodayTileSwitches()
+        assertTrue(switches.feelsLike && switches.wind && switches.humidity && switches.pawCheck && switches.daylight && switches.sky)
+        assertFalse(switches.uv)
     }
 }

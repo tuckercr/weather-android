@@ -1,5 +1,6 @@
 package com.fangjet.weather.util
 
+import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.WeatherUnits
 import kotlin.math.ln
@@ -191,3 +192,35 @@ fun daylight(
             fraction = (nowEpochSeconds - sunriseEpochSeconds).toFloat() / (sunsetEpochSeconds - sunriseEpochSeconds),
         )
     }
+
+/** What the UV tile says under the index. */
+sealed interface UvLine {
+    /** Today's peak is still ahead: "Peak 8 at 1 PM". */
+    data class Peak(
+        val uv: Int,
+        val timeLabel: String,
+    ) : UvLine
+
+    /** From a high peak (6 and up) on, with a dog: "Shade for pale noses", in the pets' colour. */
+    data object PaleNoses : UvLine
+
+    data object AtPeak : UvLine
+
+    data object EasingOff : UvLine
+}
+
+/** The UV tile's line from today's highest-UV hour; null without one. Same rules as iOS. */
+fun uvLine(
+    peak: HourlySlot?,
+    nowEpochSeconds: Long,
+    hasDog: Boolean,
+): UvLine? {
+    val uv = peak?.uvIndex?.roundToInt() ?: return null
+    val start = peak.epochSeconds ?: return UvLine.Peak(uv, peak.timeLabel)
+    return when {
+        start > nowEpochSeconds -> UvLine.Peak(uv, peak.timeLabel)
+        hasDog && uv >= 6 -> UvLine.PaleNoses
+        start + 3600 > nowEpochSeconds -> UvLine.AtPeak
+        else -> UvLine.EasingOff
+    }
+}

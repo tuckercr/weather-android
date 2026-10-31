@@ -3,6 +3,7 @@ package com.fangjet.weather.data
 import android.content.Context
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.PetWeatherThresholds
+import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.worker.NotificationKind
 import com.google.firebase.Firebase
 import com.google.firebase.FirebaseApp
@@ -73,6 +74,20 @@ class RemoteConfigRepository @Inject constructor(
      * Air quality comes from Open-Meteo, so it also needs [openMeteoEnabled].
      */
     fun airQualityEnabled(): Boolean = boolean(KEY_AIR_QUALITY_ENABLED) ?: DEFAULT_AIR_QUALITY_ENABLED
+
+    /** One switch per Today tile, so any can be hidden for everyone. Air quality has its own, above. */
+    fun todayTiles(): TodayTileSwitches {
+        val defaults = TodayTileSwitches()
+        return TodayTileSwitches(
+            feelsLike = boolean(KEY_TILE_FEELS_LIKE_ENABLED) ?: defaults.feelsLike,
+            wind = boolean(KEY_TILE_WIND_ENABLED) ?: defaults.wind,
+            humidity = boolean(KEY_TILE_HUMIDITY_ENABLED) ?: defaults.humidity,
+            pawCheck = boolean(KEY_TILE_PAW_CHECK_ENABLED) ?: defaults.pawCheck,
+            uv = boolean(KEY_TILE_UV_ENABLED) ?: defaults.uv,
+            daylight = boolean(KEY_TILE_DAYLIGHT_ENABLED) ?: defaults.daylight,
+            sky = boolean(KEY_TILE_SKY_ENABLED) ?: defaults.sky,
+        )
+    }
 
     /**
      * Replacement OpenWeather API key, so a leaked key can be rotated without an app update.
@@ -255,6 +270,13 @@ class RemoteConfigRepository @Inject constructor(
         const val KEY_OPEN_METEO_ENABLED = "open_meteo_enabled"
 
         const val KEY_AIR_QUALITY_ENABLED = "air_quality_enabled"
+        const val KEY_TILE_FEELS_LIKE_ENABLED = "tile_feels_like_enabled"
+        const val KEY_TILE_WIND_ENABLED = "tile_wind_enabled"
+        const val KEY_TILE_HUMIDITY_ENABLED = "tile_humidity_enabled"
+        const val KEY_TILE_PAW_CHECK_ENABLED = "tile_paw_check_enabled"
+        const val KEY_TILE_UV_ENABLED = "tile_uv_enabled"
+        const val KEY_TILE_DAYLIGHT_ENABLED = "tile_daylight_enabled"
+        const val KEY_TILE_SKY_ENABLED = "tile_sky_enabled"
         const val DEFAULT_AIR_QUALITY_ENABLED = true
 
         const val KEY_OPENWEATHER_API_KEY = "openweather_api_key"
