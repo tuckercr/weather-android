@@ -114,7 +114,6 @@ Finished items move to Done at the bottom.
       Misty in a witch hat and Sunny in a pumpkin bandana; a purple card after dark with bats and
       a glowing pumpkin ("Too many doorbells. Misty is under the bed."). Mocked up 10-31. Best
       after the new hero art, and behind a Remote Config switch. (10-31)
-- [ ] Sunny's pronoun is still undecided; the copy avoids needing one. (10-26)
 - [ ] Kotlin Multiplatform, as a learning project. Low priority. (09-24)
 
 ## Version 2
