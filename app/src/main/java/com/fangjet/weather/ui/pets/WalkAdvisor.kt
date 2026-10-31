@@ -63,6 +63,9 @@ private fun HourlySlot.isWalkable(t: PetWeatherThresholds): Boolean {
  */
 private fun HourlySlot.hasBadAir(t: PetWeatherThresholds): Boolean = (airQuality?.band ?: 0) >= t.badAirBand
 
+/** Bad air in a walking hour: an hour the walk advice would otherwise have weighed up. */
+internal fun HourlySlot.hasBadAirForWalking(t: PetWeatherThresholds): Boolean = isDaytime(t) && hasBadAir(t)
+
 /** Whether the current conditions are rain, drizzle, snow or a thunderstorm (as [petMoodFor] reads them). */
 fun isPrecipitating(conditionMain: String): Boolean = conditionMain.lowercase() in setOf("thunderstorm", "snow", "rain", "drizzle")
 

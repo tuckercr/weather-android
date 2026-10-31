@@ -45,6 +45,23 @@ class GeocodingRepositoryTest {
         }
 
     @Test
+    fun `a place listed twice is suggested once at its first match`() =
+        runBlocking {
+            val api = FakeGeocodingApi(
+                response = listOf(
+                    GeocodingDirectDto(name = "Amsterdam", lat = 52.3728, lon = 4.8936, country = "NL", state = "North Holland"),
+                    GeocodingDirectDto(name = "Amsterdam", lat = 52.3676, lon = 4.9041, country = "NL", state = "North Holland"),
+                    GeocodingDirectDto(name = "Amsterdam", lat = 42.9387, lon = -74.1882, country = "US", state = "New York"),
+                ),
+            )
+
+            val suggestions = GeocodingRepository(api, "test-key").searchCities("Amsterdam").getOrThrow()
+
+            assertEquals(listOf("Amsterdam, North Holland, NL", "Amsterdam, New York, US"), suggestions.map { it.label })
+            assertEquals(4.8936, suggestions.first().weatherLon, 0.0001)
+        }
+
+    @Test
     fun `searchCities returns empty result for short query without calling api`() =
         runBlocking {
             val api = FakeGeocodingApi()
