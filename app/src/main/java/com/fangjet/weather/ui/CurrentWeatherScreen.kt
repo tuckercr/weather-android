@@ -899,7 +899,15 @@ private fun CurrentWeatherContent(
             .toLocalDate(),
     ) ?: petCaption(mood, weather.offsetSeconds)
     val walkAdvice =
-        remember(currentSlots, feelsLikeC, weather.conditionMain, weather.offsetSeconds, nowEpochSeconds, petWeatherThresholds) {
+        remember(
+            currentSlots,
+            feelsLikeC,
+            weather.conditionMain,
+            weather.offsetSeconds,
+            weather.sunsetEpoch,
+            nowEpochSeconds,
+            petWeatherThresholds,
+        ) {
             walkAdviceFor(
                 feelsLikeC,
                 currentSlots,
@@ -907,6 +915,7 @@ private fun CurrentWeatherContent(
                 thresholds = petWeatherThresholds,
                 utcOffsetSeconds = weather.offsetSeconds,
                 nowEpochSeconds = nowEpochSeconds,
+                sunsetEpochSeconds = weather.sunsetEpoch,
             )
         }
 
