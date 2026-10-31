@@ -114,6 +114,9 @@ Finished items move to Done at the bottom.
 
 - [ ] Small touches: tap the pets (Sunny wags, Misty ignores you), a "Sunny's take / Misty's
       take" line in the day detail. (10-26)
+- [ ] **Hero card layout.** Try other designs: the pets on the left with the text beside them, or
+      a more interesting text layout than one long centred list (conditions, city, temperature,
+      high and low, caption). (10-31)
 - [ ] **More seasonal themes** (Thanksgiving, winter holidays, the Fourth of July...). A theme
       that reuses existing decorations is only a new entry in Remote Config's `seasonal_themes`
       JSON; new props (a turkey, a scarf with lights) need drawing in both apps' `PetScene` and a
