@@ -41,6 +41,7 @@ import com.fangjet.weather.ui.theme.PetBatPurple
 import com.fangjet.weather.ui.theme.PetBolt
 import com.fangjet.weather.ui.theme.PetCatBelly
 import com.fangjet.weather.ui.theme.PetCatFur
+import com.fangjet.weather.ui.theme.PetCatInnerEar
 import com.fangjet.weather.ui.theme.PetCatNose
 import com.fangjet.weather.ui.theme.PetCloud
 import com.fangjet.weather.ui.theme.PetCollar
@@ -358,8 +359,10 @@ private fun DrawScope.drawCat(
     drawCircle(PetCatFur, 20f * s, p(95f, 80f + dy))
     poly(PetCatFur, s, 78f, 68f + dy, 82f, 50f + dy, 92f, 64f + dy)
     poly(PetCatFur, s, 98f, 64f + dy, 108f, 50f + dy, 112f, 68f + dy)
-    // A tuxedo cat, as on the app icon: a white blaze into white cheeks, a small pink nose, a "w"
-    // mouth and whiskers.
+    // A tuxedo cat, as on the app icon: pink inner ears, a white blaze into white cheeks, a small
+    // pink nose, a "w" mouth and whiskers.
+    poly(PetCatInnerEar, s, 81f, 64f + dy, 83.5f, 55f + dy, 89f, 62f + dy)
+    poly(PetCatInnerEar, s, 101f, 62f + dy, 106.5f, 55f + dy, 109f, 64f + dy)
     poly(PetCatBelly, s, 93f, 66f + dy, 97f, 66f + dy, 101f, 86f + dy, 89f, 86f + dy)
     oval(PetCatBelly, 90f, 90f + dy, 7.5f, 6.5f, s)
     oval(PetCatBelly, 100f, 90f + dy, 7.5f, 6.5f, s)
