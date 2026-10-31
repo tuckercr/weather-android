@@ -41,7 +41,6 @@ import com.fangjet.weather.ui.theme.PetBatPurple
 import com.fangjet.weather.ui.theme.PetBolt
 import com.fangjet.weather.ui.theme.PetCatBelly
 import com.fangjet.weather.ui.theme.PetCatFur
-import com.fangjet.weather.ui.theme.PetCatInnerEar
 import com.fangjet.weather.ui.theme.PetCatNose
 import com.fangjet.weather.ui.theme.PetCloud
 import com.fangjet.weather.ui.theme.PetCollar
@@ -54,7 +53,6 @@ import com.fangjet.weather.ui.theme.PetInk
 import com.fangjet.weather.ui.theme.PetInkOnNight
 import com.fangjet.weather.ui.theme.PetMoon
 import com.fangjet.weather.ui.theme.PetMoonUnlit
-import com.fangjet.weather.ui.theme.PetMouth
 import com.fangjet.weather.ui.theme.PetOutline
 import com.fangjet.weather.ui.theme.PetPumpkin
 import com.fangjet.weather.ui.theme.PetPumpkinFace
@@ -79,7 +77,6 @@ import com.fangjet.weather.ui.theme.PetStormCloud
 import com.fangjet.weather.ui.theme.PetSun
 import com.fangjet.weather.ui.theme.PetSunHot
 import com.fangjet.weather.ui.theme.PetTongue
-import com.fangjet.weather.ui.theme.PetTongueSoft
 import com.fangjet.weather.ui.theme.PetUmbrella
 import com.fangjet.weather.ui.theme.PetWitchHat
 import java.time.OffsetDateTime
@@ -361,10 +358,8 @@ private fun DrawScope.drawCat(
     drawCircle(PetCatFur, 20f * s, p(95f, 80f + dy))
     poly(PetCatFur, s, 78f, 68f + dy, 82f, 50f + dy, 92f, 64f + dy)
     poly(PetCatFur, s, 98f, 64f + dy, 108f, 50f + dy, 112f, 68f + dy)
-    // A tuxedo cat, as on the app icon: pink inner ears, a white blaze into white cheeks, a small
-    // pink nose, a "w" mouth and whiskers.
-    poly(PetCatInnerEar, s, 81f, 64f + dy, 83.5f, 55f + dy, 89f, 62f + dy)
-    poly(PetCatInnerEar, s, 101f, 62f + dy, 106.5f, 55f + dy, 109f, 64f + dy)
+    // A tuxedo cat, as on the app icon: a white blaze into white cheeks, a small pink nose, a "w"
+    // mouth and whiskers.
     poly(PetCatBelly, s, 93f, 66f + dy, 97f, 66f + dy, 101f, 86f + dy, 89f, 86f + dy)
     oval(PetCatBelly, 90f, 90f + dy, 7.5f, 6.5f, s)
     oval(PetCatBelly, 100f, 90f + dy, 7.5f, 6.5f, s)
@@ -419,28 +414,20 @@ private fun DrawScope.drawDog(
     }
     drawPath(brows, PetDogEar, style = Stroke(width = 1.6f * s, cap = StrokeCap.Round))
     eyes(mood, 152f, 168f, 72f, s)
-    oval(PetOutline, 160f, 81f, 5.6f, 4f, s)
-    if (mood == PetMood.NIGHT) {
-        // Asleep: the mouth is closed.
+    oval(PetOutline, 160f, 82f, 5f, 3.5f, s)
+    if (mood == PetMood.HOT) {
+        // Panting in the heat: the tongue hangs out.
+        oval(PetTongue, 160f, 94f, 4f, 7f, s)
+    } else {
         val smile = Path().apply {
             moveTo(154f * s, 88f * s)
-            quadraticTo(160f * s, 93f * s, 166f * s, 88f * s)
+            quadraticTo(160f * s, 94f * s, 166f * s, 88f * s)
         }
-        drawPath(smile, PetOutline, style = Stroke(width = 1.8f * s, cap = StrokeCap.Round))
-    } else {
-        oval(PetShine.copy(alpha = 0.6f), 158.4f, 79.8f, 1.6f, 0.9f, s)
-        val mouth = Path().apply {
-            moveTo(153f * s, 86.5f * s)
-            quadraticTo(160f * s, 97f * s, 167f * s, 86.5f * s)
-            close()
-        }
-        drawPath(mouth, PetMouth)
-        // Panting in the heat: the tongue hangs out.
-        if (mood == PetMood.HOT) oval(PetTongue, 160f, 95f, 3.8f, 6f, s) else oval(PetTongueSoft, 160f, 92.2f, 3.4f, 2.6f, s)
+        drawPath(smile, PetOutline, style = Stroke(width = 2f * s))
     }
 }
 
-/** Open eyes with a catch-light, or closed, smiling curves when the pets are asleep at night. */
+/** Open eyes, or closed lines when the pets are asleep at night. */
 private fun DrawScope.eyes(
     mood: PetMood,
     lx: Float,
@@ -450,14 +437,9 @@ private fun DrawScope.eyes(
 ) {
     listOf(lx, rx).forEach { x ->
         if (mood == PetMood.NIGHT) {
-            val closed = Path().apply {
-                moveTo((x - 3f) * s, y * s)
-                quadraticTo(x * s, (y + 2f) * s, (x + 3f) * s, y * s)
-            }
-            drawPath(closed, PetOutline, style = Stroke(width = 1.8f * s, cap = StrokeCap.Round))
+            drawLine(PetOutline, Offset((x - 3f) * s, y * s), Offset((x + 3f) * s, y * s), strokeWidth = 2f * s)
         } else {
-            drawCircle(PetOutline, 2.95f * s, Offset(x * s, y * s))
-            drawCircle(PetShine, 0.95f * s, Offset((x + 0.9f) * s, (y - 0.9f) * s))
+            drawCircle(PetOutline, 2.6f * s, Offset(x * s, y * s))
         }
     }
 }

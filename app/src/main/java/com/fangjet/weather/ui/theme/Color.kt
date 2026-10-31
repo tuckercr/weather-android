@@ -66,11 +66,8 @@ val PetMoonUnlit = Color(0xFF34416E)
 val PetGround = Color(0x33000000)
 val PetRouter = Color(0xFF4A5A6A)
 val PetRouterLight = Color(0xFF97C459)
-val PetCatInnerEar = Color(0xFFED93B1)
 val PetCatNose = Color(0xFFE8849A)
 val PetCollar = Color(0xFF185FA5)
-val PetMouth = Color(0xFF412402)
-val PetTongueSoft = Color(0xFFED93B1)
 val PetShine = Color(0xFFFFFFFF)
 
 // Seasonal decorations (SeasonalTheme).
