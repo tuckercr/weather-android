@@ -24,6 +24,11 @@ Finished items move to Done at the bottom.
 - [ ] **My Location: prefer the city name** over the neighbourhood OpenWeather reports
       ("Horinouchi" for central Tokyo). Needs a reverse-geocoding choice (Apple and Android's own
       geocoders, or OpenWeather's reverse lookup). (10-30)
+- [ ] **Hourly card too tall when the rain chance is off screen.** Every hour keeps a line for
+      the rain chance if any hour has one, so with rain only later in the day the hours on screen
+      end in an empty band. With no rain at all it sizes correctly (checked 10-31). Better: the
+      same height for every hour, with the chance under a slightly smaller icon in the icon's own
+      space, so the card never changes height and never has a gap. Both apps. (10-31)
 - [ ] **Android location: "Ask every time" never clears the permanently-denied flag**, so
       "Add My Location" stays hidden after a reset in system settings (review finding 3). (10-29)
 
