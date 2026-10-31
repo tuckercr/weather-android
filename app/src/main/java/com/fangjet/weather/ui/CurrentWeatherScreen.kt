@@ -958,22 +958,11 @@ private fun CurrentWeatherContent(
                         )
                         if (location != null) {
                             Spacer(modifier = Modifier.height(4.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = heroInk,
-                                )
-                                Text(
-                                    text = weather.cityName,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = heroInk,
-                                )
-                            }
+                            Text(
+                                text = weather.cityName,
+                                style = MaterialTheme.typography.titleLarge,
+                                color = heroInk,
+                            )
                         }
                         Text(
                             text = formatTemperature(weather.temperature, weather.units),
