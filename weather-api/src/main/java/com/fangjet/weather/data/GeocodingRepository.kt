@@ -24,7 +24,9 @@ class GeocodingRepository @Inject constructor(
             return Result.success(emptyList())
         }
         return runCatching {
-            api.directSearch(query = q, limit = 8, apiKey = key).map { it.toSuggestion() }
+            // The geocoder can list a place twice a few metres apart ("Amsterdam, North Holland, NL"),
+            // which looks broken. The first is its best match.
+            api.directSearch(query = q, limit = 8, apiKey = key).map { it.toSuggestion() }.distinctBy { it.label }
         }
     }
 
