@@ -21,8 +21,6 @@ Finished items move to Done at the bottom.
       card ("Storms from 4 PM, walk before 3"), and possibly the pets' hero line. Check that both
       forecast providers give thunderstorm codes hourly. Should storm hours also be dropped from
       suggested walks, like bad air? (10-30)
-- [ ] **Sunny and Misty in the hero card should look like the splash screen and app icon.** The
-      hero art is still the placeholder drawn in code (`PetScene`, both apps). (10-31)
 - [ ] **My Location: prefer the city name** over the neighbourhood OpenWeather reports
       ("Horinouchi" for central Tokyo). Needs a reverse-geocoding choice (Apple and Android's own
       geocoders, or OpenWeather's reverse lookup). (10-30)
@@ -111,10 +109,10 @@ Finished items move to Done at the bottom.
 
 - [ ] Small touches: tap the pets (Sunny wags, Misty ignores you), a "Sunny's take / Misty's
       take" line in the day detail. (10-26)
-- [ ] **Seasonal scenes**, starting with Halloween: an orange card by day with a jack-o'-lantern,
-      Misty in a witch hat and Sunny in a pumpkin bandana; a purple card after dark with bats and
-      a glowing pumpkin ("Too many doorbells. Misty is under the bed."). Mocked up 10-31. Best
-      after the new hero art, and behind a Remote Config switch. (10-31)
+- [ ] **More seasonal themes** (Thanksgiving, winter holidays, the Fourth of July...). A theme
+      that reuses existing decorations is only a new entry in Remote Config's `seasonal_themes`
+      JSON; new props (a turkey, a scarf with lights) need drawing in both apps' `PetScene` and a
+      name in `SceneDecoration`. (10-31)
 
 ## Version 2
 
@@ -135,6 +133,13 @@ Finished items move to Done at the bottom.
 
 ## Done
 
+- [x] Seasonal themes, with Halloween: JSON themes (fixed date, range or nth weekday), shipped
+      in the apps and replaceable from Remote Config (`seasonal_themes`,
+      `seasonal_themes_enabled`). Each sets the hero colours and caption, card tint, section and
+      tile header colours for light and dark mode, and the pets' decorations. Picked by the city's
+      own date, so it ends by itself. Not yet deployed to Firebase. (10-31)
+- [x] Sunny and Misty drawn after the app icon: Misty's white blaze, pink nose, whiskers and inner
+      ears; Sunny's eyebrows, open smile and a blue collar with a sun tag. (10-31)
 - [x] UV tile: the index, today's peak while it's ahead ("Peak 8 at 1 PM"), then "Shade for pale
       noses" on a high day with a dog. Every Today tile now has a Remote Config switch
       (`tile_*_enabled`); UV starts off. (10-30, done 10-31)
