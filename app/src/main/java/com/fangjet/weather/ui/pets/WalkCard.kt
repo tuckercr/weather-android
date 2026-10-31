@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -19,9 +20,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.fangjet.weather.R
+import com.fangjet.weather.ui.seasonalCardColor
 import com.fangjet.weather.ui.theme.WalkColdBg
 import com.fangjet.weather.ui.theme.WalkColdText
 import com.fangjet.weather.ui.theme.WalkGreatBg
@@ -48,9 +52,12 @@ fun WalkCard(
     val detail = walkDetail(advice).resolve()
     val caption = walkCaption(advice)?.resolve()
     val tint = ratingTint(advice.rating)
+    // Baloo 2 leaves more room under its baseline than the small title leaves above its capitals,
+    // so when the headline is the last line the text sits high beside the paw. Lowered to match.
+    val headlineLastOffset = with(LocalDensity.current) { 3.sp.toDp() }
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = seasonalCardColor()),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -63,7 +70,7 @@ fun WalkCard(
                 tint = tint,
                 modifier = Modifier.size(24.dp),
             )
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f).offset(y = if (caption == null) headlineLastOffset else 0.dp)) {
                 Text(
                     text = stringResource(R.string.walk_title),
                     style = MaterialTheme.typography.labelMedium,

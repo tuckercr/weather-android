@@ -3,6 +3,8 @@ package com.fangjet.weather.data
 import android.content.Context
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.PetWeatherThresholds
+import com.fangjet.weather.domain.SeasonalTheme
+import com.fangjet.weather.domain.SeasonalThemes
 import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.worker.NotificationKind
 import com.google.firebase.Firebase
@@ -74,6 +76,25 @@ class RemoteConfigRepository @Inject constructor(
      * Air quality comes from Open-Meteo, so it also needs [openMeteoEnabled].
      */
     fun airQualityEnabled(): Boolean = boolean(KEY_AIR_QUALITY_ENABLED) ?: DEFAULT_AIR_QUALITY_ENABLED
+
+    /**
+     * The seasonal themes to choose from: Remote Config's `seasonal_themes` when it's a valid list,
+     * else the list shipped in res/raw/seasonal_themes.json; none when `seasonal_themes_enabled` is
+     * off.
+     */
+    fun seasonalThemes(): List<SeasonalTheme> {
+        if (!(boolean(KEY_SEASONAL_THEMES_ENABLED) ?: DEFAULT_SEASONAL_THEMES_ENABLED)) return emptyList()
+        return string(KEY_SEASONAL_THEMES)?.takeIf { it.isNotBlank() }?.let(SeasonalThemes::parse) ?: builtInSeasonalThemes
+    }
+
+    private val builtInSeasonalThemes: List<SeasonalTheme> by lazy {
+        runCatching {
+            context.resources
+                .openRawResource(R.raw.seasonal_themes)
+                .bufferedReader()
+                .use { it.readText() }
+        }.getOrNull()?.let(SeasonalThemes::parse).orEmpty()
+    }
 
     /** One switch per Today tile, so any can be hidden for everyone. Air quality has its own, above. */
     fun todayTiles(): TodayTileSwitches {
@@ -277,6 +298,9 @@ class RemoteConfigRepository @Inject constructor(
         const val KEY_TILE_UV_ENABLED = "tile_uv_enabled"
         const val KEY_TILE_DAYLIGHT_ENABLED = "tile_daylight_enabled"
         const val KEY_TILE_SKY_ENABLED = "tile_sky_enabled"
+        const val KEY_SEASONAL_THEMES_ENABLED = "seasonal_themes_enabled"
+        const val KEY_SEASONAL_THEMES = "seasonal_themes"
+        const val DEFAULT_SEASONAL_THEMES_ENABLED = true
         const val DEFAULT_AIR_QUALITY_ENABLED = true
 
         const val KEY_OPENWEATHER_API_KEY = "openweather_api_key"

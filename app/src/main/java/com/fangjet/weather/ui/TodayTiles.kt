@@ -197,7 +197,7 @@ private fun Tile(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(seasonalCardColor())
             .padding(horizontal = 14.dp, vertical = 12.dp)
             .semantics(mergeDescendants = true) {},
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -207,8 +207,9 @@ private fun Tile(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            val headerColor = seasonalTileHeaderColor()
+            Icon(icon, contentDescription = null, tint = headerColor, modifier = Modifier.size(16.dp))
+            Text(label, style = MaterialTheme.typography.labelLarge, color = headerColor)
             if (trailing != null) {
                 Spacer(Modifier.weight(1f))
                 Text(

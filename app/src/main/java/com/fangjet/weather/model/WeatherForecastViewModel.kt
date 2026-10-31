@@ -11,6 +11,7 @@ import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.SavedLocation
+import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.util.resolveWeatherUnits
@@ -57,6 +58,7 @@ class WeatherForecastViewModel internal constructor(
     isWalkCardEnabled: () -> Boolean = { true },
     isAirQualityEnabled: () -> Boolean = { true },
     readTodayTiles: () -> TodayTileSwitches = { TodayTileSwitches() },
+    readSeasonalThemes: () -> List<SeasonalTheme> = { emptyList() },
     readPetWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
     // Remote Config foreground_refresh_min_minutes, read on every foreground resume. 0 = never throttle.
     private val foregroundRefreshMinMinutes: () -> Long = { 0L },
@@ -122,6 +124,7 @@ class WeatherForecastViewModel internal constructor(
         isWalkCardEnabled = remoteConfigRepository::walkCardEnabled,
         isAirQualityEnabled = remoteConfigRepository::airQualityEnabled,
         readTodayTiles = remoteConfigRepository::todayTiles,
+        readSeasonalThemes = remoteConfigRepository::seasonalThemes,
         readPetWeatherThresholds = remoteConfigRepository::petWeatherThresholds,
         foregroundRefreshMinMinutes = remoteConfigRepository::foregroundRefreshMinMinutes,
     )
@@ -137,6 +140,9 @@ class WeatherForecastViewModel internal constructor(
 
     /** Remote Config `tile_*_enabled`: which Today tiles show. */
     val todayTiles: TodayTileSwitches = readTodayTiles()
+
+    /** Remote Config `seasonal_themes` (or the shipped list); the screen picks today's by the city's date. */
+    val seasonalThemes: List<SeasonalTheme> = readSeasonalThemes()
 
     /** Remote Config pet-mood and walk-advice thresholds (validated; Celsius). */
     val petWeatherThresholds: PetWeatherThresholds = readPetWeatherThresholds()
