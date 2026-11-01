@@ -134,6 +134,7 @@ import com.fangjet.weather.util.ReadingDay
 import com.fangjet.weather.util.UpdatePrompt
 import com.fangjet.weather.util.forecastAsCurrent
 import com.fangjet.weather.util.fromCurrentSlot
+import com.fangjet.weather.util.iconCodeAt
 import com.fangjet.weather.util.isTooOldToShowAsNow
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.readingDay
@@ -857,8 +858,6 @@ private fun CurrentWeatherContent(
     val upcomingDays = if (todayForecast != null) forecastDays.drop(1) else forecastDays
     var selectedDay by remember { mutableStateOf<DayForecast?>(null) }
     val feelsLikeC = weather.units.toCelsius(weather.feelsLike)
-    val mood = petMoodFor(weather.conditionMain, weather.iconCode, feelsLikeC, petWeatherThresholds)
-    val ink = mood.inkColor
     // Slots from the one in progress onwards. "Now" is re-read whenever the forecast changes,
     // whenever the screen resumes and every half hour while it stays open, so a cached forecast,
     // a failed refresh or an app left open for hours never shows (or advises on) past hours.
@@ -881,6 +880,10 @@ private fun CurrentWeatherContent(
             .now()
             .epochSecond
     }
+    // Day or night by the clock, so a reading cached before sunset doesn't flash the daytime hero.
+    val iconCodeNow = weather.iconCodeAt(nowEpochSeconds)
+    val mood = petMoodFor(weather.conditionMain, iconCodeNow, feelsLikeC, petWeatherThresholds)
+    val ink = mood.inkColor
     val currentSlots = remember(forecastDays, nowEpochSeconds) {
         forecastDays.flatMap { it.hourlySlots }.fromCurrentSlot(nowEpochSeconds)
     }
@@ -1029,7 +1032,7 @@ private fun CurrentWeatherContent(
             val detailsSection: @Composable () -> Unit = {
                 SectionHeader(R.string.section_today)
                 // UV is always 0 after dark, so only show it in the daytime (OWM night icons end in "n").
-                val isNight = weather.iconCode.endsWith("n")
+                val isNight = iconCodeNow.endsWith("n")
                 TodayTiles(
                     weather = weather,
                     showingForecast = showingForecast,
