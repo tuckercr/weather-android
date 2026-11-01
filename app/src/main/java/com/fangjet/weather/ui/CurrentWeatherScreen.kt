@@ -897,7 +897,7 @@ private fun CurrentWeatherContent(
             .ofEpochSecond(nowEpochSeconds)
             .atOffset(java.time.ZoneOffset.ofTotalSeconds(weather.offsetSeconds))
             .toLocalDate(),
-    ) ?: petCaption(mood, weather.offsetSeconds)
+    ) ?: petCaption(mood, weather.offsetSeconds, hasDog = dogWalking)
     val walkAdvice =
         remember(
             currentSlots,

@@ -2,7 +2,12 @@ package com.fangjet.weather.ui.pets
 
 import com.fangjet.weather.domain.PetWeatherThresholds
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.w3c.dom.Element
+import java.io.File
+import javax.xml.parsers.DocumentBuilderFactory
 
 class PetMoodTest {
 
@@ -48,5 +53,36 @@ class PetMoodTest {
         assertEquals(NightPart.LATE_NIGHT, nightPartAt(3))
         assertEquals(NightPart.BEFORE_DAWN, nightPartAt(5))
         assertEquals(NightPart.BEFORE_DAWN, nightPartAt(7))
+    }
+
+    @Test
+    fun `without a dog, no caption mentions walks or paws`() {
+        val noDog = captionLists().filterKeys { it.endsWith("_no_dog") }
+        assertTrue(noDog.isNotEmpty())
+        noDog.values.flatten().forEach { assertFalse(it, walkWords.containsMatchIn(it)) }
+    }
+
+    @Test
+    fun `every caption list with a walk in it has a no-dog version`() {
+        val lists = captionLists()
+        lists
+            .filter { (name, captions) -> !name.endsWith("_no_dog") && captions.any(walkWords::containsMatchIn) }
+            .keys
+            .forEach { assertTrue("$it has no no-dog version", "${it}_no_dog" in lists) }
+    }
+
+    private val walkWords = Regex("walk|stroll|paws|dog", RegexOption.IGNORE_CASE)
+
+    /** The shipped pet caption lists, by resource name. */
+    private fun captionLists(): Map<String, List<String>> {
+        val strings = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(File("src/main/res/values/strings.xml"))
+        val arrays = strings.getElementsByTagName("string-array")
+        return (0 until arrays.length)
+            .map { arrays.item(it) as Element }
+            .filter { it.getAttribute("name").startsWith("pet_caption_") }
+            .associate { array ->
+                val items = array.getElementsByTagName("item")
+                array.getAttribute("name") to (0 until items.length).map { items.item(it).textContent }
+            }
     }
 }
