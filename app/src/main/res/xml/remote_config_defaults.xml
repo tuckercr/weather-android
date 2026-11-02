@@ -57,7 +57,7 @@
     </entry>
     <entry>
         <key>rain_notifications_enabled</key>
-        <value>true</value>
+        <value>false</value>
     </entry>
     <!-- Skip the silent foreground-resume refresh if this city was fetched within this many
          minutes (0..1440). 0 always refreshes. Pull-to-refresh is never throttled. -->
