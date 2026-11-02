@@ -15,6 +15,8 @@ Finished items move to Done at the bottom.
 - [ ] **App Store submission.** The listing is filled in (10-31). Before Add for Review: publish
       App Privacy (it asks you to confirm the answers), answer Content Rights once the licences
       below are settled, and pick a build on the version page. Release is set to manual.
+- [ ] **App Store Connect description** still says "a heads-up before rain"; rain alerts are off
+      for the first release. The suggested description in listing-review.html is updated. (11-02)
 - [ ] **Add Jessica to the TestFlight "Family" group** once she accepts the App Store Connect
       invitation (sent 10-31). (10-31)
 - [ ] **Storms in the dog walking line, and maybe the hero text.** Warn about thunder in the walk
@@ -53,13 +55,6 @@ Finished items move to Done at the bottom.
 
 ## Notifications
 
-- [ ] **Rain alerts in the first release?** They're hit or miss on both platforms: an alert only
-      goes if a refresh happens to run in the hour (Android) or two (iOS) before the rain, and
-      background refreshes get rare when the phone sits idle or the app is swiped away (iOS). To
-      switch them off: `rain_notifications_enabled` false in Remote Config (hides the Settings
-      switch, keeps people's choice) and in both apps' built-in defaults, and drop "a heads-up
-      before rain" from the store listing and the website's home, privacy and support pages.
-      (11-02)
 - [ ] **Briefing by push.** Each phone subscribes to a Firebase Cloud Messaging topic for its time
       zone; a scheduled Cloud Function sends a plain push to each zone at 8:30. On iOS a
       notification service extension fetches the weather and writes the briefing, falling back to
@@ -149,7 +144,11 @@ Finished items move to Done at the bottom.
 
 ## Version 2
 
-- [ ] Home screen widget: the pets reacting to the weather, plus the next walk time. (10-26)
+- [ ] Home screen widget: the pets reacting to the weather, plus the next walk time. (10-26) On
+      iOS it would also help the notifications: iOS reloads a widget on its own budget, even after
+      the app is swiped away, and each reload could refresh the weather and re-queue the
+      briefings and walk nudges (check that a widget extension may queue notifications). Only
+      for people who add it, and no help to rain alerts. (11-02)
 - [ ] Kotlin Multiplatform, as a learning project. Low priority. (09-24)
 - [x] Pollen: free from Open-Meteo for Europe only. The US needs a paid provider (Google Pollen,
       Tomorrow.io, Ambee). Moved to version 2. (10-30, decided 10-31)
@@ -166,6 +165,10 @@ Finished items move to Done at the bottom.
 
 ## Done
 
+- [x] Rain alerts off for the first release: `rain_notifications_enabled` false in Remote Config
+      (deployed 11-02) and in both apps' built-in defaults, so the Settings switch and the
+      onboarding line stay hidden from the first launch; Android doesn't make the channel. The
+      website's home, privacy and support pages no longer mention them. (11-02)
 - [x] iOS: what queued notifications say follows how old the weather is, since they go off
       whether or not iOS has refreshed. Within a day of the fetch a briefing gives the hour's
       weather and the walk, and walk nudges are queued; up to 3 days, "Today's forecast for
