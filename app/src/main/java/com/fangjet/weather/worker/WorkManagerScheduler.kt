@@ -50,13 +50,30 @@ class WorkManagerScheduler @Inject constructor(
      * background refresh instead, which runs every half hour or so.
      */
     private fun scheduleNotifications(wm: WorkManager) {
-        // The old 9 AM / 1 PM / 7 PM briefings.
+        // The old 9 AM / 1 PM / 7 PM briefings, and the 8:30 run from before it kept to 8:30.
         LEGACY_NOTIFICATION_HOURS.forEach { wm.cancelUniqueWork("weather_notification_${it}h") }
+        wm.cancelUniqueWork(LEGACY_MORNING_WORK_NAME)
         val request = PeriodicWorkRequestBuilder<WeatherNotificationWorker>(1, TimeUnit.DAYS)
             .setInitialDelay(millisUntilNext(BRIEFING_HOUR, BRIEFING_MINUTE), TimeUnit.MILLISECONDS)
             .setConstraints(networkConstraints())
             .build()
         wm.enqueueUniquePeriodicWork(MORNING_WORK_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
+    }
+
+    /**
+     * Puts the 8:30 run's next start back on 8:30, for the run itself to call when it's done. Daily
+     * work otherwise comes round a day after it last ran, so a run Android held back made every
+     * later briefing that much later too. UPDATE leaves the run under way alone.
+     */
+    fun keepBriefingAtHalfPastEight() {
+        val next = System.currentTimeMillis() + millisUntilNext(BRIEFING_HOUR, BRIEFING_MINUTE)
+        val request = PeriodicWorkRequestBuilder<WeatherNotificationWorker>(1, TimeUnit.DAYS)
+            .setNextScheduleTimeOverride(next)
+            .setConstraints(networkConstraints())
+            .build()
+        WorkManager
+            .getInstance(context)
+            .enqueueUniquePeriodicWork(MORNING_WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 
     /** The walk-time nudge at [epochSeconds]; replaces any already planned. */
@@ -78,7 +95,8 @@ class WorkManagerScheduler @Inject constructor(
     companion object {
         private const val WORK_NAME = "weather_background_update"
         private const val MIN_INTERVAL_MINUTES = 15L // WorkManager platform minimum
-        private const val MORNING_WORK_NAME = "notification_morning"
+        private const val MORNING_WORK_NAME = "notification_briefing"
+        private const val LEGACY_MORNING_WORK_NAME = "notification_morning"
         private const val WALK_WORK_NAME = "notification_walk_time"
         private const val BRIEFING_HOUR = 8
         private const val BRIEFING_MINUTE = 30

@@ -82,22 +82,42 @@ class WorkManagerSchedulerTest {
     fun `the morning run is daily, keeps an existing schedule, and starts within a day`() {
         scheduler().schedule()
 
-        val (policy, request) = periodic.getValue("notification_morning")
+        val (policy, request) = periodic.getValue("notification_briefing")
         assertEquals(ExistingPeriodicWorkPolicy.KEEP, policy)
         assertEquals(TimeUnit.DAYS.toMillis(1), request.workSpec.intervalDuration)
         assertEquals(WeatherNotificationWorker::class.java.name, request.workSpec.workerClassName)
         assertEquals(NetworkType.CONNECTED, request.workSpec.constraints.requiredNetworkType)
         assertTrue(request.workSpec.initialDelay in 1..TimeUnit.DAYS.toMillis(1))
-        assertEquals(setOf("weather_background_update", "notification_morning"), periodic.keys)
+        assertEquals(setOf("weather_background_update", "notification_briefing"), periodic.keys)
     }
 
     @Test
-    fun `the old 9, 13 and 19 o'clock briefings are cancelled`() {
+    fun `the old 9, 13 and 19 o'clock briefings and the drifting 8-30 run are cancelled`() {
         scheduler().schedule()
 
         listOf(9, 13, 19).forEach { hour ->
             verify { workManager.cancelUniqueWork("weather_notification_${hour}h") }
         }
+        verify { workManager.cancelUniqueWork("notification_morning") }
+    }
+
+    @Test
+    fun `after a run, the next one is put back on the next 8-30 without stopping this one`() {
+        val before = System.currentTimeMillis()
+
+        scheduler().keepBriefingAtHalfPastEight()
+
+        val (policy, request) = periodic.getValue("notification_briefing")
+        assertEquals(ExistingPeriodicWorkPolicy.UPDATE, policy)
+        assertEquals(WeatherNotificationWorker::class.java.name, request.workSpec.workerClassName)
+        assertEquals(TimeUnit.DAYS.toMillis(1), request.workSpec.intervalDuration)
+        assertEquals(NetworkType.CONNECTED, request.workSpec.constraints.requiredNetworkType)
+        val next = request.workSpec.nextScheduleTimeOverride
+        assertTrue("next $next", next in before + 1..System.currentTimeMillis() + TimeUnit.DAYS.toMillis(1))
+        val local = java.time.Instant
+            .ofEpochMilli(next)
+            .atZone(ZoneId.systemDefault())
+        assertEquals(8 to 30, local.hour to local.minute)
     }
 
     // --- walk time ---

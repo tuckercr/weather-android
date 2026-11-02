@@ -15,6 +15,8 @@ Finished items move to Done at the bottom.
 - [ ] **App Store submission.** The listing is filled in (10-31). Before Add for Review: publish
       App Privacy (it asks you to confirm the answers), answer Content Rights once the licences
       below are settled, and pick a build on the version page. Release is set to manual.
+- [ ] **App Store Connect description** still says "a heads-up before rain"; rain alerts are off
+      for the first release. The suggested description in listing-review.html is updated. (11-02)
 - [ ] **Add Jessica to the TestFlight "Family" group** once she accepts the App Store Connect
       invitation (sent 10-31). (10-31)
 - [ ] **Storms in the dog walking line, and maybe the hero text.** Warn about thunder in the walk
@@ -53,9 +55,62 @@ Finished items move to Done at the bottom.
 
 ## Notifications
 
-- [ ] Captions like "Perfect walkies weather!" still show without a dog. You said to leave the dog
-      walking strings for now. (10-28)
+- [ ] **Briefing by push.** Each phone subscribes to a Firebase Cloud Messaging topic for its time
+      zone; a scheduled Cloud Function sends a plain push to each zone at 8:30. On iOS a
+      notification service extension fetches the weather and writes the briefing, falling back to
+      "Tap to see today's weather.". The server only knows time zones, never locations. Always
+      fresh and on time on both platforms, and it replaces the iOS 7-day queue and the Android
+      8:30 job. Needs Firebase's pay-as-you-go plan for Cloud Functions and an APNs key in
+      Firebase. (11-02)
+- [ ] **Rain alerts by push.** The server keeps each phone's rough location, checks the 15-minute
+      forecast every 15 minutes and pushes when rain is about to start. The only reliable way on
+      both platforms (a visible push arrives even when the app was swiped away). Costs:
+      approximate locations on a server (App Store privacy label and Play Data safety change),
+      weather API calls per location, more server code. (11-02)
+- [ ] **Without a server**, a partial fix. Android: an inexact alarm (`setAndAllowWhileIdle`, no
+      permission or Play declaration) for 8:30 and for about 45 minutes before forecast rain, set
+      again by each background refresh; it goes off on an idle phone, at worst an hour late. iOS:
+      queue rain alerts further ahead from the hourly forecast ("Rain likely around 4 PM"), less
+      precise. (11-02)
+- [ ] **Android walk time gaps.** With the briefing off, a best walk time less than 30 minutes
+      after 8:30 gets no nudge at all. Turning Walk time on, or saying you have a dog, during the
+      day plans nothing until the next morning. (11-02)
 - Won't do: let people choose the morning briefing time; it stays at 8:30. (10-26, decided 10-31)
+
+## From the 11-02 code review
+
+Found reviewing the iOS changes since TestFlight build 1; where Android works the same way it's
+noted. Checked against the code, not fixed yet.
+
+- [ ] **Sunny's coat on the sunny sky.** The lighter coat (#E9B158) is hard to tell from the
+      sunny sky (#FAC775), and the walk nudge's picture is always the sunny scene. It was lightened
+      for the old Halloween card, which has since changed. Try a couple of coat colours side by
+      side. Both apps.
+- [ ] **Air quality switched off still reaches the walk.** With `air_quality_enabled` off the Air
+      tile goes, but the walk card and the briefing keep using the air data in the cached forecast
+      until it's fetched again. Both apps.
+- [ ] **Seasonal theme at night.** The night look (colours, caption, costumes off, lit pumpkin)
+      follows the night mood, so on a rainy or freezing Halloween evening the day look shows; go by
+      the clock instead. The night caption also shows from midnight on the 31st ("Too many
+      doorbells" at 3 AM). Both apps.
+- [ ] **Witch hat over the umbrella.** On a rainy Halloween Misty's hat is drawn over the umbrella;
+      and a theme with only the hat would take Sunny's sunglasses or scarf off too. Both apps.
+- [ ] **Halloween contrast.** Tile labels (#C25E00 on #FCE9D2) are 3.6:1, under the 4.5:1 AA needs;
+      the day pumpkin and Misty's grey fur barely show on the #B4500C hero, and one bat on the night
+      hero. Fixable in Remote Config before next Halloween.
+- [ ] **UV tile** (off by default). The peak only counts hours from the last fetch, so in the
+      afternoon it says "At today's peak" (and loses "Shade for pale noses"); a day of all-zero UV
+      reads "Peak 0". Turning the Daylight tile off also shows the UV tile, whatever
+      `tile_uv_enabled` says. Both apps.
+- [ ] **Theme captions and the no-dog rule.** A theme's captions show whether or not there's a dog,
+      so a future one about walks would reach people with Dog walking off (none mention walks yet).
+      Both apps.
+- [ ] **Wording.** Bad air led by coarse particles (dust) is called "Smoky air today". "Then rain"
+      or "then maybe rain" goes by the raw rain chance while the hourly strip rounds it (55% shows
+      60% but says "maybe rain"). With `walk_bad_air_band` at 4 or 5 the walk card's "Air's not
+      great" can disagree with the Air tile. Both apps.
+- [ ] **City search.** Two places with the same name, state and country (two "Richmond, England,
+      GB") show as one row, so the second can't be picked. Both apps.
 
 ## Location
 
@@ -124,7 +179,11 @@ Finished items move to Done at the bottom.
 
 ## Version 2
 
-- [ ] Home screen widget: the pets reacting to the weather, plus the next walk time. (10-26)
+- [ ] Home screen widget: the pets reacting to the weather, plus the next walk time. (10-26) On
+      iOS it would also help the notifications: iOS reloads a widget on its own budget, even after
+      the app is swiped away, and each reload could refresh the weather and re-queue the
+      briefings and walk nudges (check that a widget extension may queue notifications). Only
+      for people who add it, and no help to rain alerts. (11-02)
 - [ ] Kotlin Multiplatform, as a learning project. Low priority. (09-24)
 - [x] Pollen: free from Open-Meteo for Europe only. The US needs a paid provider (Google Pollen,
       Tomorrow.io, Ambee). Moved to version 2. (10-30, decided 10-31)
@@ -141,6 +200,40 @@ Finished items move to Done at the bottom.
 
 ## Done
 
+- [x] From the 11-02 review, fixed:
+      - Walk reminders survive a replan after 8:30. Opening the app or tapping the briefing used
+        to delete that day's (and usually tomorrow's); there's still at most one a day. iOS.
+      - Queued notifications are dated by when the forecast was fetched, not the current
+        reading's time, so tapping the briefing no longer costs tomorrow's its weather. iOS.
+      - A Remote Config theme can leave out its day or night captions; iOS used to drop the whole
+        list.
+      - The walk card no longer says "Now is a great time" after sunset, and a reading from an
+        earlier day uses today's sunrise and sunset in the Daylight tile and walk card. Both apps.
+      - "Today's forecast" briefings use the city's day, and a walk reminder's bad-air note looks
+        from the walk on, as on Android. iOS.
+      - The listing and READMEs say rain alerts are off, and the READMEs list the tile and theme
+        switches.
+      - One Remote Config theme this version can't read is skipped instead of dropping the whole
+        list. Both apps.
+      - Tidy-ups: the walk rules live in one place (both apps); on iOS the theme list is decoded
+        once per Remote Config value, each tile's default is written once, the briefing's walk and
+        bad-air checks share one "rest of the day", theme colours reuse `Color(hex:)`, and
+        `SeasonalThemeTests` reads dates the same on any calendar. (11-02)
+- [x] Rain alerts off for the first release: `rain_notifications_enabled` false in Remote Config
+      (deployed 11-02) and in both apps' built-in defaults, so the Settings switch and the
+      onboarding line stay hidden from the first launch; Android doesn't make the channel. The
+      website's home, privacy and support pages no longer mention them. (11-02)
+- [x] iOS: what queued notifications say follows how old the weather is, since they go off
+      whether or not iOS has refreshed. Within a day of the fetch a briefing gives the hour's
+      weather and the walk, and walk nudges are queued; up to 3 days, "Today's forecast for
+      Knoxville" with the high and low; later, "Tap to see today's weather.". The briefing's
+      picture is the forecast at 8:30, not the weather when it was planned (often the night
+      scene). (11-02)
+- [x] Android: the morning briefing is back on 8:30 every day. Each run was due a day after the
+      last one finished, so every held-back run made the rest later (11:46 AM on the Pixel after
+      four days). Each run now sets the next for the following 8:30. (11-01)
+- [x] Captions without a dog: with Dog walking off, no-dog lists swap the walks and paw care for
+      things Misty would do ("No sun, no problem. The birds are still out, says Misty."). (11-01)
 - [x] Seasonal themes, with Halloween: JSON themes (fixed date, range or nth weekday), shipped
       in the apps and replaceable from Remote Config (`seasonal_themes`,
       `seasonal_themes_enabled`). Each sets the hero colours and caption, card tint, section and
