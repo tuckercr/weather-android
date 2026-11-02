@@ -214,7 +214,7 @@ emulator with a clean status bar:
      with "· Debug build" in debug builds).
 7. **Notifications**: WorkManager runs the 8:30 AM briefing (unless `daily_weather_notifications_enabled`
    is off), which also plans the one-off walk-time nudge, and refreshes
-   the notification city's cached data (My Location when saved, otherwise the first city) in the background every `weather_refresh_interval_minutes`; the
+   the notification city's cached data (My Location when saved, otherwise the first city), and the city tab last viewed when it's another one, in the background every `weather_refresh_interval_minutes`; the
    schedule survives reboots.
 8. **Error handling**: network failures, HTTP errors, empty API keys, and malformed payloads all
    surface as inline error messages with *Retry* where appropriate.
