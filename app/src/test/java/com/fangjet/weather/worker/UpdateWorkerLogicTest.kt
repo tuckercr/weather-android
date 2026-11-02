@@ -187,6 +187,66 @@ class UpdateWorkerLogicTest {
         }
 
     @Test
+    fun `also refreshes the tab last viewed when it isn't the notification city, without an alert`() =
+        runTest {
+            val cachedWeather = mutableListOf<String>()
+            val cachedForecast = mutableListOf<String>()
+            val alerted = mutableListOf<String>()
+            val logic = logic(
+                savedLocations = listOf(london, cityByName),
+                activeIndex = 1,
+                cacheCurrentWeather = { key, _ -> cachedWeather += key },
+                cacheForecast = { key, _ -> cachedForecast += key },
+                afterRefresh = { location, _, _ -> alerted += location.cacheKey },
+            )
+
+            assertEquals(Result.success(), logic.doWork())
+            assertEquals(listOf(london.cacheKey, cityByName.cacheKey), cachedWeather)
+            assertEquals(listOf(london.cacheKey, cityByName.cacheKey), cachedForecast)
+            // The rain alert is only ever for the notification city.
+            assertEquals(listOf(london.cacheKey), alerted)
+        }
+
+    @Test
+    fun `the notification city is fetched once when it's also the tab last viewed`() =
+        runTest {
+            var fetches = 0
+            val logic = logic(
+                savedLocations = listOf(london, cityByName),
+                activeIndex = 0,
+                fetchCurrentWeather = { u, _, _, _ ->
+                    fetches++
+                    kotlin.Result.success(weather(units = u))
+                },
+            )
+
+            logic.doWork()
+
+            assertEquals(1, fetches)
+        }
+
+    @Test
+    fun `the result goes by the notification city, not the tab last viewed`() =
+        runTest {
+            val offline = kotlin.Result.failure<Nothing>(RuntimeException("offline"))
+
+            fun failingFor(location: SavedLocation) =
+                logic(
+                    savedLocations = listOf(london, cityByName),
+                    activeIndex = 1,
+                    fetchCurrentWeather = { u, label, _, _ ->
+                        if (label == location.label) offline else kotlin.Result.success(weather(units = u))
+                    },
+                    fetchForecast = { u, label, _, _ ->
+                        if (label == location.label) offline else kotlin.Result.success(listOf(forecast(units = u)))
+                    },
+                )
+
+            assertEquals(Result.success(), failingFor(cityByName).doWork())
+            assertEquals(Result.retry(), failingFor(london).doWork())
+        }
+
+    @Test
     fun `a failing rain alert step does not fail the refresh`() =
         runTest {
             val cachedKeys = mutableListOf<String>()
@@ -203,6 +263,7 @@ class UpdateWorkerLogicTest {
 
     private fun logic(
         savedLocations: List<SavedLocation> = listOf(london),
+        activeIndex: Int? = null,
         units: WeatherUnits = WeatherUnits.IMPERIAL,
         fetchCurrentWeather: suspend (WeatherUnits, String, Double?, Double?) -> kotlin.Result<CurrentWeather> =
             { u, _, _, _ -> kotlin.Result.success(weather(units = u)) },
@@ -213,6 +274,7 @@ class UpdateWorkerLogicTest {
         afterRefresh: suspend (SavedLocation, CurrentWeather?, List<DayForecast>?) -> Unit = { _, _, _ -> },
     ) = UpdateWorkerLogic(
         getSavedLocations = { savedLocations },
+        getActiveIndex = { activeIndex },
         getUnits = { units },
         fetchCurrentWeather = fetchCurrentWeather,
         fetchForecast = fetchForecast,

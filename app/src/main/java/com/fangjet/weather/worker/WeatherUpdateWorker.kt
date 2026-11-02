@@ -28,6 +28,7 @@ class WeatherUpdateWorker @AssistedInject constructor(
 
     private val logic = UpdateWorkerLogic(
         getSavedLocations = { preferencesRepository.savedLocations.first() },
+        getActiveIndex = { preferencesRepository.activeLocationIndex.first() },
         getUnits = {
             // Honor the user's unit override so the background worker never writes a different
             // unit system into the cache than a foreground refresh would.
