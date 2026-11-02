@@ -35,7 +35,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
   in the module that has no matching test.
 - Release builds need `OWM_API_KEY` and the keystore entries (`KEYSTORE_PATH`, `KEYSTORE_PASSWORD`,
   `KEY_ALIAS`, `KEY_PASSWORD`) in `local.properties`, and stop at the start if any is missing. Bump
-  `versionCode` in `app/build.gradle.kts` for every Play upload. Without `app/google-services.json`
+  `build` in `app/build.gradle.kts` for every Play upload; build N is version 1.0.(N-1). Without `app/google-services.json`
   Firebase does nothing and Remote Config uses the in-app defaults.
 - Connected tests uninstall the app afterwards, wiping its data: run them on an emulator, never on
   the user's phone. Installing a debug build on the phone is fine; don't drive its UI.
