@@ -82,7 +82,9 @@ WorkManager, and CI on GitHub Actions.
   - *Walk time* (only with a dog): the morning run plans a nudge for the day's best walk time, which
     checks again when it's due and only goes if now is still a great time (and there's still a dog).
   - *Rain alerts* (off): the background refresh alerts up to an hour before rain or snow starts,
-    from the 15-minute forecast, between 7 AM and 9 PM city time, once per shower.
+    from the 15-minute forecast, between 7 AM and 9 PM city time, once per shower. Switched off for
+    everyone in the first release (`rain_notifications_enabled`), since an alert depends on a
+    refresh landing in the hour before the rain.
   `daily_weather_notifications_enabled` switches the briefing off remotely.
 - **Unit selection**: System default, Celsius (metric), or Fahrenheit (imperial), chosen in
   Settings. Visibility follows in miles or km (see [Units](#units)).
@@ -290,7 +292,7 @@ Settings → About → *Privacy Policy*.
 
 ## Remote Config
 
-Server-tunable values (17 parameters), so behaviour can change without shipping an update. The
+Server-tunable values, so behaviour can change without shipping an update. The
 app never blocks on a fetch: it starts from the in-app defaults in
 [`remote_config_defaults.xml`](app/src/main/res/xml/remote_config_defaults.xml), reads the last
 activated values on cold start, and refreshes in the background at most hourly. Every read is
@@ -309,7 +311,7 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `android_min_recommended_version` | string | `""` | Below this version a banner under the city tabs suggests updating; "Not now" hides it for a week. Empty never asks |
 | `daily_weather_notifications_enabled` | boolean | `true` | The 8:30 AM morning briefing; false skips it (the morning run still plans the walk-time nudge) and hides its switch in Settings |
 | `walk_time_notifications_enabled` | boolean | `true` | The Walk time nudge; false stops planning and posting it and hides its switch in Settings |
-| `rain_notifications_enabled` | boolean | `true` | Rain alerts; false stops them and hides their switch in Settings |
+| `rain_notifications_enabled` | boolean | `false` | Rain alerts; false stops them and hides their switch in Settings (keeping the user's choice), and the Rain alerts channel isn't made. Off for the first release |
 | `foreground_refresh_min_minutes` | number | `0` | Skips the silent refresh on returning to the foreground if that city's weather (or forecast, tracked separately) was fetched within this many minutes in this session; outside 0–1440 falls back to 0, which always refreshes. Pull-to-refresh, retry and switching cities are never throttled |
 | `walk_hot_pavement_c` | number | `52` | Pavement °C at or above which the walk rating is *Paws hot* and that hour is not walkable; valid 40–70 |
 | `walk_warm_pavement_c` | number | `45` | Pavement °C at or above which the Today Paw check tile says *Getting hot* and that hour is not suggested for a walk (a walk now rates *Okay*); valid 30–65, and below `walk_hot_pavement_c` (otherwise 7 below it) |
@@ -324,6 +326,10 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `pet_cold_threshold_c` | number | `0` | At or below this °C (feels-like) the pets look cold and the walk rating is *Too cold*; valid -20–10, and below `pet_hot_threshold_c` |
 | `walk_bad_air_band` | number | `3` | Air quality band (0 good to 5 worst) from which hours aren't suggested for a walk and the walk rating is *Bad air*. 3 is US "Unhealthy" and Europe's "Poor"; valid 1–5 |
 | `analytics_enabled` | boolean | `true` | Analytics kill switch; see [Gates](#gates) |
+| `tile_feels_like_enabled`, `tile_wind_enabled`, `tile_humidity_enabled`, `tile_paw_check_enabled`, `tile_daylight_enabled`, `tile_sky_enabled` | boolean | `true` | One switch per Today tile; false hides that tile for everyone |
+| `tile_uv_enabled` | boolean | `false` | The UV index tile; while off, UV stays in the Daylight tile's header (it still gets its own tile when there's no Daylight tile) |
+| `seasonal_themes_enabled` | boolean | `true` | Seasonal themes (Halloween and so on); false switches them all off |
+| `seasonal_themes` | string | the built-in list | The themes as a JSON list (format: `SeasonalTheme`), replacing the list built into the apps (`res/raw/seasonal_themes.json`) when valid; empty keeps it. A new theme for a fixed date, a date range or an nth weekday needs no app update |
 
 The walk and pet-mood thresholds are always Celsius, whatever units the user picks. A value outside
 its valid range (or a fractional value for a whole-number key) falls back to its default, and so
