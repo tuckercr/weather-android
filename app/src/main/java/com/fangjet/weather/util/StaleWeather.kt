@@ -15,6 +15,31 @@ const val STALE_CURRENT_AFTER_SECONDS = 3 * 60 * 60L
 fun CurrentWeather.isTooOldToShowAsNow(nowEpochSeconds: Long): Boolean =
     observedAtEpochSeconds?.let { nowEpochSeconds - it > STALE_CURRENT_AFTER_SECONDS } ?: false
 
+/** A reading this old has its icon's day or night ending checked against the clock. */
+const val DAY_NIGHT_RECHECK_AFTER_SECONDS = 30 * 60L
+
+/**
+ * [CurrentWeather.iconCode] with its day or night ending ("d" or "n") for [nowEpochSeconds] rather
+ * than for when the reading was taken, from the city's sunrise and sunset by time of day. A reading
+ * cached before sunset would otherwise put up the daytime hero after dark until the refresh lands.
+ * Readings under half an hour old, and ones without sun times, keep OpenWeather's icon.
+ */
+fun CurrentWeather.iconCodeAt(nowEpochSeconds: Long): String {
+    val observedAt = observedAtEpochSeconds ?: return iconCode
+    val sunrise = sunriseEpoch ?: return iconCode
+    val sunset = sunsetEpoch ?: return iconCode
+    if (nowEpochSeconds - observedAt < DAY_NIGHT_RECHECK_AFTER_SECONDS) return iconCode
+    if (!iconCode.endsWith("d") && !iconCode.endsWith("n")) return iconCode
+
+    fun timeOfDay(epochSeconds: Long) = Math.floorMod(epochSeconds + offsetSeconds, SECONDS_PER_DAY)
+    val now = timeOfDay(nowEpochSeconds)
+    val rise = timeOfDay(sunrise)
+    val set = timeOfDay(sunset)
+    // Polar day or night, where the times can wrap past midnight: leave it to OpenWeather.
+    if (rise >= set) return iconCode
+    return iconCode.dropLast(1) + if (now < rise || now >= set) "n" else "d"
+}
+
 /**
  * The cached forecast's slot in progress at [nowEpochSeconds], as current conditions: temperature,
  * conditions, wind and humidity from the forecast, today's high and low, and everything else
@@ -94,3 +119,5 @@ fun readingDay(
 }
 
 private const val LONGEST_SLOT_SECONDS = 3 * 60 * 60L
+
+private const val SECONDS_PER_DAY = 24 * 60 * 60L
