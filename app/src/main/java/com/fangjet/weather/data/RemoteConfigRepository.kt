@@ -260,7 +260,10 @@ class RemoteConfigRepository @Inject constructor(
         const val KEY_WALK_TIME_NOTIFICATIONS_ENABLED = "walk_time_notifications_enabled"
         const val DEFAULT_WALK_TIME_NOTIFICATIONS_ENABLED = true
         const val KEY_RAIN_NOTIFICATIONS_ENABLED = "rain_notifications_enabled"
-        const val DEFAULT_RAIN_NOTIFICATIONS_ENABLED = true
+
+        // Off for the first release: an alert only goes if a background refresh happens to run in
+        // the hour before the rain, which is hit or miss on an idle phone (NOTES.md).
+        const val DEFAULT_RAIN_NOTIFICATIONS_ENABLED = false
 
         const val KEY_FOREGROUND_REFRESH_MIN_MINUTES = "foreground_refresh_min_minutes"
         const val DEFAULT_FOREGROUND_REFRESH_MIN_MINUTES = 0L

@@ -101,7 +101,7 @@
       "description": "Kill switch: false stops all usage-analytics events and turns Firebase Analytics collection off on every install, on top of the user's own Share usage statistics setting."
     },
     "rain_notifications_enabled": {
-      "defaultValue": { "value": "true" },
+      "defaultValue": { "value": "false" },
       "valueType": "BOOLEAN",
       "description": "Kill switch for rain and snow alerts, for everyone: false stops them and hides their switch in Settings (users' own choice is kept)"
     },
