@@ -130,6 +130,45 @@ class StaleWeatherTest {
         assertEquals(ReadingDay.Yesterday, readingDay(noon, 9 * 3600, noon + 11 * hour + 30 * 60 + 9 * hour))
     }
 
+    @Test
+    fun `sun times from an earlier day move onto today`() {
+        // Cached yesterday evening with yesterday's sun (07:00 and 16:30, UTC), shown at 10:00 today.
+        val dayStart = noon - 12 * hour
+        val reading = weather(
+            observedAt = dayStart - 3 * hour,
+            iconCode = "01n",
+            sunrise = dayStart - 24 * hour + 7 * hour,
+            sunset = dayStart - 24 * hour + 16 * hour + 1800,
+        )
+        val moved = reading.withSunTimesToday(dayStart + 10 * hour)
+
+        assertEquals(dayStart + 7 * hour, moved.sunriseEpoch)
+        assertEquals(dayStart + 16 * hour + 1800, moved.sunsetEpoch)
+        assertFalse(moved.isDarkAt(dayStart + 10 * hour))
+        // Left as it was, yesterday's sunset would say it's dark at 10 AM.
+        assertTrue(reading.isDarkAt(dayStart + 10 * hour))
+    }
+
+    @Test
+    fun `today's or tomorrow's sun times are left alone`() {
+        val dayStart = noon - 12 * hour
+        val today = weather(observedAt = dayStart + 9 * hour, sunrise = dayStart + 7 * hour, sunset = dayStart + 16 * hour)
+        assertEquals(today, today.withSunTimesToday(dayStart + 21 * hour))
+        val tomorrows = weather(observedAt = dayStart + 21 * hour, sunrise = dayStart + 31 * hour, sunset = dayStart + 40 * hour)
+        assertEquals(tomorrows, tomorrows.withSunTimesToday(dayStart + 21 * hour))
+    }
+
+    @Test
+    fun `it's dark before sunrise and from sunset by the clock`() {
+        val dayStart = noon - 12 * hour
+        val reading = weather(observedAt = dayStart + 9 * hour, sunrise = dayStart + 7 * hour, sunset = dayStart + 16 * hour)
+        assertTrue(reading.isDarkAt(dayStart + 6 * hour))
+        assertFalse(reading.isDarkAt(dayStart + 12 * hour))
+        assertTrue(reading.isDarkAt(dayStart + 16 * hour + 300))
+        // Without sun times it's left to the forecast.
+        assertFalse(weather(observedAt = dayStart).isDarkAt(dayStart + 23 * hour))
+    }
+
     private fun weather(
         observedAt: Long?,
         iconCode: String = "01d",

@@ -41,6 +41,33 @@ fun CurrentWeather.iconCodeAt(nowEpochSeconds: Long): String {
 }
 
 /**
+ * This reading with its sunrise and sunset moved onto today in the city when they're from an
+ * earlier day (a reading cached yesterday), so the Daylight tile and the walk card go by today's
+ * sun, as the hero does. Whole days are added, so the times can be a minute or two out. Sun times
+ * from today, or from tomorrow, are left alone. Same rule as iOS's `StaleWeather.withSunTimesToday`.
+ */
+fun CurrentWeather.withSunTimesToday(nowEpochSeconds: Long): CurrentWeather {
+    val sunrise = sunriseEpoch ?: return this
+    val sunset = sunsetEpoch ?: return this
+
+    fun cityDay(epochSeconds: Long) = Math.floorDiv(epochSeconds + offsetSeconds, SECONDS_PER_DAY)
+    val days = cityDay(nowEpochSeconds) - cityDay(sunrise)
+    if (days <= 0) return this
+    return copy(sunriseEpoch = sunrise + days * SECONDS_PER_DAY, sunsetEpoch = sunset + days * SECONDS_PER_DAY)
+}
+
+/**
+ * Whether it's dark in the city at [nowEpochSeconds] by this reading's sun times. False without
+ * them, or when they don't make a day (polar day or night), leaving it to the forecast's icons.
+ */
+fun CurrentWeather.isDarkAt(nowEpochSeconds: Long): Boolean {
+    val sunrise = sunriseEpoch ?: return false
+    val sunset = sunsetEpoch ?: return false
+    if (sunrise >= sunset) return false
+    return nowEpochSeconds < sunrise || nowEpochSeconds >= sunset
+}
+
+/**
  * The cached forecast's slot in progress at [nowEpochSeconds], as current conditions: temperature,
  * conditions, wind and humidity from the forecast, today's high and low, and everything else
  * (city, time zone, sunrise and sunset, observation time) from [weather]. Visibility isn't forecast,

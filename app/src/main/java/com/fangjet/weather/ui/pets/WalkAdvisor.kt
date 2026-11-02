@@ -115,7 +115,9 @@ fun isPrecipitating(conditionMain: String): Boolean = conditionMain.lowercase() 
  *
  * [precipitatingNow] is the current observation. The hourly forecast can say the hour in progress
  * is dry while it is raining, so when it's raining now, now is never the walk time.
- * [sunsetEpochSeconds] is today's sunset, for the "gets dark" line.
+ * [sunsetEpochSeconds] is today's sunset, for the "gets dark" line. [darkNow] is the clock's word
+ * on darkness: the hour in progress keeps its daytime icon for the whole hour the sun sets in, so
+ * without it now could be "a great time" for up to an hour after dark.
  */
 fun walkAdviceFor(
     currentFeelsLikeC: Double,
@@ -126,13 +128,15 @@ fun walkAdviceFor(
     nowEpochSeconds: Long = Instant.now().epochSecond,
     precipitatingNow: Boolean = false,
     sunsetEpochSeconds: Long? = null,
+    darkNow: Boolean = false,
 ): WalkAdvice? {
     val slots = upcoming
         .take(LOOKAHEAD_SLOTS)
         .filter { slot -> slot.epochSeconds.let { it == null || it < nowEpochSeconds + LOOKAHEAD_SECONDS } }
     if (slots.isEmpty()) return null
-    val nowWalkable = !precipitatingNow && slots.first().isWalkable(thresholds)
-    val firstGood = (if (precipitatingNow) slots.drop(1) else slots).firstOrNull { it.isWalkable(thresholds) }
+    val notNow = precipitatingNow || darkNow
+    val nowWalkable = !notNow && slots.first().isWalkable(thresholds)
+    val firstGood = (if (notNow) slots.drop(1) else slots).firstOrNull { it.isWalkable(thresholds) }
     val pavementNow = slots.first().pavementTemperature
     val pavementHotNow = (slots.first().pavementC() ?: 0.0) >= thresholds.hotPavementC
     val rating = when {
