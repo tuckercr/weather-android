@@ -102,20 +102,15 @@ noted. Checked against the code, not fixed yet.
       afternoon it says "At today's peak" (and loses "Shade for pale noses"); a day of all-zero UV
       reads "Peak 0". Turning the Daylight tile off also shows the UV tile, whatever
       `tile_uv_enabled` says. Both apps.
-- [ ] **Remote Config themes.** One theme with a date rule or colour this version can't read makes
-      the whole list unreadable, so every Remote Config theme falls back to the built-in list. Theme
-      captions also skip the no-dog rule (none mention walks yet). Both apps.
+- [ ] **Theme captions and the no-dog rule.** A theme's captions show whether or not there's a dog,
+      so a future one about walks would reach people with Dog walking off (none mention walks yet).
+      Both apps.
 - [ ] **Wording.** Bad air led by coarse particles (dust) is called "Smoky air today". "Then rain"
       or "then maybe rain" goes by the raw rain chance while the hourly strip rounds it (55% shows
       60% but says "maybe rain"). With `walk_bad_air_band` at 4 or 5 the walk card's "Air's not
       great" can disagree with the Air tile. Both apps.
 - [ ] **City search.** Two places with the same name, state and country (two "Richmond, England,
       GB") show as one row, so the second can't be picked. Both apps.
-- [ ] **Tidy-ups.** Seasonal themes are decoded from Remote Config on every read (5 times per
-      screen update on iOS); each tile's default is written in three places on iOS; the walk rules
-      are listed twice in `WalkAdvisor` (`change(at:)` and `isWalkable`); `badAirPhrase` repeats
-      `bestWalkSlot`'s window; `HexColor` repeats `Color(hex:)`; `SeasonalThemeTests` parses dates
-      without a fixed locale, so it fails on a non-Gregorian calendar.
 
 ## Location
 
@@ -217,7 +212,13 @@ noted. Checked against the code, not fixed yet.
       - "Today's forecast" briefings use the city's day, and a walk reminder's bad-air note looks
         from the walk on, as on Android. iOS.
       - The listing and READMEs say rain alerts are off, and the READMEs list the tile and theme
-        switches. (11-02)
+        switches.
+      - One Remote Config theme this version can't read is skipped instead of dropping the whole
+        list. Both apps.
+      - Tidy-ups: the walk rules live in one place (both apps); on iOS the theme list is decoded
+        once per Remote Config value, each tile's default is written once, the briefing's walk and
+        bad-air checks share one "rest of the day", theme colours reuse `Color(hex:)`, and
+        `SeasonalThemeTests` reads dates the same on any calendar. (11-02)
 - [x] Rain alerts off for the first release: `rain_notifications_enabled` false in Remote Config
       (deployed 11-02) and in both apps' built-in defaults, so the Settings switch and the
       onboarding line stay hidden from the first launch; Android doesn't make the channel. The
