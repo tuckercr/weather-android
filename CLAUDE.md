@@ -22,6 +22,7 @@ gap in NOTES.md.
 ```bash
 ./gradlew assembleDebug                    # debug APK, installs as com.fangjet.weather.debug
 ./gradlew ktlintCheck                      # style; CI fails on it
+./gradlew lint                            # Android Lint (e.g. RestrictedApi); CI fails on errors
 ./gradlew test                             # JVM unit tests in :app and :weather-api
 ./gradlew :app:testDebugUnitTest --tests 'com.fangjet.weather.worker.WorkManagerSchedulerTest'
 ./gradlew :weather-api:test --tests 'com.fangjet.weather.data.ForecastAggregatorTest'
