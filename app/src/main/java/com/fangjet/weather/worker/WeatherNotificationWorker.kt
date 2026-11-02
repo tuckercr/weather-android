@@ -58,7 +58,8 @@ class WeatherNotificationWorker @AssistedInject constructor(
     // retry itself to tomorrow.
     override suspend fun doWork(): Result {
         val result = logic.doWork()
-        if (result !is Result.Retry) scheduler.keepBriefingAtHalfPastEight()
+        // Result.retry() equals any retry; its Retry class is internal to WorkManager (RestrictedApi).
+        if (result != Result.retry()) scheduler.keepBriefingAtHalfPastEight()
         return result
     }
 }
