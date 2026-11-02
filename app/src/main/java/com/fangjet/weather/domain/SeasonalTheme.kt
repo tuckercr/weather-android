@@ -2,6 +2,8 @@ package com.fangjet.weather.domain
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -123,11 +125,18 @@ object SeasonalThemes {
     private val json = Json { ignoreUnknownKeys = true }
 
     /**
-     * The themes in [text], or null when it isn't a valid list, so a bad Remote Config value falls
-     * back to the list shipped in the app rather than switching every theme off.
+     * The themes in [text] this version can read: one with a date rule, colour or field it doesn't
+     * know is skipped, so a theme written for a newer version doesn't take the others with it. Null
+     * when [text] isn't a list, or none of its themes can be read, so a bad Remote Config value falls
+     * back to the list shipped in the app rather than switching every theme off. Same rule as iOS's.
      */
-    fun parse(text: String): List<SeasonalTheme>? =
-        runCatching { json.decodeFromString<List<ThemeDto>>(text).map { it.toTheme() } }.getOrNull()
+    fun parse(text: String): List<SeasonalTheme>? {
+        val entries = runCatching { json.decodeFromString<List<JsonElement>>(text) }.getOrNull() ?: return null
+        val themes = entries.mapNotNull { entry ->
+            runCatching { json.decodeFromJsonElement<ThemeDto>(entry).toTheme() }.getOrNull()
+        }
+        return themes.takeUnless { it.isEmpty() && entries.isNotEmpty() }
+    }
 
     /** Today's theme in the city's own calendar; null on an ordinary day. The earlier wins a tie. */
     fun themeOn(
