@@ -78,6 +78,18 @@ class SeasonalThemeTest {
     }
 
     @Test
+    fun `a theme this version can't read is skipped and the others kept`() {
+        val easter = json
+            .replace("\"halloween\"", "\"easter\"")
+            .replace("\"fixed\"", "\"easterSunday\"")
+            .removeSurrounding("[", "]")
+        val list = "[$easter, ${json.removeSurrounding("[", "]")}]"
+
+        assertEquals(listOf("halloween"), SeasonalThemes.parse(list)?.map { it.id })
+        assertEquals(emptyList<SeasonalTheme>(), SeasonalThemes.parse("[]"))
+    }
+
+    @Test
     fun `bad JSON is rejected so the shipped list stays`() {
         assertNull(SeasonalThemes.parse("""{"id": 1}"""))
         assertNull(SeasonalThemes.parse(json.replace("#F5A94E", "orange")))

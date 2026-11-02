@@ -126,5 +126,17 @@ class WeatherNotificationWorkerTest {
                 kotlin.Result.failure(RuntimeException("offline"))
 
             assertEquals(Result.retry(), worker.doWork())
+            // The retry stays a retry, not tomorrow's run.
+            verify(exactly = 0) { scheduler.keepBriefingAtHalfPastEight() }
+        }
+
+    @Test
+    fun `a finished run puts the next one back on 8-30`() =
+        runTest {
+            val london = SavedLocation(label = "London, GB", latitude = 51.5, longitude = -0.1)
+
+            assertEquals(Result.success(), worker(listOf(london)).doWork())
+
+            verify { scheduler.keepBriefingAtHalfPastEight() }
         }
 }

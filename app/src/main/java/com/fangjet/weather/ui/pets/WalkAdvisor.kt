@@ -81,20 +81,8 @@ private fun HourlySlot.pavementC(): Double? = pavementTemperature?.let { units.t
 
 private fun HourlySlot.isTooWindy(t: PetWeatherThresholds): Boolean = windForce(windSpeed, units).ordinal >= t.windyForce
 
-/**
- * Feels-like rather than air temperature: humid heat and wind chill are what the dog feels. Pavement
- * that's only getting hot already rules an hour out, so the suggested hour is a cooler one.
- */
-private fun HourlySlot.isWalkable(t: PetWeatherThresholds): Boolean {
-    val c = units.toCelsius(feelsLike)
-    val pavementOk = (pavementC() ?: 0.0) < t.warmPavementC
-    return isDaytime(t) &&
-        !hasBadAir(t) &&
-        !isTooWindy(t) &&
-        pavementOk &&
-        precipitationChance < t.maxRainChancePercent &&
-        c in t.comfortMinC..t.comfortMaxC
-}
+/** Within the walking hours, in daylight, and nothing in [changeHere] against it. */
+private fun HourlySlot.isWalkable(t: PetWeatherThresholds): Boolean = isDaytime(t) && changeHere(t) == null
 
 /**
  * Air at the Remote Config band or worse (by default Unhealthy, the Air quality tile's "Potty breaks
@@ -115,7 +103,9 @@ fun isPrecipitating(conditionMain: String): Boolean = conditionMain.lowercase() 
  *
  * [precipitatingNow] is the current observation. The hourly forecast can say the hour in progress
  * is dry while it is raining, so when it's raining now, now is never the walk time.
- * [sunsetEpochSeconds] is today's sunset, for the "gets dark" line.
+ * [sunsetEpochSeconds] is today's sunset, for the "gets dark" line. [darkNow] is the clock's word
+ * on darkness: the hour in progress keeps its daytime icon for the whole hour the sun sets in, so
+ * without it now could be "a great time" for up to an hour after dark.
  */
 fun walkAdviceFor(
     currentFeelsLikeC: Double,
@@ -126,13 +116,15 @@ fun walkAdviceFor(
     nowEpochSeconds: Long = Instant.now().epochSecond,
     precipitatingNow: Boolean = false,
     sunsetEpochSeconds: Long? = null,
+    darkNow: Boolean = false,
 ): WalkAdvice? {
     val slots = upcoming
         .take(LOOKAHEAD_SLOTS)
         .filter { slot -> slot.epochSeconds.let { it == null || it < nowEpochSeconds + LOOKAHEAD_SECONDS } }
     if (slots.isEmpty()) return null
-    val nowWalkable = !precipitatingNow && slots.first().isWalkable(thresholds)
-    val firstGood = (if (precipitatingNow) slots.drop(1) else slots).firstOrNull { it.isWalkable(thresholds) }
+    val notNow = precipitatingNow || darkNow
+    val nowWalkable = !notNow && slots.first().isWalkable(thresholds)
+    val firstGood = (if (notNow) slots.drop(1) else slots).firstOrNull { it.isWalkable(thresholds) }
     val pavementNow = slots.first().pavementTemperature
     val pavementHotNow = (slots.first().pavementC() ?: 0.0) >= thresholds.hotPavementC
     val rating = when {
@@ -171,8 +163,11 @@ private fun walkOutlook(
 }
 
 /**
- * Why this slot isn't walkable, as something worth saying. Null for darkness and the end of the
- * walking hours, which the sunset line covers.
+ * Why this slot isn't walkable, as something worth saying; null when it is. Also null for darkness
+ * and the end of the walking hours, which the sunset line covers. [isWalkable] is built on this, so
+ * every walk rule lives here. Feels-like rather than air temperature: humid heat and wind chill are
+ * what the dog feels. Pavement that's only getting hot already rules an hour out, so the suggested
+ * hour is a cooler one.
  */
 private fun HourlySlot.changeHere(t: PetWeatherThresholds): WalkChange? {
     if (!isDaytime(t)) return null
@@ -189,8 +184,7 @@ private fun HourlySlot.changeHere(t: PetWeatherThresholds): WalkChange? {
         isTooWindy(t) -> WalkChange.WIND
         hasBadAir(t) -> WalkChange.BAD_AIR
         (pavementC() ?: 0.0) >= t.warmPavementC -> WalkChange.HOT_PAVEMENT
-        feelsLikeC > t.comfortMaxC -> WalkChange.HEAT
-        feelsLikeC < t.comfortMinC -> WalkChange.COLD
+        feelsLikeC !in t.comfortMinC..t.comfortMaxC -> if (feelsLikeC > t.comfortMaxC) WalkChange.HEAT else WalkChange.COLD
         else -> null
     }
 }

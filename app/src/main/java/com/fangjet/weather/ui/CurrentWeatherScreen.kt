@@ -90,6 +90,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -134,10 +135,13 @@ import com.fangjet.weather.util.ReadingDay
 import com.fangjet.weather.util.UpdatePrompt
 import com.fangjet.weather.util.forecastAsCurrent
 import com.fangjet.weather.util.fromCurrentSlot
+import com.fangjet.weather.util.iconCodeAt
+import com.fangjet.weather.util.isDarkAt
 import com.fangjet.weather.util.isTooOldToShowAsNow
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.readingDay
 import com.fangjet.weather.util.usesMilesForDistance
+import com.fangjet.weather.util.withSunTimesToday
 import kotlinx.coroutines.delay
 import java.time.Instant
 import kotlin.math.roundToInt
@@ -857,8 +861,6 @@ private fun CurrentWeatherContent(
     val upcomingDays = if (todayForecast != null) forecastDays.drop(1) else forecastDays
     var selectedDay by remember { mutableStateOf<DayForecast?>(null) }
     val feelsLikeC = weather.units.toCelsius(weather.feelsLike)
-    val mood = petMoodFor(weather.conditionMain, weather.iconCode, feelsLikeC, petWeatherThresholds)
-    val ink = mood.inkColor
     // Slots from the one in progress onwards. "Now" is re-read whenever the forecast changes,
     // whenever the screen resumes and every half hour while it stays open, so a cached forecast,
     // a failed refresh or an app left open for hours never shows (or advises on) past hours.
@@ -881,6 +883,10 @@ private fun CurrentWeatherContent(
             .now()
             .epochSecond
     }
+    // Day or night by the clock, so a reading cached before sunset doesn't flash the daytime hero.
+    val iconCodeNow = weather.iconCodeAt(nowEpochSeconds)
+    val mood = petMoodFor(weather.conditionMain, iconCodeNow, feelsLikeC, petWeatherThresholds)
+    val ink = mood.inkColor
     val currentSlots = remember(forecastDays, nowEpochSeconds) {
         forecastDays.flatMap { it.hourlySlots }.fromCurrentSlot(nowEpochSeconds)
     }
@@ -898,13 +904,16 @@ private fun CurrentWeatherContent(
             .atOffset(java.time.ZoneOffset.ofTotalSeconds(weather.offsetSeconds))
             .toLocalDate(),
     ) ?: petCaption(mood, weather.offsetSeconds, hasDog = dogWalking)
+    // The reading with today's sunrise and sunset, for one cached on an earlier day, so the Daylight
+    // tile and the walk card follow the clock as the hero does.
+    val weatherToday = remember(weather, nowEpochSeconds) { weather.withSunTimesToday(nowEpochSeconds) }
     val walkAdvice =
         remember(
             currentSlots,
             feelsLikeC,
             weather.conditionMain,
             weather.offsetSeconds,
-            weather.sunsetEpoch,
+            weatherToday,
             nowEpochSeconds,
             petWeatherThresholds,
         ) {
@@ -915,7 +924,8 @@ private fun CurrentWeatherContent(
                 thresholds = petWeatherThresholds,
                 utcOffsetSeconds = weather.offsetSeconds,
                 nowEpochSeconds = nowEpochSeconds,
-                sunsetEpochSeconds = weather.sunsetEpoch,
+                sunsetEpochSeconds = weatherToday.sunsetEpoch,
+                darkNow = weatherToday.isDarkAt(nowEpochSeconds),
             )
         }
 
@@ -940,7 +950,7 @@ private fun CurrentWeatherContent(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 16.dp),
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         // Kept a bit smaller than the card so the scene doesn't dominate, especially on wide screens.
@@ -951,33 +961,25 @@ private fun CurrentWeatherContent(
                                 .widthIn(max = PET_SCENE_MAX_WIDTH),
                             decorations = seasonalTheme?.decorations.orEmpty(),
                         )
+                        // Medium weight on the small lines so they hold up on the brighter hero colours.
                         Text(
                             text = weather.description,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium,
                             color = heroInk,
                         )
                         if (location != null) {
                             Spacer(modifier = Modifier.height(4.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = heroInk,
-                                )
-                                Text(
-                                    text = weather.cityName,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = heroInk,
-                                )
-                            }
+                            Text(
+                                text = weather.cityName,
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = heroInk,
+                            )
                         }
                         Text(
                             text = formatTemperature(weather.temperature, weather.units),
-                            style = MaterialTheme.typography.displayMedium,
+                            style = MaterialTheme.typography.displayLarge,
                             // Baloo 2 reserves a lot of empty space above its digits; pull the number up
                             // into it so it sits close under the city name.
                             modifier = Modifier.layout { measurable, constraints ->
@@ -1000,15 +1002,16 @@ private fun CurrentWeatherContent(
                                 high.roundToInt(),
                                 low.roundToInt(),
                             ),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium,
                             color = heroInk,
                             // "H 64°" would be read as the letter H.
                             modifier = Modifier.clearAndSetSemantics { text = AnnotatedString(spokenRange) },
                         )
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = heroCaption,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp, lineHeight = 26.sp),
                             color = heroInk,
                             textAlign = TextAlign.Center,
                         )
@@ -1029,9 +1032,9 @@ private fun CurrentWeatherContent(
             val detailsSection: @Composable () -> Unit = {
                 SectionHeader(R.string.section_today)
                 // UV is always 0 after dark, so only show it in the daytime (OWM night icons end in "n").
-                val isNight = weather.iconCode.endsWith("n")
+                val isNight = iconCodeNow.endsWith("n")
                 TodayTiles(
-                    weather = weather,
+                    weather = weatherToday,
                     showingForecast = showingForecast,
                     // Paw check goes with the walk card: Settings' Dog walking switch hides both.
                     pavementNow = currentSlots.firstOrNull()?.pavementTemperature?.takeIf { dogWalking },
@@ -1601,7 +1604,7 @@ private fun SectionHeader(
     )
 }
 
-private val TEMP_TOP_TRIM = 14.dp
+private val TEMP_TOP_TRIM = 18.dp
 
 /**
  * The hero's "H … · L …": today's forecast high and low, widened to take in the temperature now.

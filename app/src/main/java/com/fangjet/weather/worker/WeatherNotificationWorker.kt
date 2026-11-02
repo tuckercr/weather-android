@@ -20,7 +20,7 @@ class WeatherNotificationWorker @AssistedInject constructor(
     preferencesRepository: PreferencesRepository,
     weatherRepository: WeatherRepository,
     remoteConfigRepository: RemoteConfigRepository,
-    scheduler: WorkManagerScheduler,
+    private val scheduler: WorkManagerScheduler,
 ) : CoroutineWorker(context, workerParams) {
 
     private val logic = NotificationWorkerLogic(
@@ -54,5 +54,11 @@ class WeatherNotificationWorker @AssistedInject constructor(
         scheduleWalkTime = scheduler::scheduleWalkTime,
     )
 
-    override suspend fun doWork() = logic.doWork()
+    // Tomorrow's run back on 8:30, however late this one was. Not on a retry: that would move the
+    // retry itself to tomorrow.
+    override suspend fun doWork(): Result {
+        val result = logic.doWork()
+        if (result !is Result.Retry) scheduler.keepBriefingAtHalfPastEight()
+        return result
+    }
 }

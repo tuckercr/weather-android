@@ -6,6 +6,7 @@ import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.util.PavementBand
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -374,6 +375,17 @@ class WalkAdvisorTest {
         val storm = slot("4 PM", 20.0, 80, epoch = t0 + 3600, icon = "11d")
         assertEquals(WalkOutlook.Until("4 PM", WalkChange.STORMS), outlook(listOf(soSoAir, storm), sunsetIn = 3600L))
         assertNull(outlook(listOf(slot("3 PM", 20.0, 0, epoch = t0, airBand = 1))))
+    }
+
+    @Test
+    fun `after sunset now isn't a great time even if the hour's icon still says day`() {
+        // 4:35 PM: the 4 PM hour is still "01d", but the sun set at 4:31.
+        val slots = listOf(slot("4 PM", 20.0, 0, epoch = t0), slot("5 PM", 20.0, 0, epoch = t0 + 3600, icon = "01n"))
+        assertEquals(WalkRating.GREAT, walkAdviceFor(20.0, slots, nowEpochSeconds = t0)?.rating)
+
+        val dark = walkAdviceFor(20.0, slots, nowEpochSeconds = t0, darkNow = true)
+        assertNotEquals(WalkRating.GREAT, dark?.rating)
+        assertNull(dark?.outlook)
     }
 
     @Test

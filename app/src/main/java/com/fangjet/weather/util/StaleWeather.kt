@@ -15,6 +15,58 @@ const val STALE_CURRENT_AFTER_SECONDS = 3 * 60 * 60L
 fun CurrentWeather.isTooOldToShowAsNow(nowEpochSeconds: Long): Boolean =
     observedAtEpochSeconds?.let { nowEpochSeconds - it > STALE_CURRENT_AFTER_SECONDS } ?: false
 
+/** A reading this old has its icon's day or night ending checked against the clock. */
+const val DAY_NIGHT_RECHECK_AFTER_SECONDS = 30 * 60L
+
+/**
+ * [CurrentWeather.iconCode] with its day or night ending ("d" or "n") for [nowEpochSeconds] rather
+ * than for when the reading was taken, from the city's sunrise and sunset by time of day. A reading
+ * cached before sunset would otherwise put up the daytime hero after dark until the refresh lands.
+ * Readings under half an hour old, and ones without sun times, keep OpenWeather's icon.
+ */
+fun CurrentWeather.iconCodeAt(nowEpochSeconds: Long): String {
+    val observedAt = observedAtEpochSeconds ?: return iconCode
+    val sunrise = sunriseEpoch ?: return iconCode
+    val sunset = sunsetEpoch ?: return iconCode
+    if (nowEpochSeconds - observedAt < DAY_NIGHT_RECHECK_AFTER_SECONDS) return iconCode
+    if (!iconCode.endsWith("d") && !iconCode.endsWith("n")) return iconCode
+
+    fun timeOfDay(epochSeconds: Long) = Math.floorMod(epochSeconds + offsetSeconds, SECONDS_PER_DAY)
+    val now = timeOfDay(nowEpochSeconds)
+    val rise = timeOfDay(sunrise)
+    val set = timeOfDay(sunset)
+    // Polar day or night, where the times can wrap past midnight: leave it to OpenWeather.
+    if (rise >= set) return iconCode
+    return iconCode.dropLast(1) + if (now < rise || now >= set) "n" else "d"
+}
+
+/**
+ * This reading with its sunrise and sunset moved onto today in the city when they're from an
+ * earlier day (a reading cached yesterday), so the Daylight tile and the walk card go by today's
+ * sun, as the hero does. Whole days are added, so the times can be a minute or two out. Sun times
+ * from today, or from tomorrow, are left alone. Same rule as iOS's `StaleWeather.withSunTimesToday`.
+ */
+fun CurrentWeather.withSunTimesToday(nowEpochSeconds: Long): CurrentWeather {
+    val sunrise = sunriseEpoch ?: return this
+    val sunset = sunsetEpoch ?: return this
+
+    fun cityDay(epochSeconds: Long) = Math.floorDiv(epochSeconds + offsetSeconds, SECONDS_PER_DAY)
+    val days = cityDay(nowEpochSeconds) - cityDay(sunrise)
+    if (days <= 0) return this
+    return copy(sunriseEpoch = sunrise + days * SECONDS_PER_DAY, sunsetEpoch = sunset + days * SECONDS_PER_DAY)
+}
+
+/**
+ * Whether it's dark in the city at [nowEpochSeconds] by this reading's sun times. False without
+ * them, or when they don't make a day (polar day or night), leaving it to the forecast's icons.
+ */
+fun CurrentWeather.isDarkAt(nowEpochSeconds: Long): Boolean {
+    val sunrise = sunriseEpoch ?: return false
+    val sunset = sunsetEpoch ?: return false
+    if (sunrise >= sunset) return false
+    return nowEpochSeconds < sunrise || nowEpochSeconds >= sunset
+}
+
 /**
  * The cached forecast's slot in progress at [nowEpochSeconds], as current conditions: temperature,
  * conditions, wind and humidity from the forecast, today's high and low, and everything else
@@ -94,3 +146,5 @@ fun readingDay(
 }
 
 private const val LONGEST_SLOT_SECONDS = 3 * 60 * 60L
+
+private const val SECONDS_PER_DAY = 24 * 60 * 60L
