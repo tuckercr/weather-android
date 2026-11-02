@@ -81,20 +81,8 @@ private fun HourlySlot.pavementC(): Double? = pavementTemperature?.let { units.t
 
 private fun HourlySlot.isTooWindy(t: PetWeatherThresholds): Boolean = windForce(windSpeed, units).ordinal >= t.windyForce
 
-/**
- * Feels-like rather than air temperature: humid heat and wind chill are what the dog feels. Pavement
- * that's only getting hot already rules an hour out, so the suggested hour is a cooler one.
- */
-private fun HourlySlot.isWalkable(t: PetWeatherThresholds): Boolean {
-    val c = units.toCelsius(feelsLike)
-    val pavementOk = (pavementC() ?: 0.0) < t.warmPavementC
-    return isDaytime(t) &&
-        !hasBadAir(t) &&
-        !isTooWindy(t) &&
-        pavementOk &&
-        precipitationChance < t.maxRainChancePercent &&
-        c in t.comfortMinC..t.comfortMaxC
-}
+/** Within the walking hours, in daylight, and nothing in [changeHere] against it. */
+private fun HourlySlot.isWalkable(t: PetWeatherThresholds): Boolean = isDaytime(t) && changeHere(t) == null
 
 /**
  * Air at the Remote Config band or worse (by default Unhealthy, the Air quality tile's "Potty breaks
@@ -175,8 +163,11 @@ private fun walkOutlook(
 }
 
 /**
- * Why this slot isn't walkable, as something worth saying. Null for darkness and the end of the
- * walking hours, which the sunset line covers.
+ * Why this slot isn't walkable, as something worth saying; null when it is. Also null for darkness
+ * and the end of the walking hours, which the sunset line covers. [isWalkable] is built on this, so
+ * every walk rule lives here. Feels-like rather than air temperature: humid heat and wind chill are
+ * what the dog feels. Pavement that's only getting hot already rules an hour out, so the suggested
+ * hour is a cooler one.
  */
 private fun HourlySlot.changeHere(t: PetWeatherThresholds): WalkChange? {
     if (!isDaytime(t)) return null
@@ -193,8 +184,7 @@ private fun HourlySlot.changeHere(t: PetWeatherThresholds): WalkChange? {
         isTooWindy(t) -> WalkChange.WIND
         hasBadAir(t) -> WalkChange.BAD_AIR
         (pavementC() ?: 0.0) >= t.warmPavementC -> WalkChange.HOT_PAVEMENT
-        feelsLikeC > t.comfortMaxC -> WalkChange.HEAT
-        feelsLikeC < t.comfortMinC -> WalkChange.COLD
+        feelsLikeC !in t.comfortMinC..t.comfortMaxC -> if (feelsLikeC > t.comfortMaxC) WalkChange.HEAT else WalkChange.COLD
         else -> null
     }
 }
