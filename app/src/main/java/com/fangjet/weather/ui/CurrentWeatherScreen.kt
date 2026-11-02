@@ -136,10 +136,12 @@ import com.fangjet.weather.util.UpdatePrompt
 import com.fangjet.weather.util.forecastAsCurrent
 import com.fangjet.weather.util.fromCurrentSlot
 import com.fangjet.weather.util.iconCodeAt
+import com.fangjet.weather.util.isDarkAt
 import com.fangjet.weather.util.isTooOldToShowAsNow
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.readingDay
 import com.fangjet.weather.util.usesMilesForDistance
+import com.fangjet.weather.util.withSunTimesToday
 import kotlinx.coroutines.delay
 import java.time.Instant
 import kotlin.math.roundToInt
@@ -902,13 +904,16 @@ private fun CurrentWeatherContent(
             .atOffset(java.time.ZoneOffset.ofTotalSeconds(weather.offsetSeconds))
             .toLocalDate(),
     ) ?: petCaption(mood, weather.offsetSeconds)
+    // The reading with today's sunrise and sunset, for one cached on an earlier day, so the Daylight
+    // tile and the walk card follow the clock as the hero does.
+    val weatherToday = remember(weather, nowEpochSeconds) { weather.withSunTimesToday(nowEpochSeconds) }
     val walkAdvice =
         remember(
             currentSlots,
             feelsLikeC,
             weather.conditionMain,
             weather.offsetSeconds,
-            weather.sunsetEpoch,
+            weatherToday,
             nowEpochSeconds,
             petWeatherThresholds,
         ) {
@@ -919,7 +924,8 @@ private fun CurrentWeatherContent(
                 thresholds = petWeatherThresholds,
                 utcOffsetSeconds = weather.offsetSeconds,
                 nowEpochSeconds = nowEpochSeconds,
-                sunsetEpochSeconds = weather.sunsetEpoch,
+                sunsetEpochSeconds = weatherToday.sunsetEpoch,
+                darkNow = weatherToday.isDarkAt(nowEpochSeconds),
             )
         }
 
@@ -1028,7 +1034,7 @@ private fun CurrentWeatherContent(
                 // UV is always 0 after dark, so only show it in the daytime (OWM night icons end in "n").
                 val isNight = iconCodeNow.endsWith("n")
                 TodayTiles(
-                    weather = weather,
+                    weather = weatherToday,
                     showingForecast = showingForecast,
                     // Paw check goes with the walk card: Settings' Dog walking switch hides both.
                     pavementNow = currentSlots.firstOrNull()?.pavementTemperature?.takeIf { dogWalking },
