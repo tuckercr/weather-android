@@ -53,8 +53,33 @@ Finished items move to Done at the bottom.
 
 ## Notifications
 
-- [ ] Captions like "Perfect walkies weather!" still show without a dog. You said to leave the dog
-      walking strings for now. (10-28)
+- [ ] **Rain alerts in the first release?** They're hit or miss on both platforms: an alert only
+      goes if a refresh happens to run in the hour (Android) or two (iOS) before the rain, and
+      background refreshes get rare when the phone sits idle or the app is swiped away (iOS). To
+      switch them off: `rain_notifications_enabled` false in Remote Config (hides the Settings
+      switch, keeps people's choice) and in both apps' built-in defaults, and drop "a heads-up
+      before rain" from the store listing and the website's home, privacy and support pages.
+      (11-02)
+- [ ] **Briefing by push.** Each phone subscribes to a Firebase Cloud Messaging topic for its time
+      zone; a scheduled Cloud Function sends a plain push to each zone at 8:30. On iOS a
+      notification service extension fetches the weather and writes the briefing, falling back to
+      "Tap to see today's weather.". The server only knows time zones, never locations. Always
+      fresh and on time on both platforms, and it replaces the iOS 7-day queue and the Android
+      8:30 job. Needs Firebase's pay-as-you-go plan for Cloud Functions and an APNs key in
+      Firebase. (11-02)
+- [ ] **Rain alerts by push.** The server keeps each phone's rough location, checks the 15-minute
+      forecast every 15 minutes and pushes when rain is about to start. The only reliable way on
+      both platforms (a visible push arrives even when the app was swiped away). Costs:
+      approximate locations on a server (App Store privacy label and Play Data safety change),
+      weather API calls per location, more server code. (11-02)
+- [ ] **Without a server**, a partial fix. Android: an inexact alarm (`setAndAllowWhileIdle`, no
+      permission or Play declaration) for 8:30 and for about 45 minutes before forecast rain, set
+      again by each background refresh; it goes off on an idle phone, at worst an hour late. iOS:
+      queue rain alerts further ahead from the hourly forecast ("Rain likely around 4 PM"), less
+      precise. (11-02)
+- [ ] **Android walk time gaps.** With the briefing off, a best walk time less than 30 minutes
+      after 8:30 gets no nudge at all. Turning Walk time on, or saying you have a dog, during the
+      day plans nothing until the next morning. (11-02)
 - Won't do: let people choose the morning briefing time; it stays at 8:30. (10-26, decided 10-31)
 
 ## Location
@@ -141,6 +166,17 @@ Finished items move to Done at the bottom.
 
 ## Done
 
+- [x] iOS: what queued notifications say follows how old the weather is, since they go off
+      whether or not iOS has refreshed. Within a day of the fetch a briefing gives the hour's
+      weather and the walk, and walk nudges are queued; up to 3 days, "Today's forecast for
+      Knoxville" with the high and low; later, "Tap to see today's weather.". The briefing's
+      picture is the forecast at 8:30, not the weather when it was planned (often the night
+      scene). (11-02)
+- [x] Android: the morning briefing is back on 8:30 every day. Each run was due a day after the
+      last one finished, so every held-back run made the rest later (11:46 AM on the Pixel after
+      four days). Each run now sets the next for the following 8:30. (11-01)
+- [x] Captions without a dog: with Dog walking off, no-dog lists swap the walks and paw care for
+      things Misty would do ("No sun, no problem. The birds are still out, says Misty."). (11-01)
 - [x] Seasonal themes, with Halloween: JSON themes (fixed date, range or nth weekday), shipped
       in the apps and replaceable from Remote Config (`seasonal_themes`,
       `seasonal_themes_enabled`). Each sets the hero colours and caption, card tint, section and
