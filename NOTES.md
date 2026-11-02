@@ -77,6 +77,46 @@ Finished items move to Done at the bottom.
       day plans nothing until the next morning. (11-02)
 - Won't do: let people choose the morning briefing time; it stays at 8:30. (10-26, decided 10-31)
 
+## From the 11-02 code review
+
+Found reviewing the iOS changes since TestFlight build 1; where Android works the same way it's
+noted. Checked against the code, not fixed yet.
+
+- [ ] **Sunny's coat on the sunny sky.** The lighter coat (#E9B158) is hard to tell from the
+      sunny sky (#FAC775), and the walk nudge's picture is always the sunny scene. It was lightened
+      for the old Halloween card, which has since changed. Try a couple of coat colours side by
+      side. Both apps.
+- [ ] **Air quality switched off still reaches the walk.** With `air_quality_enabled` off the Air
+      tile goes, but the walk card and the briefing keep using the air data in the cached forecast
+      until it's fetched again. Both apps.
+- [ ] **Seasonal theme at night.** The night look (colours, caption, costumes off, lit pumpkin)
+      follows the night mood, so on a rainy or freezing Halloween evening the day look shows; go by
+      the clock instead. The night caption also shows from midnight on the 31st ("Too many
+      doorbells" at 3 AM). Both apps.
+- [ ] **Witch hat over the umbrella.** On a rainy Halloween Misty's hat is drawn over the umbrella;
+      and a theme with only the hat would take Sunny's sunglasses or scarf off too. Both apps.
+- [ ] **Halloween contrast.** Tile labels (#C25E00 on #FCE9D2) are 3.6:1, under the 4.5:1 AA needs;
+      the day pumpkin and Misty's grey fur barely show on the #B4500C hero, and one bat on the night
+      hero. Fixable in Remote Config before next Halloween.
+- [ ] **UV tile** (off by default). The peak only counts hours from the last fetch, so in the
+      afternoon it says "At today's peak" (and loses "Shade for pale noses"); a day of all-zero UV
+      reads "Peak 0". Turning the Daylight tile off also shows the UV tile, whatever
+      `tile_uv_enabled` says. Both apps.
+- [ ] **Remote Config themes.** One theme with a date rule or colour this version can't read makes
+      the whole list unreadable, so every Remote Config theme falls back to the built-in list. Theme
+      captions also skip the no-dog rule (none mention walks yet). Both apps.
+- [ ] **Wording.** Bad air led by coarse particles (dust) is called "Smoky air today". "Then rain"
+      or "then maybe rain" goes by the raw rain chance while the hourly strip rounds it (55% shows
+      60% but says "maybe rain"). With `walk_bad_air_band` at 4 or 5 the walk card's "Air's not
+      great" can disagree with the Air tile. Both apps.
+- [ ] **City search.** Two places with the same name, state and country (two "Richmond, England,
+      GB") show as one row, so the second can't be picked. Both apps.
+- [ ] **Tidy-ups.** Seasonal themes are decoded from Remote Config on every read (5 times per
+      screen update on iOS); each tile's default is written in three places on iOS; the walk rules
+      are listed twice in `WalkAdvisor` (`change(at:)` and `isWalkable`); `badAirPhrase` repeats
+      `bestWalkSlot`'s window; `HexColor` repeats `Color(hex:)`; `SeasonalThemeTests` parses dates
+      without a fixed locale, so it fails on a non-Gregorian calendar.
+
 ## Location
 
 - [ ] Android Settings: the location row could ask once more in the app before sending people to
@@ -165,6 +205,19 @@ Finished items move to Done at the bottom.
 
 ## Done
 
+- [x] From the 11-02 review, fixed:
+      - Walk reminders survive a replan after 8:30. Opening the app or tapping the briefing used
+        to delete that day's (and usually tomorrow's); there's still at most one a day. iOS.
+      - Queued notifications are dated by when the forecast was fetched, not the current
+        reading's time, so tapping the briefing no longer costs tomorrow's its weather. iOS.
+      - A Remote Config theme can leave out its day or night captions; iOS used to drop the whole
+        list.
+      - The walk card no longer says "Now is a great time" after sunset, and a reading from an
+        earlier day uses today's sunrise and sunset in the Daylight tile and walk card. Both apps.
+      - "Today's forecast" briefings use the city's day, and a walk reminder's bad-air note looks
+        from the walk on, as on Android. iOS.
+      - The listing and READMEs say rain alerts are off, and the READMEs list the tile and theme
+        switches. (11-02)
 - [x] Rain alerts off for the first release: `rain_notifications_enabled` false in Remote Config
       (deployed 11-02) and in both apps' built-in defaults, so the Settings switch and the
       onboarding line stay hidden from the first launch; Android doesn't make the channel. The
