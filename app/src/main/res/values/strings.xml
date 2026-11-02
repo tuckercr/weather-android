@@ -208,6 +208,43 @@
         <item>Still dark out. Sunny is already waiting by the door.</item>
         <item>Too dark to get up, says Misty. She\'s pretending to be asleep.</item>
     </string-array>
+    <!-- Without a dog (Settings' Dog walking off): the same moods with the walks and paw care swapped
+         for things Misty would do. Storm and late night have no walks, so they keep the lists above. -->
+    <string-array name="pet_caption_sunny_no_dog">
+        <item>Lovely day out. Misty will supervise from the window.</item>
+        <item>Misty has claimed the sunniest windowsill.</item>
+        <item>Sunshine and tail wags all round.</item>
+    </string-array>
+    <string-array name="pet_caption_cloudy_no_dog">
+        <item>A bit grey. Misty says it\'s a blanket sort of day.</item>
+        <item>Nap weather, says Misty.</item>
+        <item>No sun, no problem. The birds are still out, says Misty.</item>
+    </string-array>
+    <string-array name="pet_caption_rain_no_dog">
+        <item>Rain on the window. Misty is watching every drop.</item>
+        <item>Grab a raincoat. Misty is NOT going out in this.</item>
+        <item>Wet out there. Misty has found the warmest lap in the house.</item>
+    </string-array>
+    <string-array name="pet_caption_snow_no_dog">
+        <item>Snow zoomies, then straight back to the blanket.</item>
+        <item>Misty is watching the snow from somewhere warm.</item>
+    </string-array>
+    <string-array name="pet_caption_hot_no_dog">
+        <item>Too hot to move, says Misty. She\'s found the cool tiles.</item>
+        <item>Fresh water bowls today. It is a scorcher.</item>
+    </string-array>
+    <string-array name="pet_caption_cold_no_dog">
+        <item>Brrr. Warm blankets all round.</item>
+        <item>Coat weather today. Misty is staying by the radiator.</item>
+    </string-array>
+    <string-array name="pet_caption_night_evening_no_dog">
+        <item>Quiet night. Misty is doing her evening rounds.</item>
+        <item>Evening zoomies, courtesy of Misty.</item>
+    </string-array>
+    <string-array name="pet_caption_night_before_dawn_no_dog">
+        <item>Still dark out. Misty wants breakfast anyway.</item>
+        <item>Too dark to get up, says Misty. She\'s pretending to be asleep.</item>
+    </string-array>
     <string name="cd_pet_scene">Sunny the dog and Misty the cat reacting to the weather</string>
 
     <!-- The line under the top card when rain or snow is due in the next 2 hours. -->

@@ -903,7 +903,7 @@ private fun CurrentWeatherContent(
             .ofEpochSecond(nowEpochSeconds)
             .atOffset(java.time.ZoneOffset.ofTotalSeconds(weather.offsetSeconds))
             .toLocalDate(),
-    ) ?: petCaption(mood, weather.offsetSeconds)
+    ) ?: petCaption(mood, weather.offsetSeconds, hasDog = dogWalking)
     // The reading with today's sunrise and sunset, for one cached on an earlier day, so the Daylight
     // tile and the walk card follow the clock as the hero does.
     val weatherToday = remember(weather, nowEpochSeconds) { weather.withSunTimesToday(nowEpochSeconds) }

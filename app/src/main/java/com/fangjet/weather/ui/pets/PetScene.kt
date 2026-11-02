@@ -118,33 +118,39 @@ fun nightPartAt(localHour: Int): NightPart =
     }
 
 @ArrayRes
-private fun PetMood.captionsRes(nightPart: NightPart): Int =
+private fun PetMood.captionsRes(
+    nightPart: NightPart,
+    hasDog: Boolean,
+): Int =
     when (this) {
-        PetMood.SUNNY -> R.array.pet_caption_sunny
-        PetMood.CLOUDY -> R.array.pet_caption_cloudy
-        PetMood.RAIN -> R.array.pet_caption_rain
+        PetMood.SUNNY -> if (hasDog) R.array.pet_caption_sunny else R.array.pet_caption_sunny_no_dog
+        PetMood.CLOUDY -> if (hasDog) R.array.pet_caption_cloudy else R.array.pet_caption_cloudy_no_dog
+        PetMood.RAIN -> if (hasDog) R.array.pet_caption_rain else R.array.pet_caption_rain_no_dog
         PetMood.STORM -> R.array.pet_caption_storm
-        PetMood.SNOW -> R.array.pet_caption_snow
-        PetMood.HOT -> R.array.pet_caption_hot
-        PetMood.COLD -> R.array.pet_caption_cold
+        PetMood.SNOW -> if (hasDog) R.array.pet_caption_snow else R.array.pet_caption_snow_no_dog
+        PetMood.HOT -> if (hasDog) R.array.pet_caption_hot else R.array.pet_caption_hot_no_dog
+        PetMood.COLD -> if (hasDog) R.array.pet_caption_cold else R.array.pet_caption_cold_no_dog
         PetMood.NIGHT -> when (nightPart) {
-            NightPart.EVENING -> R.array.pet_caption_night_evening
+            NightPart.EVENING -> if (hasDog) R.array.pet_caption_night_evening else R.array.pet_caption_night_evening_no_dog
             NightPart.LATE_NIGHT -> R.array.pet_caption_night_late
-            NightPart.BEFORE_DAWN -> R.array.pet_caption_night_before_dawn
+            NightPart.BEFORE_DAWN ->
+                if (hasDog) R.array.pet_caption_night_before_dawn else R.array.pet_caption_night_before_dawn_no_dog
         }
     }
 
 /**
  * One caption per mood per day, so it varies without flickering between recompositions. The day
- * and (at night) the hour are the city's, from its [utcOffsetSeconds], not the device's.
+ * and (at night) the hour are the city's, from its [utcOffsetSeconds], not the device's. Without a
+ * dog ([hasDog] false, Settings' Dog walking off), the captions leave out walks.
  */
 @Composable
 fun petCaption(
     mood: PetMood,
     utcOffsetSeconds: Int = 0,
+    hasDog: Boolean = true,
 ): String {
     val local = OffsetDateTime.now(ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
-    val options = stringArrayResource(mood.captionsRes(nightPartAt(local.hour)))
+    val options = stringArrayResource(mood.captionsRes(nightPartAt(local.hour), hasDog))
     return options[local.dayOfYear % options.size]
 }
 
