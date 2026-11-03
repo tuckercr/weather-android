@@ -56,7 +56,11 @@ class WeatherNotificationWorker @AssistedInject constructor(
 
     // Tomorrow's run back on 8:30, however late this one was. Not on a retry: that would move the
     // retry itself to tomorrow.
+    private val follower = myLocationFollower(context, preferencesRepository)
+
     override suspend fun doWork(): Result {
+        // Where the phone is now, so the briefing isn't for the last place the app was opened.
+        follower.follow()
         val result = logic.doWork()
         // Result.retry() equals any retry; its Retry class is internal to WorkManager (RestrictedApi).
         if (result != Result.retry()) scheduler.keepBriefingAtHalfPastEight()

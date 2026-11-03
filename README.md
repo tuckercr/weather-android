@@ -203,6 +203,11 @@ emulator with a clean status bar:
      screen: a link to the app's system settings while notifications aren't allowed, then a switch
      for each kind (*Morning briefing*, *Walk time*, *Rain alerts*). Walk time only shows with a
      dog, and a kind switched off in Remote Config is hidden. A hidden switch keeps its value.
+     With a My Location saved, *Follow my location* (off) lets the background refresh and the
+     8:30 run move My Location to where the phone is first, so notifications follow you even when
+     the app is closed. Otherwise My Location only moves while the app is open. Turning it on
+     explains why (Play's required disclosure), then asks for "Allow all the time", which opens
+     the app's location page in system settings. It shows on only while that's granted.
    - **Location**: permission status, or a link to the app's system settings.
    - **Locations**: *Manage Locations* to add, reorder and delete cities. A bell marks the city
      notifications are for: My Location, otherwise the top city. The city tabs on the main screen

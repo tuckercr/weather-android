@@ -89,5 +89,10 @@ class WeatherUpdateWorker @AssistedInject constructor(
         },
     )
 
-    override suspend fun doWork() = logic.doWork()
+    private val follower = myLocationFollower(context, preferencesRepository)
+
+    override suspend fun doWork(): Result {
+        follower.follow()
+        return logic.doWork()
+    }
 }

@@ -44,6 +44,7 @@ class WeatherNotificationWorkerTest {
         every { preferences.notifyMorningBriefing } returns flowOf(true)
         every { preferences.notifyWalkTime } returns flowOf(true)
         every { preferences.showWalkCard } returns flowOf(true)
+        every { preferences.followMyLocation } returns flowOf(false)
         every { remoteConfig.dailyWeatherNotificationsEnabled() } returns false
         every { remoteConfig.petWeatherThresholds() } returns PetWeatherThresholds.DEFAULT
         coEvery { weather.fetchCurrentWeather(any(), any(), any(), any(), any()) } returns

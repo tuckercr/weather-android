@@ -30,6 +30,29 @@ fun List<SavedLocation>.notificationLocation(): SavedLocation? = notificationInd
 /** Where [notificationLocation] is in the list, for marking it in Manage Locations. */
 fun List<SavedLocation>.notificationIndex(): Int? = indexOfFirst { it.isCurrentLocation }.takeIf { it >= 0 } ?: indices.firstOrNull()
 
+/** How far the device has to move before My Location follows it. */
+internal const val MY_LOCATION_MOVE_METERS = 1_000.0
+
+/**
+ * The list with My Location moved to [latitude], [longitude]. Null when there's no My Location, or
+ * it has moved less than [MY_LOCATION_MOVE_METERS]: that's GPS wobble, and new coordinates would
+ * just miss the cache.
+ */
+fun List<SavedLocation>.withMyLocationAt(
+    latitude: Double,
+    longitude: Double,
+): List<SavedLocation>? {
+    val index = indexOfFirst { it.isCurrentLocation }
+    if (index < 0) return null
+    val current = this[index]
+    val oldLat = current.latitude
+    val oldLon = current.longitude
+    if (oldLat != null && oldLon != null && distanceMeters(oldLat, oldLon, latitude, longitude) < MY_LOCATION_MOVE_METERS) {
+        return null
+    }
+    return toMutableList().apply { set(index, current.copy(latitude = latitude, longitude = longitude)) }
+}
+
 /** Great-circle distance in metres, for telling a real move from GPS wobble. */
 fun distanceMeters(
     lat1: Double,
