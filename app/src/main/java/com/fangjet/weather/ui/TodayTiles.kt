@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -251,18 +252,13 @@ private fun FeelsLikeTile(
 ) {
     Tile(Icons.Default.Thermostat, stringResource(R.string.label_feels_like), modifier) {
         // The tile's headline number: large, and centred in the space under the label.
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
                 keepUnitsTogether(formatTemperature(weather.feelsLike, weather.units)),
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
             )
-            TileNote(stringResource(R.string.today_actual, formatTemperature(weather.temperature, weather.units)))
         }
     }
 }

@@ -27,13 +27,13 @@ WorkManager, and CI on GitHub Actions.
   name them ("Sunny wants puddles. Misty wants a towel."), and at night follow the city's time of
   night (evening, late night, before dawn). The night sky shows the moon's real phase, lit from the
   other side in the southern hemisphere.
-- **Best walk time** card: "Now is a great time", the next good hour ("Around 8 AM"), or "Not a good
+- **Best Walk Time** card: "Now is a great time", the next good hour ("Around 8 AM"), or "Not a good
   day for walkies" when nothing in the next 24 hours qualifies. A good hour is under 30% rain
   chance, at a comfortable feels-like temperature, within walking hours and in daylight, and
   below the warm-pavement limit (estimated, with Open-Meteo); when it is raining now, now never counts,
   whatever the hourly forecast says. A suggestion on the city's next calendar day reads "Tomorrow
   around…", judged in the city's own UTC offset. The paw is tinted by the rating, and a caption
-  explains hot pavement (naming the pavement only when it's the reason) or freezing weather. Users can turn it off in Settings (*I have a dog*, which hides the Paw check tile too), and
+  explains hot pavement (naming the pavement only when it's the reason) or freezing weather. Users can turn it off in Settings (*I have a dog*, which hides the Paw Check tile too), and
   `walk_card_enabled` hides it remotely.
 - **Bad air in the walk planner**: hours at US "Unhealthy" or worse (Europe's "Poor" and up) are
   never suggested, and the walk card says "Bad air. Potty breaks only." when the air is bad now.
@@ -47,10 +47,10 @@ WorkManager, and CI on GitHub Actions.
   otherwise to the nearest 10%, as everywhere in the app). Hours that have
   already passed are dropped at display time (`fromCurrentSlot`), so a cached forecast or an app
   left open never shows or advises on past hours.
-- **Today tiles**: Feels like, Wind, Humidity, Paw check (with a dog) and Air quality in pairs, then
-  Daylight (with the UV index) and Sky across the full width. An odd tile out, usually Air quality
-  when Paw check is showing, takes the full width rather than leaving a gap.
-- **Air quality** tile: the index on the city's scale (Europe's for cities on a European clock, the
+- **Today tiles**: Feels Like, Wind, Humidity, Paw Check (with a dog) and Air Quality in pairs, then
+  Daylight (with the UV index) and Sky across the full width. An odd tile out, usually Air Quality
+  when Paw Check is showing, takes the full width rather than leaving a gap.
+- **Air Quality** tile: the index on the city's scale (Europe's for cities on a European clock, the
   US one elsewhere), its band on a six-colour bar, and what it means for a walk, or for people
   without a dog. It comes from Open-Meteo's hourly air quality forecast, fetched with the forecast in
   one request and cached with it, so it shows offline too. `air_quality_enabled` switches it off.
@@ -195,7 +195,7 @@ emulator with a clean status bar:
    screen is resumed; the current loop stays on screen during the refresh, and a failed refresh
    keeps it.
 6. **Settings**, top to bottom:
-   - **My Pets**: *I have a dog* turns on the walk card, the Paw check tile, the briefing's walk
+   - **My Pets**: *I have a dog* turns on the walk card, the Paw Check tile, the briefing's walk
      sentence and the Walk time notification ("Walk times, pavement checks and walk reminders").
      The Walk time notification channel is only created once there's a dog, and never deleted.
    - **My Locations**: *Manage Locations* to add, reorder and delete cities. A bell marks the city
@@ -310,7 +310,7 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `weather_refresh_interval_minutes` | number | `30` | Background weather refresh interval; values below the WorkManager minimum of 15 are raised to 15 |
 | `radar_frame_interval_ms` | number | `850` | Delay between radar animation frames; outside 100–5000 falls back to 850 |
 | `radar_enabled` | boolean | `true` | Radar kill switch: false hides the radar section (header and card, phone and tablet layouts) and skips the RainViewer timeline and tile requests, for when RainViewer or the OpenStreetMap tiles become unavailable |
-| `walk_card_enabled` | boolean | `true` | Shows the "Best walk time" card; false hides it for everyone (phone and tablet layouts). Users can also turn it off in Settings |
+| `walk_card_enabled` | boolean | `true` | Shows the "Best Walk Time" card; false hides it for everyone (phone and tablet layouts). Users can also turn it off in Settings |
 | `open_meteo_enabled` | boolean | `true` | Forecasts for cities with coordinates come from Open-Meteo; false falls back to the OpenWeatherMap 3-hourly forecast by lat/lon (foreground, background refresh, and notifications) |
 | `air_quality_enabled` | boolean | `true` | Fetches hourly air quality alongside the Open-Meteo forecast; false hides the Air quality tile and the walk planner ignores the air |
 | `openweather_api_key` | string | `""` | Replacement OpenWeather API key, used from the next app start; empty uses the key built into the app. Lets a leaked key be rotated without an update. Not secret: Remote Config values reach every device |
@@ -321,9 +321,9 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `rain_notifications_enabled` | boolean | `false` | Rain alerts; false stops them and hides their switch in Settings (keeping the user's choice), and the Rain alerts channel isn't made. Off for the first release |
 | `foreground_refresh_min_minutes` | number | `0` | Skips the silent refresh on returning to the foreground if that city's weather (or forecast, tracked separately) was fetched within this many minutes in this session; outside 0–1440 falls back to 0, which always refreshes. Pull-to-refresh, retry and switching cities are never throttled |
 | `walk_hot_pavement_c` | number | `52` | Pavement °C at or above which the walk rating is *Paws hot* and that hour is not walkable; valid 40–70 |
-| `walk_warm_pavement_c` | number | `45` | Pavement °C at or above which the Today Paw check tile says *Getting hot* and that hour is not suggested for a walk (a walk now rates *Okay*); valid 30–65, and below `walk_hot_pavement_c` (otherwise 7 below it) |
-| `walk_dangerous_pavement_c` | number | `57.2` | Pavement °C (57.2 is 135 °F) at or above which the Today Paw check tile says *Dangerously hot*; valid 45–80, and above `walk_hot_pavement_c` (otherwise 5 above it) |
-| `walk_icy_pavement_c` | number | `0` | Pavement °C below which the Today Paw check tile says *Icy, watch for salt* after rain or snow in the last 12 hours or with snow on the ground, and *Below freezing* otherwise; valid -20–10 |
+| `walk_warm_pavement_c` | number | `45` | Pavement °C at or above which the Today Paw Check tile says *Getting hot* and that hour is not suggested for a walk (a walk now rates *Okay*); valid 30–65, and below `walk_hot_pavement_c` (otherwise 7 below it) |
+| `walk_dangerous_pavement_c` | number | `57.2` | Pavement °C (57.2 is 135 °F) at or above which the Today Paw Check tile says *Dangerously hot*; valid 45–80, and above `walk_hot_pavement_c` (otherwise 5 above it) |
+| `walk_icy_pavement_c` | number | `0` | Pavement °C below which the Today Paw Check tile says *Icy, watch for salt* after rain or snow in the last 12 hours or with snow on the ground, and *Below freezing* otherwise; valid -20–10 |
 | `walk_max_rain_chance` | number | `30` | An hour is walkable only below this rain chance (%); whole number, valid 0–100 |
 | `walk_comfort_min_c` | number | `3` | Coldest comfortable walking temperature (°C, feels-like); valid -20–20, and below `walk_comfort_max_c` |
 | `walk_comfort_max_c` | number | `27` | Warmest comfortable walking temperature (°C, feels-like); valid 15–40, and above `walk_comfort_min_c` |

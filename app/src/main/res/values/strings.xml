@@ -6,7 +6,7 @@
     <string name="action_try_again">Try again</string>
     <string name="cd_navigate_back">Back</string>
     <string name="field_city_label">City</string>
-    <string name="label_feels_like">Feels like</string>
+    <string name="label_feels_like">Feels Like</string>
     <string name="label_humidity">Humidity</string>
     <string name="label_wind">Wind</string>
     <!-- Today's high and low on the top card, in whole degrees: "H 64° · L 61°". -->
@@ -264,7 +264,7 @@
     <string name="next_snow_continuing">Snow for the next 2 hours</string>
 
     <!-- Walk advice -->
-    <string name="walk_title">Best walk time</string>
+    <string name="walk_title">Best Walk Time</string>
     <string name="walk_now">Now is a great time</string>
     <string name="walk_around">Around %1$s</string>
     <string name="walk_around_tomorrow">Tomorrow around %1$s</string>
@@ -291,7 +291,7 @@
     <string name="walk_moderate_air">Air\'s not great. Short walks for older and flat-faced dogs.</string>
 
     <!-- UV index -->
-    <string name="label_uv_index">UV index</string>
+    <string name="label_uv_index">UV Index</string>
     <string name="uv_low">Low</string>
     <string name="uv_moderate">Moderate</string>
     <string name="uv_high">High</string>
@@ -302,12 +302,11 @@
     <string name="walk_pavement_warm">Paw check: about %1$d°. Getting hot.</string>
 
     <!-- Today tiles -->
-    <string name="label_pavement">Paw check</string>
+    <string name="label_pavement">Paw Check</string>
     <string name="format_about_temperature_c">About %1$d °C</string>
     <string name="format_about_temperature_f">About %1$d °F</string>
     <string name="label_daylight">Daylight</string>
     <string name="label_sky">Sky</string>
-    <string name="today_actual">Actual %1$s</string>
     <string name="today_dew_point">Dew point %1$s</string>
     <string name="update_required_title">Time for an update</string>
     <string name="update_required_body">This version of Sunny &amp; Misty has stopped working. Sunny\'s packed, Misty\'s pretending not to notice. Update to keep the walks coming.</string>
@@ -315,7 +314,7 @@
     <string name="update_banner_body">Update for the latest features and fixes.</string>
     <string name="update_button">Update</string>
     <string name="update_not_now">Not now</string>
-    <string name="label_air_quality">Air quality</string>
+    <string name="label_air_quality">Air Quality</string>
     <string name="air_quality_mostly">Mostly %1$s</string>
     <!-- "Unhealthy for sensitive groups" doesn't fit on a tile. -->
     <string-array name="air_quality_bands_us">
