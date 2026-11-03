@@ -53,6 +53,23 @@ Finished items move to Done at the bottom.
   everywhere else); "Unhealthy for sensitive groups" is shortened to "Poor for some".
 - Remote Config: `air_quality_enabled` (on) and `walk_bad_air_band` (3, valid 1–5) are live.
 
+## Design review (11-03)
+
+- [ ] **Daylight tile.** What it does now (both apps): before sunrise, "Sunrise in 2 h 10 min"
+      with the sun at the start of the arc; in the day, "4 h 29 min left" with the sun along the
+      arc; after sunset, the arc filled with the sun down, "The sun has set", and that day's
+      sunrise and sunset times until midnight. It doesn't look ahead: tomorrow's sunrise only
+      shows after midnight, as "Sunrise in …". The UV index rides in the tile's header ("UV 1 ·
+      Low") while the UV tile is off (`tile_uv_enabled`, off by default), and is hidden after dark.
+      Consider: tomorrow's sunrise after sunset, and taking the UV off this tile.
+- [ ] **Main screen horizontal margins.** 16 from the screen edge to the cards on both: 16 dp on
+      Android (`padding(horizontal = 16.dp)` on the weather column) and 16 points on iOS
+      (`.padding(.horizontal, 16)` on the weather content). A point is iOS's density-independent
+      unit, like dp: 3 pixels on a 3x iPhone such as the 14 Pro. Cards add their own padding
+      inside (12 to 16). Consider reducing it, for example to 12, for more room in the hourly
+      strip and tiles; check the iPad and landscape layouts, and leave the onboarding screens' own
+      margins (24) alone.
+
 ## More tiles to consider (10-30)
 
 - [ ] **Wind:** gusts in the Wind tile ("14 mph, gusts 30"), and wind in the words too: the
