@@ -51,7 +51,34 @@ fun OnboardingNotificationScreen(
         onDone()
     }
 
-    OnboardingLayout(modifier = modifier) {
+    OnboardingLayout(
+        modifier = modifier,
+        actions = {
+            Button(
+                onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        Timber.d("launching permission dialog")
+                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        Timber.d("pre-Tiramisu device, skipping permission request")
+                        onDone()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.notif_allow_button))
+            }
+            OutlinedButton(
+                onClick = {
+                    Timber.d("user tapped Not now")
+                    onDone()
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.notif_not_now_button))
+            }
+        },
+    ) {
         Box(
             modifier = Modifier
                 .size(112.dp)
@@ -80,31 +107,6 @@ fun OnboardingNotificationScreen(
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(modifier = Modifier.height(48.dp))
-        Button(
-            onClick = {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    Timber.d("launching permission dialog")
-                    permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                } else {
-                    Timber.d("pre-Tiramisu device, skipping permission request")
-                    onDone()
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.notif_allow_button))
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-        OutlinedButton(
-            onClick = {
-                Timber.d("user tapped Not now")
-                onDone()
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.notif_not_now_button))
-        }
     }
 }
 

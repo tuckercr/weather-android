@@ -42,7 +42,14 @@ import com.fangjet.weather.ui.pets.skyColor
 @Composable
 fun UpdateRequiredScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    OnboardingLayout(modifier = modifier) {
+    OnboardingLayout(
+        modifier = modifier,
+        actions = {
+            Button(onClick = { context.openPlayStore() }, modifier = Modifier.fillMaxWidth()) {
+                Text(text = stringResource(R.string.update_button))
+            }
+        },
+    ) {
         PetScene(
             mood = PetMood.NIGHT,
             modifier = Modifier
@@ -65,10 +72,6 @@ fun UpdateRequiredScreen(modifier: Modifier = Modifier) {
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = { context.openPlayStore() }, modifier = Modifier.fillMaxWidth()) {
-            Text(text = stringResource(R.string.update_button))
-        }
     }
 }
 

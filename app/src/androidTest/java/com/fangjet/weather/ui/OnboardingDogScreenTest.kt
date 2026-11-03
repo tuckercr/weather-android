@@ -5,7 +5,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import com.fangjet.weather.R
 import com.fangjet.weather.ui.theme.CatsDogsTheme
 import org.junit.Assert.assertEquals
@@ -27,8 +26,8 @@ class OnboardingDogScreenTest {
         }
 
         composeRule.onNodeWithText(string(R.string.dog_question_title)).assertIsDisplayed()
-        composeRule.onNodeWithText(string(R.string.dog_question_no)).performScrollTo().performClick()
-        composeRule.onNodeWithText(string(R.string.dog_question_yes)).performScrollTo().performClick()
+        composeRule.onNodeWithText(string(R.string.dog_question_no)).performClick()
+        composeRule.onNodeWithText(string(R.string.dog_question_yes)).performClick()
 
         assertEquals(listOf(false, true), answers)
     }

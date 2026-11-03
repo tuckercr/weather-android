@@ -32,40 +32,43 @@ fun WelcomeScreen(
     onGetStarted: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    OnboardingLayout(modifier = modifier) {
+    OnboardingLayout(
+        modifier = modifier,
+        actions = {
+            Button(
+                onClick = onGetStarted,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(text = stringResource(R.string.get_started))
+            }
+        },
+    ) {
         PetScene(
             mood = PetMood.SUNNY,
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(24.dp))
                 .background(PetMood.SUNNY.skyColor)
-                .padding(horizontal = 12.dp, vertical = 16.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = stringResource(R.string.welcome_title),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center,
             modifier = Modifier.semantics { heading() },
         )
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Character(name = stringResource(R.string.welcome_sunny_name), body = stringResource(R.string.welcome_sunny_body))
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Character(name = stringResource(R.string.welcome_misty_name), body = stringResource(R.string.welcome_misty_body))
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = stringResource(R.string.welcome_together),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(
-            onClick = onGetStarted,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(text = stringResource(R.string.get_started))
-        }
     }
 }
 
