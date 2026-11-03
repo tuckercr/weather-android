@@ -400,7 +400,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `MoonPhaseTest` | The moon's phase from the date, checked against published phases |
 | `:app` | `WeatherIconTest` | Icon for each condition by day and night, moon phases, and southern-hemisphere mirroring |
 | `:app` | `CalmWindTest` | Calm wind reads as 0, and visibility at the 10 km cap reads as clear |
-| `:app` | `TemperatureTextTest` | Temperatures with and without their unit (`temperature_units_shown`): both unit systems, negatives, the same whole degrees either way, and inside "About …" and "Actual …" |
+| `:app` | `TemperatureTextTest` | Temperatures with and without their unit (`temperature_units_shown`): both unit systems, negatives, the same whole degrees either way, and inside "About …" and "Dew point …" |
 | `:app` | `DistanceUnitsTest` | Visibility in miles or km: the unit choice, or the measurement system for "System default" |
 | `:app` | `AppConfigModuleTest` | The OpenWeather key: a Remote Config replacement wins over the built-in key |
 | `:app` | `CurrentSlotsTest` | `fromCurrentSlot`: drops past hourly and 3-hourly slots, keeps the one in progress |

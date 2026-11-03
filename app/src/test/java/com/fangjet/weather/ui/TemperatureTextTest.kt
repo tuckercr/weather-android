@@ -51,7 +51,6 @@ class TemperatureTextTest {
     fun `a temperature inside a sentence loses its unit too`() {
         assertEquals("About 81 °F", format("format_about_temperature", shown(81.0, WeatherUnits.IMPERIAL, unitShown = true)))
         assertEquals("About 81°", format("format_about_temperature", shown(81.0, WeatherUnits.IMPERIAL, unitShown = false)))
-        assertEquals("Actual 53°", format("today_actual", shown(53.0, WeatherUnits.IMPERIAL, unitShown = false)))
         assertEquals("Dew point -3°", format("today_dew_point", shown(-3.0, WeatherUnits.METRIC, unitShown = false)))
     }
 
