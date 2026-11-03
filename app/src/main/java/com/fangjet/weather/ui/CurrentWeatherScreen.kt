@@ -104,6 +104,7 @@ import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
+import com.fangjet.weather.domain.RainOutlookSettings
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.SeasonalThemes
@@ -139,6 +140,7 @@ import com.fangjet.weather.util.iconCodeAt
 import com.fangjet.weather.util.isDarkAt
 import com.fangjet.weather.util.isTooOldToShowAsNow
 import com.fangjet.weather.util.nextRain
+import com.fangjet.weather.util.rainOutlook
 import com.fangjet.weather.util.readingDay
 import com.fangjet.weather.util.usesMilesForDistance
 import com.fangjet.weather.util.withSunTimesToday
@@ -357,6 +359,7 @@ fun CurrentWeatherRoute(onOpenSettings: () -> Unit = {}) {
             hourlyForecastEnabled = weatherForecastViewModel.hourlyForecastEnabled,
             nextRainEnabled = weatherForecastViewModel.nextRainEnabled,
             weekForecastEnabled = weatherForecastViewModel.weekForecastEnabled,
+            rainOutlookSettings = weatherForecastViewModel.rainOutlookSettings,
             dogWalking = showWalkCard,
             airQualityEnabled = weatherForecastViewModel.airQualityEnabled,
             todayTiles = weatherForecastViewModel.todayTiles,
@@ -447,6 +450,8 @@ fun CurrentWeatherScreen(
     hourlyForecastEnabled: Boolean = true,
     nextRainEnabled: Boolean = true,
     weekForecastEnabled: Boolean = true,
+    // Remote Config rain_outlook_*: whether the rain outlook card shows, and what it charts.
+    rainOutlookSettings: RainOutlookSettings = RainOutlookSettings(),
     // Settings' Dog walking switch: off hides the Paw check tile (the walk card follows walkCardEnabled).
     dogWalking: Boolean = true,
     // Remote Config air_quality_enabled: off hides the Air quality tile.
@@ -630,6 +635,7 @@ fun CurrentWeatherScreen(
                                         hourlyForecastEnabled = hourlyForecastEnabled,
                                         nextRainEnabled = nextRainEnabled,
                                         weekForecastEnabled = weekForecastEnabled,
+                                        rainOutlookSettings = rainOutlookSettings,
                                         dogWalking = dogWalking,
                                         airQualityEnabled = airQualityEnabled,
                                         todayTiles = todayTiles,
@@ -852,6 +858,7 @@ private fun CurrentWeatherContent(
     hourlyForecastEnabled: Boolean = true,
     nextRainEnabled: Boolean = true,
     weekForecastEnabled: Boolean = true,
+    rainOutlookSettings: RainOutlookSettings = RainOutlookSettings(),
     // Settings' Dog walking switch: off hides the Paw check tile (the walk card follows walkCardEnabled).
     dogWalking: Boolean = true,
     airQualityEnabled: Boolean = true,
@@ -1033,12 +1040,19 @@ private fun CurrentWeatherContent(
                 }
             }
             // "Rain starting around 3:15 PM", only when rain or snow is due in the next 2 hours.
-            val nextRain = remember(forecastDays, nowEpochSeconds) {
-                nextRain(forecastDays.firstOrNull()?.quarterHours.orEmpty(), nowEpochSeconds)
+            // next_rain_enabled: Remote Config can hide the line.
+            val nextRain = remember(forecastDays, nowEpochSeconds, nextRainEnabled) {
+                if (nextRainEnabled) nextRain(forecastDays.firstOrNull()?.quarterHours.orEmpty(), nowEpochSeconds) else null
+            }
+            val nextRainText = nextRain?.let { nextRainText(it, weather.offsetSeconds) }
+            // The chance of rain hour by hour, when some hour reaches rain_outlook_min_chance. It
+            // takes the next-rain line's place, and its words for a headline.
+            val rainOutlook = remember(currentSlots, rainOutlookSettings, weather.units, nextRainText) {
+                rainOutlook(currentSlots, rainOutlookSettings, weather.units, nextRainText)
             }
             val nextRainSection: @Composable () -> Unit = {
-                // next_rain_enabled: Remote Config can hide the line.
-                if (nextRainEnabled) nextRain?.let { NextRainLine(it, weather.offsetSeconds) }
+                // Not when the rain outlook shows: it says the same as its headline.
+                if (rainOutlook == null && nextRain != null && nextRainText != null) NextRainLine(nextRain, nextRainText)
             }
             val walkSection: @Composable () -> Unit = {
                 // walk_card_enabled: Remote Config can hide the card.
@@ -1087,6 +1101,12 @@ private fun CurrentWeatherContent(
                 if (hourlyForecastEnabled && hourly.isNotEmpty()) {
                     SectionHeader(R.string.section_hourly)
                     HourlyStrip(slots = hourly)
+                }
+                // Straight after the hourly strip, before TODAY (or the radar, when TODAY sits
+                // beside the hero), in both layouts.
+                rainOutlook?.let {
+                    SectionHeader(R.string.section_rain_outlook)
+                    RainOutlookCard(outlook = it, units = weather.units)
                 }
 
                 if (!wide) detailsSection()
@@ -1212,13 +1232,13 @@ private fun HourlyCell(
     }
 }
 
-/** One line under the top card: when rain or snow starts or stops in the next 2 hours. */
+/** "Rain starting around 3:15 PM": the next-rain line's words, also the rain outlook's headline. */
 @Composable
-private fun NextRainLine(
+private fun nextRainText(
     nextRain: NextRain,
     utcOffsetSeconds: Int,
-) {
-    val text = when (nextRain) {
+): String =
+    when (nextRain) {
         is NextRain.Starting -> stringResource(
             if (nextRain.snow) R.string.next_snow_starting else R.string.next_rain_starting,
             formatEpochTime(nextRain.epochSeconds, utcOffsetSeconds),
@@ -1229,6 +1249,13 @@ private fun NextRainLine(
         )
         is NextRain.Continuing -> stringResource(if (nextRain.snow) R.string.next_snow_continuing else R.string.next_rain_continuing)
     }
+
+/** One line under the top card: when rain or snow starts or stops in the next 2 hours. */
+@Composable
+private fun NextRainLine(
+    nextRain: NextRain,
+    text: String,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = seasonalCardColor()),

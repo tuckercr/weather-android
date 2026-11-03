@@ -10,6 +10,7 @@ import com.fangjet.weather.data.WeatherRepository
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.PetWeatherThresholds
+import com.fangjet.weather.domain.RainOutlookSettings
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.TodayTileSwitches
@@ -59,6 +60,7 @@ class WeatherForecastViewModel internal constructor(
     isHourlyForecastEnabled: () -> Boolean = { true },
     isNextRainEnabled: () -> Boolean = { true },
     isWeekForecastEnabled: () -> Boolean = { true },
+    readRainOutlookSettings: () -> RainOutlookSettings = { RainOutlookSettings() },
     isAirQualityEnabled: () -> Boolean = { true },
     readTodayTiles: () -> TodayTileSwitches = { TodayTileSwitches() },
     readSeasonalThemes: () -> List<SeasonalTheme> = { emptyList() },
@@ -128,6 +130,7 @@ class WeatherForecastViewModel internal constructor(
         isHourlyForecastEnabled = remoteConfigRepository::hourlyForecastEnabled,
         isNextRainEnabled = remoteConfigRepository::nextRainEnabled,
         isWeekForecastEnabled = remoteConfigRepository::weekForecastEnabled,
+        readRainOutlookSettings = remoteConfigRepository::rainOutlookSettings,
         isAirQualityEnabled = remoteConfigRepository::airQualityEnabled,
         readTodayTiles = remoteConfigRepository::todayTiles,
         readSeasonalThemes = remoteConfigRepository::seasonalThemes,
@@ -146,6 +149,9 @@ class WeatherForecastViewModel internal constructor(
 
     /** Remote Config `week_forecast_enabled`: false hides the rest-of-the-week section. */
     val weekForecastEnabled: Boolean = isWeekForecastEnabled()
+
+    /** Remote Config `rain_outlook_*` (validated): whether the rain outlook card shows, and what it charts. */
+    val rainOutlookSettings: RainOutlookSettings = readRainOutlookSettings()
 
     /**
      * Remote Config `air_quality_enabled`. The fetch checks it too; this hides a reading in a

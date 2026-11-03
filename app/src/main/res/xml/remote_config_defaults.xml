@@ -36,6 +36,21 @@
         <key>week_forecast_enabled</key>
         <value>true</value>
     </entry>
+    <!-- The rain outlook card: the chance of rain hour by hour for the next rain_outlook_hours hours
+         (whole number, 6-12), shown only when some hour reaches rain_outlook_min_chance percent
+         (whole number, 1-100), which is also where an hour counts as wet. Anything else uses these. -->
+    <entry>
+        <key>rain_outlook_enabled</key>
+        <value>true</value>
+    </entry>
+    <entry>
+        <key>rain_outlook_hours</key>
+        <value>10</value>
+    </entry>
+    <entry>
+        <key>rain_outlook_min_chance</key>
+        <value>20</value>
+    </entry>
     <!-- Forecasts for cities with coordinates: true uses Open-Meteo, false falls back to the
          OpenWeatherMap 3-hourly forecast by lat/lon. -->
     <entry>

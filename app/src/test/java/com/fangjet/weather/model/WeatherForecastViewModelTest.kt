@@ -3,6 +3,7 @@ package com.fangjet.weather.model
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.PetWeatherThresholds
+import com.fangjet.weather.domain.RainOutlookSettings
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WeatherUnits
 import kotlinx.coroutines.CompletableDeferred
@@ -510,6 +511,7 @@ class WeatherForecastViewModelTest {
         isHourlyForecastEnabled: () -> Boolean = { true },
         isNextRainEnabled: () -> Boolean = { true },
         isWeekForecastEnabled: () -> Boolean = { true },
+        readRainOutlookSettings: () -> RainOutlookSettings = { RainOutlookSettings() },
         readPetWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
         foregroundRefreshMinMinutes: () -> Long = { 0L },
         nowMillis: () -> Long = { 0L },
@@ -527,6 +529,7 @@ class WeatherForecastViewModelTest {
         isHourlyForecastEnabled = isHourlyForecastEnabled,
         isNextRainEnabled = isNextRainEnabled,
         isWeekForecastEnabled = isWeekForecastEnabled,
+        readRainOutlookSettings = readRainOutlookSettings,
         readPetWeatherThresholds = readPetWeatherThresholds,
         foregroundRefreshMinMinutes = foregroundRefreshMinMinutes,
         nowMillis = nowMillis,
@@ -701,6 +704,13 @@ class WeatherForecastViewModelTest {
         assertEquals(false, viewModel(isHourlyForecastEnabled = { false }).hourlyForecastEnabled)
         assertEquals(false, viewModel(isNextRainEnabled = { false }).nextRainEnabled)
         assertEquals(false, viewModel(isWeekForecastEnabled = { false }).weekForecastEnabled)
+    }
+
+    @Test
+    fun `rain outlook settings come from Remote Config`() {
+        assertEquals(RainOutlookSettings(), viewModel().rainOutlookSettings)
+        val remote = RainOutlookSettings(enabled = false, hours = 6, minChance = 40)
+        assertEquals(remote, viewModel(readRainOutlookSettings = { remote }).rainOutlookSettings)
     }
 
     class MainDispatcherRule(

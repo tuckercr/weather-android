@@ -35,6 +35,21 @@
       "valueType": "BOOLEAN",
       "description": "Show the rest-of-the-week section (header and day rows) on the current-weather screen"
     },
+    "rain_outlook_enabled": {
+      "defaultValue": { "value": "true" },
+      "valueType": "BOOLEAN",
+      "description": "Show the rain outlook card (the chance of rain hour by hour) on the current-weather screen. Off shows the \"Rain starting around 3:15 PM\" line as before."
+    },
+    "rain_outlook_hours": {
+      "defaultValue": { "value": "10" },
+      "valueType": "NUMBER",
+      "description": "Hours the rain outlook charts, from the current hour. Whole number, valid 6–12; anything else uses 10."
+    },
+    "rain_outlook_min_chance": {
+      "defaultValue": { "value": "20" },
+      "valueType": "NUMBER",
+      "description": "The rain outlook only shows when some hour's rain chance, in percent, reaches this, which is also the chance from which an hour counts as wet. Whole number, valid 1–100; anything else uses 20."
+    },
     "openweather_api_key": {
       "defaultValue": { "value": "" },
       "valueType": "STRING",

@@ -181,6 +181,21 @@ class OpenMeteoForecastSourceTest {
     }
 
     @Test
+    fun `slots carry the rain amount from the same index as their chance`() {
+        val r = response(3)
+        val rained = r.copy(
+            hourly = r.hourly.copy(
+                precipitationProbability = listOf(10, 70, 40),
+                precipitation = listOf(0.0, 2.5, null),
+            ),
+        )
+        val slots = OpenMeteoForecastSource.toDayForecasts(rained, WeatherUnits.METRIC, dayStart).single().hourlySlots
+
+        assertEquals(listOf(10, 70, 40), slots.map { it.precipitationChance })
+        assertEquals(listOf(0.0, 2.5, null), slots.map { it.precipitationMm })
+    }
+
+    @Test
     fun `15-minute amounts become quarters starting 15 minutes before their time, on the first day`() {
         val r = response(3).copy(
             minutely15 = OpenMeteoMinutely15Dto(

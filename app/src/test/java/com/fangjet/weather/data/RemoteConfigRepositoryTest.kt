@@ -2,6 +2,7 @@ package com.fangjet.weather.data
 
 import android.content.Context
 import com.fangjet.weather.domain.PetWeatherThresholds
+import com.fangjet.weather.domain.RainOutlookSettings
 import com.google.android.gms.tasks.OnCompleteListener
 import com.google.android.gms.tasks.Task
 import com.google.firebase.Firebase
@@ -181,6 +182,37 @@ class RemoteConfigRepositoryTest {
     }
 
     @Test
+    fun `rain outlook reads its switch and whole numbers in range`() {
+        firebaseInitialised(true)
+        set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_ENABLED, "false")
+        set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_HOURS, "6")
+        set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_MIN_CHANCE, "100.0")
+        val repo = RemoteConfigRepository(context)
+
+        assertEquals(RainOutlookSettings(enabled = false, hours = 6, minChance = 100), repo.rainOutlookSettings())
+        set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_HOURS, "12")
+        set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_MIN_CHANCE, "1")
+        assertEquals(RainOutlookSettings(enabled = false, hours = 12, minChance = 1), repo.rainOutlookSettings())
+    }
+
+    @Test
+    fun `rain outlook values out of range, fractional or junk fall back to the defaults`() {
+        firebaseInitialised(true)
+        val repo = RemoteConfigRepository(context)
+
+        listOf("5", "13", "8.5", "-10", "lots", "").forEach { raw ->
+            set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_HOURS, raw)
+            assertEquals(raw, RainOutlookSettings().hours, repo.rainOutlookSettings().hours)
+        }
+        listOf("0", "101", "20.5", "-1", "some", "").forEach { raw ->
+            set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_MIN_CHANCE, raw)
+            assertEquals(raw, RainOutlookSettings().minChance, repo.rainOutlookSettings().minChance)
+        }
+        set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_ENABLED, "perhaps")
+        assertEquals(RainOutlookSettings().enabled, repo.rainOutlookSettings().enabled)
+    }
+
+    @Test
     fun `replacement API key is trimmed and blank means none`() {
         firebaseInitialised(true)
         val repo = RemoteConfigRepository(context)
@@ -262,6 +294,7 @@ class RemoteConfigRepositoryTest {
         assertEquals(RemoteConfigRepository.DEFAULT_ANALYTICS_ENABLED, repo.analyticsEnabled())
         assertNull(repo.openWeatherApiKey())
         assertEquals(PetWeatherThresholds.DEFAULT, repo.petWeatherThresholds())
+        assertEquals(RainOutlookSettings(enabled = true, hours = 10, minChance = 20), repo.rainOutlookSettings())
     }
 
     /** A value that parses like Remote Config's own: numbers and booleans throw on junk. */

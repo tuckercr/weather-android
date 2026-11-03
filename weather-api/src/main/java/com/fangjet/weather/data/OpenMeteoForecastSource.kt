@@ -128,6 +128,9 @@ class OpenMeteoForecastSource @Inject constructor(
                     humidity = h.relativeHumidity.getOrNull(i) ?: 0,
                     pressure = h.seaLevelPressure.getOrNull(i)?.toInt() ?: 0,
                     pop = (h.precipitationProbability.getOrNull(i) ?: 0) / 100.0,
+                    // From the same index as the chance (both are Open-Meteo's figures for the hour
+                    // before the time), so the rain outlook's bars pair a chance with its own amount.
+                    precipitationMm = h.precipitation.getOrNull(i),
                     uvIndex = h.uvIndex.getOrNull(i),
                     pavementTemperature = pavementC[i]?.let(units::fromCelsius),
                     groundWet = groundWet(h, i),

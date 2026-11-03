@@ -12,6 +12,7 @@ import com.fangjet.weather.R
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
+import com.fangjet.weather.domain.RainOutlookSettings
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.model.LoadingState
@@ -268,6 +269,47 @@ class CurrentWeatherScreenTest {
         }
 
         composeRule.onNodeWithText("80%").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun rainOutlookShowsWhenAnHourReachesTheChance() {
+        setRainOutlookContent(RainOutlookSettings())
+
+        composeRule.onNodeWithText(string(R.string.section_rain_outlook)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.rain_outlook_likely_now)).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun rainOutlookIsHiddenWhenSwitchedOff() {
+        setRainOutlookContent(RainOutlookSettings(enabled = false))
+
+        composeRule.onAllNodesWithText(string(R.string.section_rain_outlook)).assertCountEquals(0)
+        composeRule.onAllNodesWithText(string(R.string.rain_outlook_likely_now)).assertCountEquals(0)
+    }
+
+    private fun setRainOutlookContent(settings: RainOutlookSettings) {
+        composeRule.setContent {
+            CatsDogsTheme {
+                CurrentWeatherScreen(
+                    locations = listOf(london),
+                    activeIndex = 0,
+                    weatherState = LoadingState.Success(weather()),
+                    forecastState = LoadingState.Success(
+                        listOf(
+                            dayForecast(
+                                dateLabel = "Mon, Jan 1",
+                                hourlySlots = listOf(hourlySlot(timeLabel = "9 AM", precipitationChance = 80)),
+                            ),
+                        ),
+                    ),
+                    radarEnabled = false,
+                    rainOutlookSettings = settings,
+                    onTabSelected = {},
+                    onAddCityClick = {},
+                    onRetry = {},
+                )
+            }
+        }
     }
 
     @Test
