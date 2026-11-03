@@ -66,6 +66,12 @@ class RemoteConfigRepository @Inject constructor(
     fun walkCardEnabled(): Boolean = boolean(KEY_WALK_CARD_ENABLED) ?: DEFAULT_WALK_CARD_ENABLED
 
     /**
+     * Whether temperatures show their unit ("89 °F"). False shows just the degree sign ("89°")
+     * wherever a temperature carries its unit; the number and the units themselves don't change.
+     */
+    fun temperatureUnitsShown(): Boolean = boolean(KEY_TEMPERATURE_UNITS_SHOWN) ?: DEFAULT_TEMPERATURE_UNITS_SHOWN
+
+    /**
      * Forecast provider for cities with coordinates: true uses Open-Meteo, false falls back to
      * the OpenWeatherMap 3-hourly forecast by lat/lon.
      */
@@ -290,6 +296,9 @@ class RemoteConfigRepository @Inject constructor(
 
         const val KEY_WALK_CARD_ENABLED = "walk_card_enabled"
         const val DEFAULT_WALK_CARD_ENABLED = true
+
+        const val KEY_TEMPERATURE_UNITS_SHOWN = "temperature_units_shown"
+        const val DEFAULT_TEMPERATURE_UNITS_SHOWN = true
 
         const val KEY_OPEN_METEO_ENABLED = "open_meteo_enabled"
 

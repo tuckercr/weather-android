@@ -507,6 +507,7 @@ class WeatherForecastViewModelTest {
         setCachedCurrentWeather: suspend (String, String) -> Unit = { _, _ -> },
         setCachedForecast: suspend (String, String) -> Unit = { _, _ -> },
         isWalkCardEnabled: () -> Boolean = { true },
+        isTemperatureUnitsShown: () -> Boolean = { true },
         readPetWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
         foregroundRefreshMinMinutes: () -> Long = { 0L },
         nowMillis: () -> Long = { 0L },
@@ -521,6 +522,7 @@ class WeatherForecastViewModelTest {
         setCachedForecast = setCachedForecast,
         json = kotlinx.serialization.json.Json,
         isWalkCardEnabled = isWalkCardEnabled,
+        isTemperatureUnitsShown = isTemperatureUnitsShown,
         readPetWeatherThresholds = readPetWeatherThresholds,
         foregroundRefreshMinMinutes = foregroundRefreshMinMinutes,
         nowMillis = nowMillis,
@@ -683,6 +685,12 @@ class WeatherForecastViewModelTest {
     fun `walk card is shown by default and hidden when Remote Config turns it off`() {
         assertEquals(true, viewModel().walkCardEnabled)
         assertEquals(false, viewModel(isWalkCardEnabled = { false }).walkCardEnabled)
+    }
+
+    @Test
+    fun `temperatures show their unit by default and drop it when Remote Config turns it off`() {
+        assertEquals(true, viewModel().temperatureUnitsShown)
+        assertEquals(false, viewModel(isTemperatureUnitsShown = { false }).temperatureUnitsShown)
     }
 
     class MainDispatcherRule(

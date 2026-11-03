@@ -344,7 +344,10 @@ fun CurrentWeatherRoute(onOpenSettings: () -> Unit = {}) {
 
     var showAddSheet by remember { mutableStateOf(false) }
 
-    CompositionLocalProvider(LocalDistanceInMiles provides distanceInMiles) {
+    CompositionLocalProvider(
+        LocalDistanceInMiles provides distanceInMiles,
+        LocalTemperatureUnitsShown provides weatherForecastViewModel.temperatureUnitsShown,
+    ) {
         CurrentWeatherScreen(
             locations = locations,
             activeIndex = activeIndex,
@@ -1416,16 +1419,19 @@ internal fun weatherErrorMessage(errorKey: String): String =
         else -> stringResource(R.string.error_generic)
     }
 
-/** Whole degrees: forecasts aren't accurate to a tenth, and other weather apps don't show one. */
+/**
+ * Whole degrees: forecasts aren't accurate to a tenth, and other weather apps don't show one.
+ * "89 °F", or "89°" when Remote Config `temperature_units_shown` leaves the unit out.
+ */
 @Composable
 internal fun formatTemperature(
     value: Double,
     units: WeatherUnits,
-): String =
-    when (units) {
-        WeatherUnits.METRIC -> stringResource(R.string.format_temperature_c, value.roundToInt())
-        WeatherUnits.IMPERIAL -> stringResource(R.string.format_temperature_f, value.roundToInt())
-    }
+    unitShown: Boolean = LocalTemperatureUnitsShown.current,
+): String {
+    val text = temperatureText(value, units, unitShown)
+    return stringResource(text.resId, text.degrees)
+}
 
 /**
  * Whole mph, and whole m/s from 10 up; below that a whole m/s is too coarse (3 m/s is anything

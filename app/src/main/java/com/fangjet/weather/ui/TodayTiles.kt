@@ -357,12 +357,7 @@ private fun PavementTile(
     val band = pavementBand(units.toCelsius(pavement), groundWet, units.toCelsius(feelsLike), thresholds)
     Tile(Icons.Default.Pets, stringResource(R.string.label_pavement), modifier) {
         // An estimate for dark asphalt in direct sun, so a whole number, and said to be one.
-        TileValue(
-            stringResource(
-                if (units == WeatherUnits.METRIC) R.string.format_about_temperature_c else R.string.format_about_temperature_f,
-                pavement.roundToInt(),
-            ),
-        )
+        TileValue(stringResource(R.string.format_about_temperature, formatTemperature(pavement, units)))
         TileNote(
             text = stringResource(
                 when (band) {
