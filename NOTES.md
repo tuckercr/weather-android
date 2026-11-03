@@ -137,6 +137,15 @@ noted. Checked against the code, not fixed yet.
       iOS: "Always", with significant location changes to wake the app after a move; iOS reminds
       people now and then. Suggested for after the first release, so the Play review doesn't
       hold up the launch. (11-03)
+      How: a geofence a few kilometres round My Location (Android's Geofencing API, iOS region
+      monitoring). Leaving it wakes the app, which reads the new position, moves My Location,
+      sets the next geofence and refreshes the weather. Cheap on battery, since the system
+      watches with cell and Wi-Fi, and the app only wakes after a real move. Geofences need the
+      same permission ("Allow all the time", "Always"), and Play counts them as background
+      location. Android only offers "Allow all the time" in system settings when the manifest
+      declares `ACCESS_BACKGROUND_LOCATION`, which it doesn't yet, so it can't be switched on by
+      hand either. To try it first, declare it in `app/src/debug/AndroidManifest.xml` only:
+      release builds, and so Play, never see it. (11-03)
 
 ## Walk planner and pet safety
 
