@@ -207,7 +207,8 @@ emulator with a clean status bar:
      8:30 run move My Location to where the phone is first, so notifications follow you even when
      the app is closed. Otherwise My Location only moves while the app is open. Turning it on
      explains why (Play's required disclosure), then asks for "Allow all the time", which opens
-     the app's location page in system settings. It shows on only while that's granted.
+     the app's location page in system settings; with that already granted it just turns on. It
+     shows on only while that's granted. Off, the background runs don't read the location at all.
    - **Location**: permission status, or a link to the app's system settings.
    - **Locations**: *Manage Locations* to add, reorder and delete cities. A bell marks the city
      notifications are for: My Location, otherwise the top city. The city tabs on the main screen

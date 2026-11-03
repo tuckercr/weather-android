@@ -119,7 +119,7 @@ fun NotificationSettingsRoute(onNavigateBack: () -> Unit) {
 
 /**
  * Follow my location. It shows on only while it's set and "Allow all the time" is granted. Turning
- * it on explains first, as Play requires, then asks: Android 11 and later open the app's location
+ * it on without that explains first, as Play requires, then asks: Android 11 and later open the app's location
  * page in system settings rather than a dialog. After two refusals Android stops opening that page,
  * so the app's settings open instead. Same as iOS's `FollowMyLocationToggle`.
  */
@@ -144,7 +144,14 @@ private fun FollowMyLocationRow(
         label = stringResource(R.string.settings_follow_location),
         summary = stringResource(R.string.settings_follow_location_summary),
         checked = on && backgroundGranted,
-        onCheckedChange = { turnOn -> if (turnOn) explaining = true else onChange(false) },
+        onCheckedChange = { turnOn ->
+            when {
+                !turnOn -> onChange(false)
+                // Already allowed all the time: nothing to ask, so nothing to explain.
+                context.hasBackgroundLocationPermission() -> onChange(true)
+                else -> explaining = true
+            }
+        },
     )
     if (explaining) {
         AlertDialog(
