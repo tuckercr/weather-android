@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -249,8 +250,20 @@ private fun FeelsLikeTile(
     modifier: Modifier,
 ) {
     Tile(Icons.Default.Thermostat, stringResource(R.string.label_feels_like), modifier) {
-        TileValue(formatTemperature(weather.feelsLike, weather.units))
-        TileNote(stringResource(R.string.today_actual, formatTemperature(weather.temperature, weather.units)))
+        // The tile's headline number: large, and centred in the space under the label.
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                keepUnitsTogether(formatTemperature(weather.feelsLike, weather.units)),
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+            )
+            TileNote(stringResource(R.string.today_actual, formatTemperature(weather.temperature, weather.units)))
+        }
     }
 }
 
