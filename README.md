@@ -195,18 +195,19 @@ emulator with a clean status bar:
    screen is resumed; the current loop stays on screen during the refresh, and a failed refresh
    keeps it.
 6. **Settings**, top to bottom:
-   - **Units**: System default, Celsius (°C) or Fahrenheit (°F).
    - **My Pets**: *I have a dog* turns on the walk card, the Paw check tile, the briefing's walk
      sentence and the Walk time notification ("Walk times, pavement checks and walk reminders").
      The Walk time notification channel is only created once there's a dog, and never deleted.
+   - **My Locations**: *Manage Locations* to add, reorder and delete cities. A bell marks the city
+     notifications are for: My Location, otherwise the top city. The city tabs on the main screen
+     choose which city it shows.
    - **Notifications**: a row showing how many are on ("2 on", or "Off"), which opens its own
      screen: a link to the app's system settings while notifications aren't allowed, then a switch
      for each kind (*Morning briefing*, *Walk time*, *Rain alerts*). Walk time only shows with a
      dog, and a kind switched off in Remote Config is hidden. A hidden switch keeps its value.
-   - **Location**: permission status, or a link to the app's system settings.
-   - **Locations**: *Manage Locations* to add, reorder and delete cities. A bell marks the city
-     notifications are for: My Location, otherwise the top city. The city tabs on the main screen
-     choose which city it shows.
+   - **Location**: permission status in Android's words ("Location allowed all the time" or "only
+     while using the app"), or a link to the app's system settings.
+   - **Units**: System default, Celsius (°C) or Fahrenheit (°F).
    - **Cache**: clear cached data.
    - **Privacy**: *Share usage statistics*.
    - **About**: the OpenWeather and Open-Meteo attributions, the

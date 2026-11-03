@@ -87,6 +87,12 @@ fun SettingsRoute(
             Manifest.permission.ACCESS_COARSE_LOCATION,
         ) == PackageManager.PERMISSION_GRANTED
     }
+    val backgroundLocationGranted = rememberGrantedOnResume {
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED
+    }
     val notificationGranted = rememberGrantedOnResume { context.canPostNotifications() }
 
     Scaffold(
@@ -111,23 +117,6 @@ fun SettingsRoute(
                 .padding(padding)
                 .verticalScroll(rememberScrollState()),
         ) {
-            SettingsSectionHeader(stringResource(R.string.settings_section_units))
-
-            Column(modifier = Modifier.selectableGroup()) {
-                UnitOverride.entries.forEach { option ->
-                    UnitOptionRow(
-                        label = when (option) {
-                            UnitOverride.SYSTEM -> stringResource(R.string.settings_unit_system)
-                            UnitOverride.METRIC -> stringResource(R.string.settings_unit_metric)
-                            UnitOverride.IMPERIAL -> stringResource(R.string.settings_unit_imperial)
-                        },
-                        selected = unitOverride == option,
-                        onClick = { viewModel.setUnitOverride(option) },
-                    )
-                }
-            }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             SettingsSectionHeader(stringResource(R.string.settings_section_my_pets))
             // One switch for everything dog: the walk card, Paw check and the walk notifications.
             SettingsSwitchRow(
@@ -135,6 +124,14 @@ fun SettingsRoute(
                 summary = stringResource(R.string.settings_show_walk_card_summary),
                 checked = showWalkCard,
                 onCheckedChange = viewModel::setShowWalkCard,
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            SettingsSectionHeader(stringResource(R.string.settings_section_locations))
+
+            SettingsLinkRow(
+                label = stringResource(R.string.settings_manage_locations),
+                onClick = onOpenLocations,
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -153,7 +150,14 @@ fun SettingsRoute(
 
             if (locationGranted) {
                 Text(
-                    text = stringResource(R.string.settings_location_granted),
+                    // Android's own words for the two kinds of access.
+                    text = stringResource(
+                        if (backgroundLocationGranted) {
+                            R.string.settings_location_granted_always
+                        } else {
+                            R.string.settings_location_granted
+                        },
+                    ),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -168,12 +172,21 @@ fun SettingsRoute(
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            SettingsSectionHeader(stringResource(R.string.settings_section_locations))
+            SettingsSectionHeader(stringResource(R.string.settings_section_units))
 
-            SettingsLinkRow(
-                label = stringResource(R.string.settings_manage_locations),
-                onClick = onOpenLocations,
-            )
+            Column(modifier = Modifier.selectableGroup()) {
+                UnitOverride.entries.forEach { option ->
+                    UnitOptionRow(
+                        label = when (option) {
+                            UnitOverride.SYSTEM -> stringResource(R.string.settings_unit_system)
+                            UnitOverride.METRIC -> stringResource(R.string.settings_unit_metric)
+                            UnitOverride.IMPERIAL -> stringResource(R.string.settings_unit_imperial)
+                        },
+                        selected = unitOverride == option,
+                        onClick = { viewModel.setUnitOverride(option) },
+                    )
+                }
+            }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             SettingsSectionHeader(stringResource(R.string.settings_section_cache))
