@@ -507,6 +507,9 @@ class WeatherForecastViewModelTest {
         setCachedCurrentWeather: suspend (String, String) -> Unit = { _, _ -> },
         setCachedForecast: suspend (String, String) -> Unit = { _, _ -> },
         isWalkCardEnabled: () -> Boolean = { true },
+        isHourlyForecastEnabled: () -> Boolean = { true },
+        isNextRainEnabled: () -> Boolean = { true },
+        isWeekForecastEnabled: () -> Boolean = { true },
         readPetWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
         foregroundRefreshMinMinutes: () -> Long = { 0L },
         nowMillis: () -> Long = { 0L },
@@ -521,6 +524,9 @@ class WeatherForecastViewModelTest {
         setCachedForecast = setCachedForecast,
         json = kotlinx.serialization.json.Json,
         isWalkCardEnabled = isWalkCardEnabled,
+        isHourlyForecastEnabled = isHourlyForecastEnabled,
+        isNextRainEnabled = isNextRainEnabled,
+        isWeekForecastEnabled = isWeekForecastEnabled,
         readPetWeatherThresholds = readPetWeatherThresholds,
         foregroundRefreshMinMinutes = foregroundRefreshMinMinutes,
         nowMillis = nowMillis,
@@ -683,6 +689,18 @@ class WeatherForecastViewModelTest {
     fun `walk card is shown by default and hidden when Remote Config turns it off`() {
         assertEquals(true, viewModel().walkCardEnabled)
         assertEquals(false, viewModel(isWalkCardEnabled = { false }).walkCardEnabled)
+    }
+
+    @Test
+    fun `hourly strip, next-rain line and week list are shown by default and each can be turned off`() {
+        val defaults = viewModel()
+        assertEquals(true, defaults.hourlyForecastEnabled)
+        assertEquals(true, defaults.nextRainEnabled)
+        assertEquals(true, defaults.weekForecastEnabled)
+
+        assertEquals(false, viewModel(isHourlyForecastEnabled = { false }).hourlyForecastEnabled)
+        assertEquals(false, viewModel(isNextRainEnabled = { false }).nextRainEnabled)
+        assertEquals(false, viewModel(isWeekForecastEnabled = { false }).weekForecastEnabled)
     }
 
     class MainDispatcherRule(

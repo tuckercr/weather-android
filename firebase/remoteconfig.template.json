@@ -20,6 +20,21 @@
       "valueType": "BOOLEAN",
       "description": "Show the \"time to walk the dog\" card on the current-weather screen"
     },
+    "hourly_forecast_enabled": {
+      "defaultValue": { "value": "true" },
+      "valueType": "BOOLEAN",
+      "description": "Show the HOURLY section (header and strip) on the current-weather screen"
+    },
+    "next_rain_enabled": {
+      "defaultValue": { "value": "true" },
+      "valueType": "BOOLEAN",
+      "description": "Show the \"Rain starting around 3:15 PM\" line, from the 15-minute forecast, on the current-weather screen"
+    },
+    "week_forecast_enabled": {
+      "defaultValue": { "value": "true" },
+      "valueType": "BOOLEAN",
+      "description": "Show the rest-of-the-week section (header and day rows) on the current-weather screen"
+    },
     "openweather_api_key": {
       "defaultValue": { "value": "" },
       "valueType": "STRING",

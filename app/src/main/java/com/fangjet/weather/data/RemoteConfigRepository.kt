@@ -65,6 +65,15 @@ class RemoteConfigRepository @Inject constructor(
     /** False hides the "time to walk the dog" card on the current-weather screen. */
     fun walkCardEnabled(): Boolean = boolean(KEY_WALK_CARD_ENABLED) ?: DEFAULT_WALK_CARD_ENABLED
 
+    /** False hides the HOURLY section (header and strip) on the current-weather screen. */
+    fun hourlyForecastEnabled(): Boolean = boolean(KEY_HOURLY_FORECAST_ENABLED) ?: DEFAULT_HOURLY_FORECAST_ENABLED
+
+    /** False hides the "Rain starting around 3:15 PM" line, from the 15-minute forecast. */
+    fun nextRainEnabled(): Boolean = boolean(KEY_NEXT_RAIN_ENABLED) ?: DEFAULT_NEXT_RAIN_ENABLED
+
+    /** False hides the rest-of-the-week section (header and day rows) on the current-weather screen. */
+    fun weekForecastEnabled(): Boolean = boolean(KEY_WEEK_FORECAST_ENABLED) ?: DEFAULT_WEEK_FORECAST_ENABLED
+
     /**
      * Forecast provider for cities with coordinates: true uses Open-Meteo, false falls back to
      * the OpenWeatherMap 3-hourly forecast by lat/lon.
@@ -290,6 +299,15 @@ class RemoteConfigRepository @Inject constructor(
 
         const val KEY_WALK_CARD_ENABLED = "walk_card_enabled"
         const val DEFAULT_WALK_CARD_ENABLED = true
+
+        const val KEY_HOURLY_FORECAST_ENABLED = "hourly_forecast_enabled"
+        const val DEFAULT_HOURLY_FORECAST_ENABLED = true
+
+        const val KEY_NEXT_RAIN_ENABLED = "next_rain_enabled"
+        const val DEFAULT_NEXT_RAIN_ENABLED = true
+
+        const val KEY_WEEK_FORECAST_ENABLED = "week_forecast_enabled"
+        const val DEFAULT_WEEK_FORECAST_ENABLED = true
 
         const val KEY_OPEN_METEO_ENABLED = "open_meteo_enabled"
 

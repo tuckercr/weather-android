@@ -41,12 +41,13 @@ WorkManager, and CI on GitHub Actions.
 - **Next rain** line under the top card, only when rain or snow is due in the next 2 hours: "Rain
   starting around 3:15 PM", "Rain stopping around 4:30 PM" or "Rain for the next 2 hours", from
   Open-Meteo's 15-minute forecast (0.1 mm in 15 minutes counts; it stops after 30 dry minutes).
-  Rules in `util/NextRain.kt`.
+  Rules in `util/NextRain.kt`. `next_rain_enabled` hides it remotely.
 - **Hourly strip** with the next 24 forecast slots (hours from Open-Meteo, 3-hour slots on the
   OpenWeatherMap fallback): time, condition icon, temperature, and rain chance (hidden under 10%,
   otherwise to the nearest 10%, as everywhere in the app). Hours that have
   already passed are dropped at display time (`fromCurrentSlot`), so a cached forecast or an app
-  left open never shows or advises on past hours.
+  left open never shows or advises on past hours. `hourly_forecast_enabled` hides the section
+  (header and strip) remotely.
 - **Today tiles**: Feels like, Wind, Humidity, Paw check (with a dog) and Air quality in pairs, then
   Daylight (with the UV index) and Sky across the full width. An odd tile out, usually Air quality
   when Paw check is showing, takes the full width rather than leaving a gap.
@@ -61,7 +62,8 @@ WorkManager, and CI on GitHub Actions.
   they read on light and dark cards. Night icons show the moon's phase for that hour, worked out
   from the date (no API).
 - **Multi-day forecast** shown inline, aggregated to the city's local-timezone days with tappable
-  day details: each hour's temperature and rain chance.
+  day details: each hour's temperature and rain chance. `week_forecast_enabled` hides the rest of
+  the week (header and day rows) remotely.
 - **Rain probability** surfaced per hour and per day.
 - **Animated radar**: a RainViewer precipitation loop (recent past plus short-range nowcast) over
   an OpenStreetMap base, with a timeline scrubber, colour legend, play/pause, and an
@@ -311,6 +313,9 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `radar_frame_interval_ms` | number | `850` | Delay between radar animation frames; outside 100–5000 falls back to 850 |
 | `radar_enabled` | boolean | `true` | Radar kill switch: false hides the radar section (header and card, phone and tablet layouts) and skips the RainViewer timeline and tile requests, for when RainViewer or the OpenStreetMap tiles become unavailable |
 | `walk_card_enabled` | boolean | `true` | Shows the "Best walk time" card; false hides it for everyone (phone and tablet layouts). Users can also turn it off in Settings |
+| `hourly_forecast_enabled` | boolean | `true` | Shows the HOURLY section; false hides its header and strip for everyone (phone and tablet layouts) |
+| `next_rain_enabled` | boolean | `true` | Shows the "Rain starting around 3:15 PM" line from the 15-minute forecast; false hides it for everyone |
+| `week_forecast_enabled` | boolean | `true` | Shows the rest-of-the-week section; false hides its header and day rows for everyone (phone and tablet layouts) |
 | `open_meteo_enabled` | boolean | `true` | Forecasts for cities with coordinates come from Open-Meteo; false falls back to the OpenWeatherMap 3-hourly forecast by lat/lon (foreground, background refresh, and notifications) |
 | `air_quality_enabled` | boolean | `true` | Fetches hourly air quality alongside the Open-Meteo forecast; false hides the Air quality tile and the walk planner ignores the air |
 | `openweather_api_key` | string | `""` | Replacement OpenWeather API key, used from the next app start; empty uses the key built into the app. Lets a leaked key be rotated without an update. Not secret: Remote Config values reach every device |
@@ -388,7 +393,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:weather-api` | `RadarRepositoryTest` | RainViewer timeline parsing, past/nowcast frame ordering, and tile URLs |
 | `:weather-api` | `CurrentWeatherTest` | UTC-offset handling, including caches written before the offset existed |
 | `:weather-api` | `WeatherUnitsTest` | Celsius conversion and locale-to-unit mapping (US and territories imperial, others metric) |
-| `:app` | `WeatherForecastViewModelTest` | Cache-first loading, refresh races, background-refresh staleness guards, the `foreground_refresh_min_minutes` throttle, `walk_card_enabled`, and Remote Config pet thresholds |
+| `:app` | `WeatherForecastViewModelTest` | Cache-first loading, refresh races, background-refresh staleness guards, the `foreground_refresh_min_minutes` throttle, `walk_card_enabled` and the section switches, and Remote Config pet thresholds |
 | `:app` | `RadarViewModelTest` | Stale-timeline refresh (10 minutes, measured from the request), keeping the old timeline on a failed refresh, and `radar_enabled` gating |
 | `:app` | `SettingsViewModelTest` | Unit-override selection, *Share usage statistics*, the walk card setting, and cache clearing |
 | `:app` | `AnalyticsRepositoryTest` | Analytics gates: kill switch, user opt-out, both on, and never crashing |

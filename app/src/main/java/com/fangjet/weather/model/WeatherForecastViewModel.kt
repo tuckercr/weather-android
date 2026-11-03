@@ -56,6 +56,9 @@ class WeatherForecastViewModel internal constructor(
     private val onError: (errorKey: String) -> Unit = {},
     private val onSettingsOpened: () -> Unit = {},
     isWalkCardEnabled: () -> Boolean = { true },
+    isHourlyForecastEnabled: () -> Boolean = { true },
+    isNextRainEnabled: () -> Boolean = { true },
+    isWeekForecastEnabled: () -> Boolean = { true },
     isAirQualityEnabled: () -> Boolean = { true },
     readTodayTiles: () -> TodayTileSwitches = { TodayTileSwitches() },
     readSeasonalThemes: () -> List<SeasonalTheme> = { emptyList() },
@@ -122,6 +125,9 @@ class WeatherForecastViewModel internal constructor(
         onError = { key -> analyticsRepository.logWeatherError(key) },
         onSettingsOpened = { analyticsRepository.logSettingsOpened() },
         isWalkCardEnabled = remoteConfigRepository::walkCardEnabled,
+        isHourlyForecastEnabled = remoteConfigRepository::hourlyForecastEnabled,
+        isNextRainEnabled = remoteConfigRepository::nextRainEnabled,
+        isWeekForecastEnabled = remoteConfigRepository::weekForecastEnabled,
         isAirQualityEnabled = remoteConfigRepository::airQualityEnabled,
         readTodayTiles = remoteConfigRepository::todayTiles,
         readSeasonalThemes = remoteConfigRepository::seasonalThemes,
@@ -131,6 +137,15 @@ class WeatherForecastViewModel internal constructor(
 
     /** Remote Config `walk_card_enabled`: false hides the "time to walk the dog" card. */
     val walkCardEnabled: Boolean = isWalkCardEnabled()
+
+    /** Remote Config `hourly_forecast_enabled`: false hides the HOURLY section. */
+    val hourlyForecastEnabled: Boolean = isHourlyForecastEnabled()
+
+    /** Remote Config `next_rain_enabled`: false hides the "Rain starting around 3:15 PM" line. */
+    val nextRainEnabled: Boolean = isNextRainEnabled()
+
+    /** Remote Config `week_forecast_enabled`: false hides the rest-of-the-week section. */
+    val weekForecastEnabled: Boolean = isWeekForecastEnabled()
 
     /**
      * Remote Config `air_quality_enabled`. The fetch checks it too; this hides a reading in a

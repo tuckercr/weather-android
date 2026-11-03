@@ -354,6 +354,9 @@ fun CurrentWeatherRoute(onOpenSettings: () -> Unit = {}) {
             staleErrorKey = staleErrorKey,
             radarEnabled = radarEnabled,
             walkCardEnabled = weatherForecastViewModel.walkCardEnabled && showWalkCard,
+            hourlyForecastEnabled = weatherForecastViewModel.hourlyForecastEnabled,
+            nextRainEnabled = weatherForecastViewModel.nextRainEnabled,
+            weekForecastEnabled = weatherForecastViewModel.weekForecastEnabled,
             dogWalking = showWalkCard,
             airQualityEnabled = weatherForecastViewModel.airQualityEnabled,
             todayTiles = weatherForecastViewModel.todayTiles,
@@ -439,6 +442,11 @@ fun CurrentWeatherScreen(
     staleErrorKey: String? = null,
     radarEnabled: Boolean = true,
     walkCardEnabled: Boolean = true,
+    // Remote Config hourly_forecast_enabled, next_rain_enabled and week_forecast_enabled: off hides
+    // the HOURLY section, the next-rain line and the rest of the week.
+    hourlyForecastEnabled: Boolean = true,
+    nextRainEnabled: Boolean = true,
+    weekForecastEnabled: Boolean = true,
     // Settings' Dog walking switch: off hides the Paw check tile (the walk card follows walkCardEnabled).
     dogWalking: Boolean = true,
     // Remote Config air_quality_enabled: off hides the Air quality tile.
@@ -619,6 +627,9 @@ fun CurrentWeatherScreen(
                                         location = location,
                                         radarEnabled = radarEnabled,
                                         walkCardEnabled = walkCardEnabled,
+                                        hourlyForecastEnabled = hourlyForecastEnabled,
+                                        nextRainEnabled = nextRainEnabled,
+                                        weekForecastEnabled = weekForecastEnabled,
                                         dogWalking = dogWalking,
                                         airQualityEnabled = airQualityEnabled,
                                         todayTiles = todayTiles,
@@ -838,6 +849,9 @@ private fun CurrentWeatherContent(
     location: SavedLocation? = null,
     radarEnabled: Boolean = true,
     walkCardEnabled: Boolean = true,
+    hourlyForecastEnabled: Boolean = true,
+    nextRainEnabled: Boolean = true,
+    weekForecastEnabled: Boolean = true,
     // Settings' Dog walking switch: off hides the Paw check tile (the walk card follows walkCardEnabled).
     dogWalking: Boolean = true,
     airQualityEnabled: Boolean = true,
@@ -1023,7 +1037,8 @@ private fun CurrentWeatherContent(
                 nextRain(forecastDays.firstOrNull()?.quarterHours.orEmpty(), nowEpochSeconds)
             }
             val nextRainSection: @Composable () -> Unit = {
-                nextRain?.let { NextRainLine(it, weather.offsetSeconds) }
+                // next_rain_enabled: Remote Config can hide the line.
+                if (nextRainEnabled) nextRain?.let { NextRainLine(it, weather.offsetSeconds) }
             }
             val walkSection: @Composable () -> Unit = {
                 // walk_card_enabled: Remote Config can hide the card.
@@ -1068,7 +1083,8 @@ private fun CurrentWeatherContent(
                 }
                 // Hourly strip (next 24h), starting at the slot in progress — see currentSlots above.
                 val hourly = remember(currentSlots) { currentSlots.take(HOURLY_STRIP_COUNT) }
-                if (hourly.isNotEmpty()) {
+                // hourly_forecast_enabled: Remote Config can hide the header and strip.
+                if (hourlyForecastEnabled && hourly.isNotEmpty()) {
                     SectionHeader(R.string.section_hourly)
                     HourlyStrip(slots = hourly)
                 }
@@ -1081,11 +1097,12 @@ private fun CurrentWeatherContent(
                     RadarCard(location = location, utcOffsetSeconds = weather.offsetSeconds)
                 }
 
-                // Upcoming days section (excludes today)
-                if (upcomingDays.isNotEmpty() ||
+                // Upcoming days section (excludes today). week_forecast_enabled: Remote Config can
+                // hide it, header and all.
+                val weekHasContent = upcomingDays.isNotEmpty() ||
                     forecastState is LoadingState.Loading ||
                     forecastState is LoadingState.Error
-                ) {
+                if (weekForecastEnabled && weekHasContent) {
                     SectionHeader(R.string.section_upcoming)
                     when {
                         // Wide screens show the days in two columns rather than stretched rows.

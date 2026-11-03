@@ -109,6 +109,9 @@ class RemoteConfigRepositoryTest {
         set(RemoteConfigRepository.KEY_RADAR_FRAME_INTERVAL, "400")
         set(RemoteConfigRepository.KEY_RADAR_ENABLED, "false")
         set(RemoteConfigRepository.KEY_WALK_CARD_ENABLED, "false")
+        set(RemoteConfigRepository.KEY_HOURLY_FORECAST_ENABLED, "false")
+        set(RemoteConfigRepository.KEY_NEXT_RAIN_ENABLED, "false")
+        set(RemoteConfigRepository.KEY_WEEK_FORECAST_ENABLED, "false")
         set(RemoteConfigRepository.KEY_OPEN_METEO_ENABLED, "false")
         set(RemoteConfigRepository.KEY_DAILY_WEATHER_NOTIFICATIONS_ENABLED, "false")
         set(RemoteConfigRepository.KEY_WALK_TIME_NOTIFICATIONS_ENABLED, "false")
@@ -121,6 +124,9 @@ class RemoteConfigRepositoryTest {
         assertEquals(400L, repo.radarFrameIntervalMs())
         assertFalse(repo.radarEnabled())
         assertFalse(repo.walkCardEnabled())
+        assertFalse(repo.hourlyForecastEnabled())
+        assertFalse(repo.nextRainEnabled())
+        assertFalse(repo.weekForecastEnabled())
         assertFalse(repo.openMeteoEnabled())
         assertFalse(repo.dailyWeatherNotificationsEnabled())
         assertFalse(repo.walkTimeNotificationsEnabled())
@@ -162,10 +168,16 @@ class RemoteConfigRepositoryTest {
         firebaseInitialised(true)
         set(RemoteConfigRepository.KEY_REFRESH_INTERVAL, "soon")
         set(RemoteConfigRepository.KEY_RADAR_ENABLED, "maybe")
+        set(RemoteConfigRepository.KEY_HOURLY_FORECAST_ENABLED, "off")
+        set(RemoteConfigRepository.KEY_NEXT_RAIN_ENABLED, "")
+        set(RemoteConfigRepository.KEY_WEEK_FORECAST_ENABLED, "0.5")
         val repo = RemoteConfigRepository(context)
 
         assertEquals(RemoteConfigRepository.DEFAULT_REFRESH_INTERVAL_MINUTES, repo.refreshIntervalMinutes())
         assertEquals(RemoteConfigRepository.DEFAULT_RADAR_ENABLED, repo.radarEnabled())
+        assertEquals(RemoteConfigRepository.DEFAULT_HOURLY_FORECAST_ENABLED, repo.hourlyForecastEnabled())
+        assertEquals(RemoteConfigRepository.DEFAULT_NEXT_RAIN_ENABLED, repo.nextRainEnabled())
+        assertEquals(RemoteConfigRepository.DEFAULT_WEEK_FORECAST_ENABLED, repo.weekForecastEnabled())
     }
 
     @Test
@@ -236,6 +248,9 @@ class RemoteConfigRepositoryTest {
         assertEquals(RemoteConfigRepository.DEFAULT_RADAR_FRAME_INTERVAL_MS, repo.radarFrameIntervalMs())
         assertEquals(RemoteConfigRepository.DEFAULT_RADAR_ENABLED, repo.radarEnabled())
         assertEquals(RemoteConfigRepository.DEFAULT_WALK_CARD_ENABLED, repo.walkCardEnabled())
+        assertEquals(RemoteConfigRepository.DEFAULT_HOURLY_FORECAST_ENABLED, repo.hourlyForecastEnabled())
+        assertEquals(RemoteConfigRepository.DEFAULT_NEXT_RAIN_ENABLED, repo.nextRainEnabled())
+        assertEquals(RemoteConfigRepository.DEFAULT_WEEK_FORECAST_ENABLED, repo.weekForecastEnabled())
         assertEquals(RemoteConfigRepository.DEFAULT_OPEN_METEO_ENABLED, repo.openMeteoEnabled())
         assertEquals(
             RemoteConfigRepository.DEFAULT_DAILY_WEATHER_NOTIFICATIONS_ENABLED,

@@ -21,6 +21,21 @@
         <key>walk_card_enabled</key>
         <value>true</value>
     </entry>
+    <!-- The HOURLY section (header and strip); false hides it. -->
+    <entry>
+        <key>hourly_forecast_enabled</key>
+        <value>true</value>
+    </entry>
+    <!-- The "Rain starting around 3:15 PM" line from the 15-minute forecast; false hides it. -->
+    <entry>
+        <key>next_rain_enabled</key>
+        <value>true</value>
+    </entry>
+    <!-- The rest-of-the-week section (header and day rows); false hides it. -->
+    <entry>
+        <key>week_forecast_enabled</key>
+        <value>true</value>
+    </entry>
     <!-- Forecasts for cities with coordinates: true uses Open-Meteo, false falls back to the
          OpenWeatherMap 3-hourly forecast by lat/lon. -->
     <entry>
