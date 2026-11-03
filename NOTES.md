@@ -89,6 +89,11 @@ Finished items move to Done at the bottom.
       hour is cut off there by luck. Consider fading the edges, letting the last hour on screen
       always peek out half cut, or a small arrow; check it at large text sizes and on iPad, where
       more hours fit.
+- [ ] **Radar outside RainViewer's coverage.** Test a city whose coordinates are outside it
+      (RainViewer has no radar for much of Africa, central Asia and the oceans): do the tiles come
+      back empty (an empty map that reads as "no rain"), as a placeholder, or as errors? If it can
+      be told apart (RainViewer may offer a coverage layer; check its API), say "No radar here" or
+      hide the card rather than show an empty map.
 
 ## More tiles to consider (10-30)
 
