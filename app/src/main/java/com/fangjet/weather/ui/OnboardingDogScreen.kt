@@ -1,8 +1,6 @@
 package com.fangjet.weather.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,7 +33,23 @@ fun OnboardingDogScreen(
     onAnswered: (hasDog: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    OnboardingLayout(modifier = modifier) {
+    OnboardingLayout(
+        modifier = modifier,
+        actions = {
+            Button(
+                onClick = { onAnswered(true) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.dog_question_yes))
+            }
+            OutlinedButton(
+                onClick = { onAnswered(false) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.dog_question_no))
+            }
+        },
+    ) {
         PetScene(
             mood = PetMood.CLOUDY,
             modifier = Modifier
@@ -57,21 +71,6 @@ fun OnboardingDogScreen(
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(modifier = Modifier.height(32.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(
-                onClick = { onAnswered(true) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.dog_question_yes))
-            }
-            OutlinedButton(
-                onClick = { onAnswered(false) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.dog_question_no))
-            }
-        }
     }
 }
 

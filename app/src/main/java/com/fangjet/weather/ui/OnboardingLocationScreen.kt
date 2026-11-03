@@ -63,7 +63,36 @@ fun OnboardingLocationScreen(
 
     val requestPermission = rememberLocationPermissionRequest(viewModel)
 
-    OnboardingLayout(modifier = modifier) {
+    OnboardingLayout(
+        modifier = modifier,
+        actions = {
+            if (state != LocationFetchState.Locating) {
+                Button(
+                    onClick = {
+                        if (viewModel.hasLocationPermission()) {
+                            Timber.d("permission already granted, fetching location")
+                            viewModel.fetchLocation()
+                        } else {
+                            Timber.d("launching permission dialog")
+                            requestPermission()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.location_allow_button))
+                }
+                OutlinedButton(
+                    onClick = {
+                        Timber.d("user tapped Skip")
+                        onSkip()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.location_skip_button))
+                }
+            }
+        },
+    ) {
         Box(
             modifier = Modifier
                 .size(112.dp)
@@ -100,34 +129,6 @@ fun OnboardingLocationScreen(
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(modifier = Modifier.height(48.dp))
-
-        if (state != LocationFetchState.Locating) {
-            Button(
-                onClick = {
-                    if (viewModel.hasLocationPermission()) {
-                        Timber.d("permission already granted, fetching location")
-                        viewModel.fetchLocation()
-                    } else {
-                        Timber.d("launching permission dialog")
-                        requestPermission()
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.location_allow_button))
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            OutlinedButton(
-                onClick = {
-                    Timber.d("user tapped Skip")
-                    onSkip()
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.location_skip_button))
-            }
-        }
     }
 }
 
