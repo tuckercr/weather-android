@@ -115,7 +115,8 @@
     <string name="settings_unit_metric">Celsius (°C)</string>
     <string name="settings_unit_imperial">Fahrenheit (°F)</string>
     <string name="settings_section_location">LOCATION</string>
-    <string name="settings_location_granted">Location Permission Granted</string>
+    <string name="settings_location_granted">Location allowed only while using the app</string>
+    <string name="settings_location_granted_always">Location allowed all the time</string>
     <string name="settings_location_required">Location Permission Required</string>
     <string name="settings_section_cache">CACHE</string>
     <string name="settings_clear_cache">Clear cached data</string>
@@ -160,7 +161,7 @@
     <string name="settings_notify_rain">Rain alerts</string>
     <string name="settings_notify_rain_summary">When rain or snow is about to start</string>
     <string name="settings_notifications_disabled">Notifications are disabled. Tap to open Settings.</string>
-    <string name="settings_section_locations">LOCATIONS</string>
+    <string name="settings_section_locations">MY LOCATIONS</string>
     <string name="settings_manage_locations">Manage Locations</string>
 
     <!-- Pet scene captions, in the pets' voice: Sunny is the dog, Misty the cat. One is picked per day. -->
