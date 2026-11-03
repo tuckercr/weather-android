@@ -14,7 +14,10 @@ Finished items move to Done at the bottom.
 
 - [ ] **App Store submission.** The listing is filled in (10-31). Before Add for Review: publish
       App Privacy (it asks you to confirm the answers), answer Content Rights once the licences
-      below are settled, and pick a build on the version page. Release is set to manual.
+      below are settled, and pick a build on the version page. Release is set to manual. The
+      App Store Connect version is still called 1.0: rename it to the build's version (build N is
+      1.0.(N-1), so 1.0.1 for build 2) before submitting: a version page only offers builds
+      with its own number. (11-03)
 - [ ] **App Store Connect description** still says "a heads-up before rain"; rain alerts are off
       for the first release. The suggested description in listing-review.html is updated. (11-02)
 - [ ] **Play Console: background location declaration** for Follow my location, before the first
