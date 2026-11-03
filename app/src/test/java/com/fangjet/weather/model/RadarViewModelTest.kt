@@ -137,6 +137,81 @@ class RadarViewModelTest {
             assertEquals(LoadingState.Success(noon), viewModel.timeline.value)
         }
 
+    // --- visibility ---
+
+    @Test
+    fun `the recheck leaves a stale radar alone while it is out of view`() =
+        runTest {
+            val source = FakeSource(listOf(Result.success(morning), Result.success(noon)))
+            val viewModel = viewModel(source)
+            viewModel.load()
+            settle()
+            viewModel.setVisible(false)
+
+            now += RadarViewModel.STALE_AFTER_MS
+            viewModel.recheck()
+            settle()
+
+            assertEquals(1, source.calls)
+            assertEquals(LoadingState.Success(morning), viewModel.timeline.value)
+        }
+
+    @Test
+    fun `the recheck refreshes a stale radar in view`() =
+        runTest {
+            val source = FakeSource(listOf(Result.success(morning), Result.success(noon)))
+            val viewModel = viewModel(source)
+            viewModel.load()
+            settle()
+            viewModel.setVisible(true)
+            settle()
+            // Fresh frames aren't fetched again on coming into view.
+            assertEquals(1, source.calls)
+
+            now += RadarViewModel.STALE_AFTER_MS
+            viewModel.recheck()
+            settle()
+
+            assertEquals(2, source.calls)
+            assertEquals(LoadingState.Success(noon), viewModel.timeline.value)
+        }
+
+    @Test
+    fun `scrolling a stale radar into view refreshes it straight away`() =
+        runTest {
+            val source = FakeSource(listOf(Result.success(morning), Result.success(noon)))
+            val viewModel = viewModel(source)
+            viewModel.load()
+            settle()
+            viewModel.setVisible(false)
+
+            now += RadarViewModel.STALE_AFTER_MS
+            viewModel.setVisible(true)
+            settle()
+
+            assertEquals(2, source.calls)
+            assertEquals(LoadingState.Success(noon), viewModel.timeline.value)
+        }
+
+    @Test
+    fun `the recheck retries a failed load only while in view`() =
+        runTest {
+            val source = FakeSource(listOf(Result.failure(IOException("offline")), Result.success(morning)))
+            val viewModel = viewModel(source)
+            viewModel.load()
+            settle()
+            assertEquals(LoadingState.Error("radar_unavailable"), viewModel.timeline.value)
+
+            viewModel.recheck()
+            settle()
+            assertEquals(1, source.calls)
+
+            viewModel.setVisible(true)
+            settle()
+            assertEquals(2, source.calls)
+            assertEquals(LoadingState.Success(morning), viewModel.timeline.value)
+        }
+
     @Test
     fun `a failed first load still shows the error, and retry loads again`() =
         runTest {
