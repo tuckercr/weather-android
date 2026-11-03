@@ -71,7 +71,15 @@ Finished items move to Done at the bottom.
       permission or Play declaration) for 8:30 and for about 45 minutes before forecast rain, set
       again by each background refresh; it goes off on an idle phone, at worst an hour late. iOS:
       queue rain alerts further ahead from the hourly forecast ("Rain likely around 4 PM"), less
-      precise. (11-02)
+      precise. (11-02) Alarms are held back less than jobs when Android counts the app as rarely
+      used (below); check that on the Pixel before relying on it. An alarm can't read the
+      location (see Location). (11-03)
+- [ ] **Android: late when the app counts as rarely used.** On 11-03 the Pixel's Adaptive
+      Battery moved the app to the "rare" standby bucket at 1:53 am (not opened the day before).
+      No job of ours ran from 11:49 pm until the phone restarted at 10:02, not even the
+      half-hourly refresh, so the 8:30 briefing came at 10:03. The schedule was right (8:30, and
+      8:30 again the next day). In the rare bucket Android may hold jobs for up to 24 hours. A
+      home screen widget would avoid it, and the inexact alarm above might. (11-03)
 - [ ] **Android walk time gaps.** With the briefing off, a best walk time less than 30 minutes
       after 8:30 gets no nudge at all. Turning Walk time on, or saying you have a dog, during the
       day plans nothing until the next morning. (11-02)
@@ -116,6 +124,19 @@ noted. Checked against the code, not fixed yet.
 
 - [ ] Android Settings: the location row could ask once more in the app before sending people to
       system settings (Android allows two prompts). (10-28)
+- [ ] **My Location in the background, opt-in.** Today My Location only moves when the app is
+      open, so a briefing can go to the last place the app was opened (11-03: a town 50 km away,
+      where the app was last opened two days before). "While using the app" doesn't reach a
+      background job, and a service started from an alarm gets no location either: Android only
+      allows it for the app on screen, or a service started from a tap on its notification or
+      widget. Apps that get it right have "Allow all the time" (Google Weather, for one). Option:
+      a "Use my location for notifications" setting that asks for it, used by the background
+      refresh and the briefing to read a rough position.
+      Android: "Allow all the time" is a second step, chosen on the app's settings page, and Play
+      needs a permissions declaration, a short video and an in-app explanation, then a review.
+      iOS: "Always", with significant location changes to wake the app after a move; iOS reminds
+      people now and then. Suggested for after the first release, so the Play review doesn't
+      hold up the launch. (11-03)
 
 ## Walk planner and pet safety
 
@@ -183,7 +204,9 @@ noted. Checked against the code, not fixed yet.
       iOS it would also help the notifications: iOS reloads a widget on its own budget, even after
       the app is swiped away, and each reload could refresh the weather and re-queue the
       briefings and walk nudges (check that a widget extension may queue notifications). Only
-      for people who add it, and no help to rain alerts. (11-02)
+      for people who add it, and no help to rain alerts. (11-02) On Android an app with a widget
+      on the home screen never drops below the "active" standby bucket, so its background jobs
+      aren't held back (see "late when the app counts as rarely used"). (11-03)
 - [ ] Kotlin Multiplatform, as a learning project. Low priority. (09-24)
 - [x] Pollen: free from Open-Meteo for Europe only. The US needs a paid provider (Google Pollen,
       Tomorrow.io, Ambee). Moved to version 2. (10-30, decided 10-31)
