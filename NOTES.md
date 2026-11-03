@@ -17,6 +17,12 @@ Finished items move to Done at the bottom.
       below are settled, and pick a build on the version page. Release is set to manual.
 - [ ] **App Store Connect description** still says "a heads-up before rain"; rain alerts are off
       for the first release. The suggested description in listing-review.html is updated. (11-02)
+- [ ] **Play Console: background location declaration** for Follow my location, before the first
+      release goes to review: the permissions declaration form (what the feature is, why it needs
+      "Allow all the time"), a short video of turning it on and a briefing following the phone,
+      and the in-app explanation, which the switch already shows. Google reviews it. App Store
+      Connect: say in the review notes what "Always" is for (Settings › Notifications › Follow my
+      location). (11-03)
 - [ ] **Add Jessica to the TestFlight "Family" group** once she accepts the App Store Connect
       invitation (sent 10-31). (10-31)
 - [ ] **Storms in the dog walking line, and maybe the hero text.** Warn about thunder in the walk
@@ -124,28 +130,22 @@ noted. Checked against the code, not fixed yet.
 
 - [ ] Android Settings: the location row could ask once more in the app before sending people to
       system settings (Android allows two prompts). (10-28)
-- [ ] **My Location in the background, opt-in.** Today My Location only moves when the app is
-      open, so a briefing can go to the last place the app was opened (11-03: a town 50 km away,
-      where the app was last opened two days before). "While using the app" doesn't reach a
-      background job, and a service started from an alarm gets no location either: Android only
-      allows it for the app on screen, or a service started from a tap on its notification or
-      widget. Apps that get it right have "Allow all the time" (Google Weather, for one). Option:
-      a "Use my location for notifications" setting that asks for it, used by the background
-      refresh and the briefing to read a rough position.
-      Android: "Allow all the time" is a second step, chosen on the app's settings page, and Play
-      needs a permissions declaration, a short video and an in-app explanation, then a review.
-      iOS: "Always", with significant location changes to wake the app after a move; iOS reminds
-      people now and then. Suggested for after the first release, so the Play review doesn't
-      hold up the launch. (11-03)
-      How: a geofence a few kilometres round My Location (Android's Geofencing API, iOS region
-      monitoring). Leaving it wakes the app, which reads the new position, moves My Location,
-      sets the next geofence and refreshes the weather. Cheap on battery, since the system
-      watches with cell and Wi-Fi, and the app only wakes after a real move. Geofences need the
-      same permission ("Allow all the time", "Always"), and Play counts them as background
-      location. Android only offers "Allow all the time" in system settings when the manifest
-      declares `ACCESS_BACKGROUND_LOCATION`, which it doesn't yet, so it can't be switched on by
-      hand either. To try it first, declare it in `app/src/debug/AndroidManifest.xml` only:
-      release builds, and so Play, never see it. (11-03)
+- [ ] **My Location in the background, opt-in.** Built for the first release as the Follow my
+      location switch in Notification settings (11-03). It asks for "Allow all the time" (Android,
+      a second step on the app's location page in system settings) or "Always" (iOS, one prompt,
+      then only the Settings app). With it on, Android's background refresh and 8:30 run read the
+      phone's position first, and iOS wakes the app after a significant move. Before it, My
+      Location only moved while the app was open, so a briefing could go to the last place the app
+      was opened (11-03: a town 50 km away, where the app was last opened two days before).
+      "While using the app" doesn't reach background work, and a service started from an alarm
+      gets no location either. Still to design: a way in for people who never open Notification
+      settings. Mocked up 11-03: a one-time card on the weather screen the first time My Location
+      jumps after a briefing went to the old place ("This morning's briefing was for …", Not now /
+      Keep it up to date), opening the same explanation; or an onboarding step after the location
+      page, only when location and notifications were both allowed (recommended against: a fourth
+      permission ask in a row, and iOS asks once). Android could later use a geofence a few
+      kilometres round My Location (the Geofencing API, same permission), so it moves even while
+      Android holds the app's jobs back. (11-03)
 
 ## Walk planner and pet safety
 
