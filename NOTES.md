@@ -69,6 +69,18 @@ Finished items move to Done at the bottom.
       inside (12 to 16). Consider reducing it, for example to 12, for more room in the hourly
       strip and tiles; check the iPad and landscape layouts, and leave the onboarding screens' own
       margins (24) alone.
+- [ ] **Tile sizes.** Today tiles come in two widths now: half (side by side, as tall as the
+      tallest in the row) and full. Consider four, adding 2/3 and 1/3: Sky and Daylight could be
+      2/3 wide when they don't need the full width, and Feels Like and UV could have smaller 1/3
+      versions, so a row holds a 2/3 and a 1/3 tile.
+- [ ] **Feels Like tile design.** It now shows the feels-like temperature alone, large and centred
+      (the "Actual" line went on 11-03). Review the whole design: whether it says enough without
+      the actual temperature, how it sits beside Wind, and its colour (next item).
+- [ ] **A colour scale for some tiles.** Green, blue, orange and red, for tiles whose value has a
+      severity: Feels Like (red for very hot), Wind (red for storm force), and maybe UV and Paw
+      Check (Air Quality has its own scale already). Define what each colour means per tile. Never
+      colour alone: keep the words ("Gale", "Very hot"), and check contrast in both themes and on
+      the seasonal card colours.
 
 ## More tiles to consider (10-30)
 
