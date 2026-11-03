@@ -94,6 +94,15 @@ Finished items move to Done at the bottom.
       back empty (an empty map that reads as "no rain"), as a placeholder, or as errors? If it can
       be told apart (RainViewer may offer a coverage layer; check its API), say "No radar here" or
       hide the card rather than show an empty map.
+- [ ] **Tile design looks too much like other weather apps.** Review the Today tiles as a whole:
+      shape, layout, icons and type, and what would make them ours (the pets' voice, the brand
+      font, the colour scale above, the tile sizes above).
+- [ ] **A bar for dew point.** The Humidity tile has a bar for the humidity; dew point could have
+      one too (how muggy it feels), on a scale that makes sense in both units.
+- [ ] **Temperatures without the unit ("89°").** People know what they're looking at, and it would
+      set the app apart. Built behind Remote Config `temperature_units_shown` (11-03), on by
+      default, so turning it off shows "89°" instead of "89 °F" everywhere. Decide whether to make
+      that the look, and whether Settings should offer it.
 
 ## More tiles to consider (10-30)
 
