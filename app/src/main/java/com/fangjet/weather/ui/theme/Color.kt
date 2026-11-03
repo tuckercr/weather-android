@@ -14,11 +14,33 @@ val BrandYellow = Color(0xFFFBC02D)
 val OnBrandYellow = Color(0xFF3A2E00)
 val SurfaceLight = Color(0xFFF6FBFF)
 
+// Material 3's neutral roles (dialogs, sheets, menus, switch tracks, dividers, secondary text),
+// tinted with the sky blue. Left out, Compose fills them with its own purple-grey defaults.
+val SurfaceContainerLowestLight = Color(0xFFFFFFFF)
+val SurfaceContainerLowLight = Color(0xFFEFF6FB)
+val SurfaceContainerMidLight = Color(0xFFE8F2F9)
+val SurfaceContainerHighLight = Color(0xFFE1EEF7)
+val SurfaceContainerHighestLight = Color(0xFFD9EAF4)
+val OnSurfaceVariantLight = Color(0xFF41505E)
+val OutlineLight = Color(0xFF6F7E8C)
+val OutlineVariantLight = Color(0xFFC3CFD9)
+val InverseSurfaceLight = Color(0xFF22303C)
+val InverseOnSurfaceLight = Color(0xFFEAF2F8)
+
 // Dark scheme
 val SkyBlueNight = Color(0xFF4FC3F7)
 val BrandYellowNight = Color(0xFFFFD54F)
 val SurfaceDark = Color(0xFF0D1B2A)
 val SurfaceContainerDark = Color(0xFF1A2C3D)
+val SurfaceContainerLowestDark = Color(0xFF08131F)
+val SurfaceContainerLowDark = Color(0xFF12212F)
+val SurfaceContainerMidDark = Color(0xFF152636)
+val SurfaceContainerHighestDark = Color(0xFF213547)
+val OnSurfaceVariantDark = Color(0xFFB9C6D2)
+val OutlineDark = Color(0xFF8494A3)
+val OutlineVariantDark = Color(0xFF34475A)
+val InverseSurfaceDark = Color(0xFFDDE7EF)
+val InverseOnSurfaceDark = Color(0xFF1A2733)
 
 // Radar precipitation legend, light (low intensity) to heavy (high intensity).
 val RadarLegendColors = listOf(

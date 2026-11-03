@@ -14,9 +14,18 @@ Finished items move to Done at the bottom.
 
 - [ ] **App Store submission.** The listing is filled in (10-31). Before Add for Review: publish
       App Privacy (it asks you to confirm the answers), answer Content Rights once the licences
-      below are settled, and pick a build on the version page. Release is set to manual.
+      below are settled, and pick a build on the version page. Release is set to manual. The
+      App Store Connect version is still called 1.0: rename it to the build's version (build N is
+      1.0.(N-1), so 1.0.1 for build 2) before submitting: a version page only offers builds
+      with its own number. (11-03)
 - [ ] **App Store Connect description** still says "a heads-up before rain"; rain alerts are off
       for the first release. The suggested description in listing-review.html is updated. (11-02)
+- [ ] **Play Console: background location declaration** for Follow my location, before the first
+      release goes to review: the permissions declaration form (what the feature is, why it needs
+      "Allow all the time"), a short video of turning it on and a briefing following the phone,
+      and the in-app explanation, which the switch already shows. Google reviews it. App Store
+      Connect: say in the review notes what "Always" is for (Settings › Notifications › Follow my
+      location). (11-03)
 - [ ] **Add Jessica to the TestFlight "Family" group** once she accepts the App Store Connect
       invitation (sent 10-31). (10-31)
 - [ ] **Storms in the dog walking line, and maybe the hero text.** Warn about thunder in the walk
@@ -71,7 +80,15 @@ Finished items move to Done at the bottom.
       permission or Play declaration) for 8:30 and for about 45 minutes before forecast rain, set
       again by each background refresh; it goes off on an idle phone, at worst an hour late. iOS:
       queue rain alerts further ahead from the hourly forecast ("Rain likely around 4 PM"), less
-      precise. (11-02)
+      precise. (11-02) Alarms are held back less than jobs when Android counts the app as rarely
+      used (below); check that on the Pixel before relying on it. An alarm can't read the
+      location (see Location). (11-03)
+- [ ] **Android: late when the app counts as rarely used.** On 11-03 the Pixel's Adaptive
+      Battery moved the app to the "rare" standby bucket at 1:53 am (not opened the day before).
+      No job of ours ran from 11:49 pm until the phone restarted at 10:02, not even the
+      half-hourly refresh, so the 8:30 briefing came at 10:03. The schedule was right (8:30, and
+      8:30 again the next day). In the rare bucket Android may hold jobs for up to 24 hours. A
+      home screen widget would avoid it, and the inexact alarm above might. (11-03)
 - [ ] **Android walk time gaps.** With the briefing off, a best walk time less than 30 minutes
       after 8:30 gets no nudge at all. Turning Walk time on, or saying you have a dog, during the
       day plans nothing until the next morning. (11-02)
@@ -116,6 +133,22 @@ noted. Checked against the code, not fixed yet.
 
 - [ ] Android Settings: the location row could ask once more in the app before sending people to
       system settings (Android allows two prompts). (10-28)
+- [ ] **My Location in the background, opt-in.** Built for the first release as the Follow my
+      location switch in Notification settings (11-03). It asks for "Allow all the time" (Android,
+      a second step on the app's location page in system settings) or "Always" (iOS, one prompt,
+      then only the Settings app). With it on, Android's background refresh and 8:30 run read the
+      phone's position first, and iOS wakes the app after a significant move. Before it, My
+      Location only moved while the app was open, so a briefing could go to the last place the app
+      was opened (11-03: a town 50 km away, where the app was last opened two days before).
+      "While using the app" doesn't reach background work, and a service started from an alarm
+      gets no location either. Still to design: a way in for people who never open Notification
+      settings. Mocked up 11-03: a one-time card on the weather screen the first time My Location
+      jumps after a briefing went to the old place ("This morning's briefing was for …", Not now /
+      Keep it up to date), opening the same explanation; or an onboarding step after the location
+      page, only when location and notifications were both allowed (recommended against: a fourth
+      permission ask in a row, and iOS asks once). Android could later use a geofence a few
+      kilometres round My Location (the Geofencing API, same permission), so it moves even while
+      Android holds the app's jobs back. (11-03)
 
 ## Walk planner and pet safety
 
@@ -183,7 +216,9 @@ noted. Checked against the code, not fixed yet.
       iOS it would also help the notifications: iOS reloads a widget on its own budget, even after
       the app is swiped away, and each reload could refresh the weather and re-queue the
       briefings and walk nudges (check that a widget extension may queue notifications). Only
-      for people who add it, and no help to rain alerts. (11-02)
+      for people who add it, and no help to rain alerts. (11-02) On Android an app with a widget
+      on the home screen never drops below the "active" standby bucket, so its background jobs
+      aren't held back (see "late when the app counts as rarely used"). (11-03)
 - [ ] Kotlin Multiplatform, as a learning project. Low priority. (09-24)
 - [x] Pollen: free from Open-Meteo for Europe only. The US needs a paid provider (Google Pollen,
       Tomorrow.io, Ambee). Moved to version 2. (10-30, decided 10-31)

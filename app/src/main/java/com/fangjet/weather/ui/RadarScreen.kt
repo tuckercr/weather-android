@@ -47,6 +47,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -168,25 +170,29 @@ private fun RadarMapCard(
 
         // Obtained here (not as a default arg) so the coordinate-less path above never needs Hilt.
         val viewModel: RadarViewModel = hiltViewModel()
-        // Load on first composition and on every resume, then re-check while the card is on
-        // screen so the timeline never goes stale (load() is a no-op while it is fresh).
+        val tileInfo = remember(location.latitude, location.longitude) {
+            TileInfo.from(location.latitude, location.longitude, ZOOM)
+        }
+        // Opening the screen, coming back to the app or switching city: fetch the frames if they're
+        // missing or stale, wherever the card is on screen (load() is a no-op while they're fresh).
+        // While the screen stays open, keep them current, but only while the card is in view.
         // Lives below the coordinate-less early return, which is the path the UI tests render.
         val lifecycleOwner = LocalLifecycleOwner.current
-        LaunchedEffect(viewModel, lifecycleOwner) {
+        LaunchedEffect(viewModel, lifecycleOwner, tileInfo) {
             lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                viewModel.load()
                 while (true) {
-                    viewModel.load()
-                    delay(RadarViewModel.STALE_AFTER_MS)
+                    delay(RadarViewModel.RECHECK_INTERVAL_MS)
+                    viewModel.recheck()
                 }
             }
         }
         val timelineState by viewModel.timeline.collectAsStateWithLifecycle()
 
-        val tileInfo = remember(location.latitude, location.longitude) {
-            TileInfo.from(location.latitude, location.longitude, ZOOM)
-        }
-
         RadarView(
+            // The card starts below the fold on a phone. boundsInWindow() is clipped by the
+            // scrolling column, so it's empty while the card is scrolled out of sight.
+            modifier = Modifier.onGloballyPositioned { viewModel.setVisible(it.boundsInWindow().height > 0f) },
             tileInfo = tileInfo,
             timelineState = timelineState,
             frameIntervalMs = viewModel.frameIntervalMs,
@@ -215,6 +221,7 @@ private fun RadarView(
     frameIntervalMs: Long,
     utcOffsetSeconds: Int,
     onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
 
@@ -285,7 +292,7 @@ private fun RadarView(
         )
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
         RadarCanvas(tileInfo = tileInfo, baseMap = baseMap, overlay = currentOverlay)
 
         // Timestamp chip (top-start), rendered in the selected city's local time (via its UTC
