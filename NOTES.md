@@ -81,6 +81,14 @@ Finished items move to Done at the bottom.
       Check (Air Quality has its own scale already). Define what each colour means per tile. Never
       colour alone: keep the words ("Gale", "Very hot"), and check contrast in both themes and on
       the seasonal card colours.
+- [ ] **Sunrise and sunset in the hourly strip.** Look into slotting them in between the hours
+      ("6:57 AM, Sunrise" with a sun-on-the-horizon icon), as some weather apps do. The times are
+      already there (the Daylight tile uses them); check they fall in the city's time zone, and
+      that the strip's icons switch between day and night at the right hour.
+- [ ] **A hint that the hourly strip scrolls.** Nothing shows there's more past the edge unless an
+      hour is cut off there by luck. Consider fading the edges, letting the last hour on screen
+      always peek out half cut, or a small arrow; check it at large text sizes and on iPad, where
+      more hours fit.
 
 ## More tiles to consider (10-30)
 
