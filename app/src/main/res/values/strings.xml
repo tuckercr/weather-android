@@ -12,6 +12,8 @@
     <!-- Today's high and low on the top card, in whole degrees: "H 64° · L 61°". -->
     <string name="label_temp_range">H %1$d° · L %2$d°</string>
     <string name="label_temp_range_spoken">High %1$d°, low %2$d°</string>
+    <string name="label_temp_high">H %1$d°</string>
+    <string name="label_temp_low">L %1$d°</string>
     <string name="format_temperature_c">%d °C</string>
     <string name="format_temperature_f">%d °F</string>
     <string name="format_percent">%d%%</string>

@@ -75,6 +75,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -84,10 +85,13 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -1467,6 +1471,9 @@ internal fun formatEpochTime(
     )
 }
 
+/** Wide enough for "H 85° · L 76°" in bodyLarge, at any font size. */
+private val TEMPERATURE_RANGE_WIDTH = 112.sp
+
 /** The compass point a wind comes from, 0 (N) to 7 (NW) clockwise; indexes `R.array.compass_points_spoken`. */
 internal fun windDirectionIndex(deg: Int): Int = ((deg + 22) / 45) % 8
 
@@ -1486,29 +1493,40 @@ private fun UpcomingDayRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            WeatherIcon(iconCode = day.iconCode, contentDescription = day.description, sizeDp = 36)
             Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                 Text(
                     text = day.dateLabel,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
                 )
+                // 2 sp up from bodySmall.
                 Text(
                     text = day.description,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 PrecipChance(percent = day.precipitationChance)
             }
+            WeatherIcon(iconCode = day.iconCode, contentDescription = day.description, sizeDp = 36)
+            // The high and low as the hero has them, "H 85° · L 76°", with the high stronger, in a
+            // column wide enough for that, so the icons line up down the list.
+            val high = day.tempMax.roundToInt()
+            val low = day.tempMin.roundToInt()
+            val spokenRange = stringResource(R.string.label_temp_range_spoken, high, low)
+            val highText = stringResource(R.string.label_temp_high, high)
+            val lowText = stringResource(R.string.label_temp_low, low)
+            val lowColor = MaterialTheme.colorScheme.onSurfaceVariant
             Text(
-                text = formatTemperature(day.tempMax, day.units),
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(highText) }
+                    withStyle(SpanStyle(color = lowColor)) { append(" · $lowText") }
+                },
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = formatTemperature(day.tempMin, day.units),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.End,
+                // "H 85°" would be read as the letter H.
+                modifier = Modifier
+                    .widthIn(min = with(LocalDensity.current) { TEMPERATURE_RANGE_WIDTH.toDp() })
+                    .clearAndSetSemantics { text = AnnotatedString(spokenRange) },
             )
         }
         HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
