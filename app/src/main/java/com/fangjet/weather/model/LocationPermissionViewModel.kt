@@ -48,7 +48,7 @@ class LocationPermissionViewModel internal constructor(
     @Inject
     constructor(application: Application) : this(
         application = application,
-        hasLocationPermissionProvider = { application.hasAnyLocationPermission() },
+        hasLocationPermissionProvider = { application.hasLocationPermission() },
         locationFetcher = PlayServicesLocationFetcher(application),
         denials = SharedPreferencesLocationDenialStore(application),
     )
@@ -151,11 +151,12 @@ internal interface LocationFetcher {
     suspend fun tryCurrentLocation(): DeviceLocation?
 }
 
-private class PlayServicesLocationFetcher(
-    application: Application,
+/** The device's position from Play services. Also read by background runs ("Follow my location"). */
+internal class PlayServicesLocationFetcher(
+    context: Context,
 ) : LocationFetcher {
 
-    private val fusedClient = LocationServices.getFusedLocationProviderClient(application)
+    private val fusedClient = LocationServices.getFusedLocationProviderClient(context)
 
     @Suppress("MissingPermission")
     override suspend fun tryLastLocation(): DeviceLocation? =
@@ -183,7 +184,8 @@ private class PlayServicesLocationFetcher(
         }?.toDeviceLocation()
 }
 
-private fun Application.hasAnyLocationPermission(): Boolean =
+/** "While using the app" location, precise or approximate. */
+internal fun Context.hasLocationPermission(): Boolean =
     ContextCompat.checkSelfPermission(
         this,
         Manifest.permission.ACCESS_FINE_LOCATION,
@@ -194,11 +196,32 @@ private fun Application.hasAnyLocationPermission(): Boolean =
         ) ==
         PackageManager.PERMISSION_GRANTED
 
+/** "Allow all the time": location for background runs, which "Follow my location" needs. */
+internal fun Context.hasBackgroundLocationPermission(): Boolean =
+    ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) ==
+        PackageManager.PERMISSION_GRANTED
+
 private fun android.location.Location.toDeviceLocation() =
     DeviceLocation(
         latitude = latitude,
         longitude = longitude,
     )
+
+/**
+ * How many times "Allow all the time" was asked for and not given. Android stops opening its page
+ * after two, so Follow my location then opens the app's settings instead.
+ */
+internal fun Context.backgroundLocationRefusals(): Int =
+    getSharedPreferences(LOCATION_PERMISSION_PREFS, Context.MODE_PRIVATE).getInt(KEY_BACKGROUND_REFUSALS, 0)
+
+internal fun Context.noteBackgroundLocationAnswer(granted: Boolean) {
+    getSharedPreferences(LOCATION_PERMISSION_PREFS, Context.MODE_PRIVATE).edit {
+        putInt(KEY_BACKGROUND_REFUSALS, if (granted) 0 else backgroundLocationRefusals() + 1)
+    }
+}
+
+private const val LOCATION_PERMISSION_PREFS = "location_permission"
+private const val KEY_BACKGROUND_REFUSALS = "background_refusals"
 
 /** What earlier permission requests came back with, kept across launches. */
 internal interface LocationDenialStore {
@@ -209,7 +232,7 @@ internal interface LocationDenialStore {
 private class SharedPreferencesLocationDenialStore(
     application: Application,
 ) : LocationDenialStore {
-    private val prefs = application.getSharedPreferences("location_permission", Context.MODE_PRIVATE)
+    private val prefs = application.getSharedPreferences(LOCATION_PERMISSION_PREFS, Context.MODE_PRIVATE)
 
     override var deniedBefore: Boolean
         get() = prefs.getBoolean(KEY_DENIED_BEFORE, false)

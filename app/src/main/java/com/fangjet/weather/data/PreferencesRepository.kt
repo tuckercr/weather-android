@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.UnitOverride
+import com.fangjet.weather.domain.withMyLocationAt
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -76,6 +77,33 @@ class PreferencesRepository internal constructor(
 
     suspend fun setSavedLocations(locations: List<SavedLocation>) {
         dataStore.edit { it[KEY_SAVED_LOCATIONS] = json.encodeToString(locations) }
+    }
+
+    /**
+     * Moves My Location to [latitude], [longitude] in a single edit, after a real move
+     * ([withMyLocationAt]). For background runs, which don't hold the app's copy of the list.
+     */
+    suspend fun moveMyLocation(
+        latitude: Double,
+        longitude: Double,
+    ) {
+        dataStore.edit { prefs ->
+            val raw = prefs[KEY_SAVED_LOCATIONS] ?: return@edit
+            val locations = runCatching { json.decodeFromString<List<SavedLocation>>(raw) }.getOrNull() ?: return@edit
+            val moved = locations.withMyLocationAt(latitude, longitude) ?: return@edit
+            prefs[KEY_SAVED_LOCATIONS] = json.encodeToString(moved)
+        }
+    }
+
+    /**
+     * "Follow my location" in Notification settings: background runs move My Location to where the
+     * phone is first. It also needs "Allow all the time", which the switch asks for. Off until
+     * turned on.
+     */
+    val followMyLocation: Flow<Boolean> = dataStore.data.map { it[KEY_FOLLOW_MY_LOCATION] == true }
+
+    suspend fun setFollowMyLocation(enabled: Boolean) {
+        dataStore.edit { it[KEY_FOLLOW_MY_LOCATION] = enabled }
     }
 
     suspend fun setActiveLocationIndex(index: Int) {
@@ -223,6 +251,7 @@ class PreferencesRepository internal constructor(
         private val KEY_NOTIFY_MORNING_BRIEFING = booleanPreferencesKey("notify_morning_briefing")
         private val KEY_NOTIFY_WALK_TIME = booleanPreferencesKey("notify_walk_time")
         private val KEY_NOTIFY_RAIN = booleanPreferencesKey("notify_rain")
+        private val KEY_FOLLOW_MY_LOCATION = booleanPreferencesKey("follow_my_location")
         private val KEY_LAST_RAIN_ALERT_START = longPreferencesKey("last_rain_alert_start")
         private val KEY_UPDATE_BANNER_DISMISSED_AT = longPreferencesKey("update_banner_dismissed_at")
     }

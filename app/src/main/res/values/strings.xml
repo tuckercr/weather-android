@@ -160,6 +160,13 @@
     <string name="settings_notify_walk_summary">A nudge at the day\'s best time for a walk</string>
     <string name="settings_notify_rain">Rain alerts</string>
     <string name="settings_notify_rain_summary">When rain or snow is about to start</string>
+    <string name="settings_follow_location">Follow my location</string>
+    <string name="settings_follow_location_summary">Notifications for wherever you are, even when the app is closed</string>
+    <string name="follow_location_title">Follow your location?</string>
+    <string name="follow_location_body">Sunny &amp; Misty uses your location to send weather for where you are, even when the app is closed or not in use. It\'s only used for the weather.</string>
+    <string name="follow_location_android_hint">On the next screen, choose Allow all the time.</string>
+    <string name="follow_location_continue">Continue</string>
+    <string name="follow_location_not_now">Not now</string>
     <string name="settings_notifications_disabled">Notifications are disabled. Tap to open Settings.</string>
     <string name="settings_section_locations">MY LOCATIONS</string>
     <string name="settings_manage_locations">Manage Locations</string>

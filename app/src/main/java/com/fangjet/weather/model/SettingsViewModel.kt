@@ -4,11 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
+import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.UnitOverride
 import com.fangjet.weather.worker.NotificationKind
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -83,6 +85,19 @@ class SettingsViewModel @Inject constructor(
 
     fun setNotifyRain(enabled: Boolean) {
         viewModelScope.launch { preferencesRepository.setNotifyRain(enabled) }
+    }
+
+    /** Whether there's a My Location to follow: Follow my location only shows then. */
+    val hasMyLocation = preferencesRepository.savedLocations
+        .map { locations -> locations.any(SavedLocation::isCurrentLocation) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** "Follow my location" as set. The screen shows it on only while "Allow all the time" is granted too. */
+    val followMyLocation = preferencesRepository.followMyLocation
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setFollowMyLocation(enabled: Boolean) {
+        viewModelScope.launch { preferencesRepository.setFollowMyLocation(enabled) }
     }
 
     fun clearCache() {

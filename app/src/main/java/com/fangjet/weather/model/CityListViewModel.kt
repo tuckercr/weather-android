@@ -6,7 +6,7 @@ import com.fangjet.weather.analytics.AnalyticsRepository
 import com.fangjet.weather.data.GeocodingRepository
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.domain.SavedLocation
-import com.fangjet.weather.domain.distanceMeters
+import com.fangjet.weather.domain.withMyLocationAt
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -140,27 +140,11 @@ class CityListViewModel internal constructor(
         }
     }
 
-    /**
-     * Moves My Location to where the device is now. Only for a real move: below
-     * [MY_LOCATION_MOVE_METERS] it's GPS wobble, and new coordinates would just miss the cache.
-     */
+    /** Moves My Location to where the device is now, after a real move ([withMyLocationAt]). */
     fun updateCurrentLocation(location: SavedLocation) {
         val latitude = location.latitude ?: return
         val longitude = location.longitude ?: return
-        val index = _locations.value.indexOfFirst { it.isCurrentLocation }
-        if (index < 0) return
-        val current = _locations.value[index]
-        val oldLat = current.latitude
-        val oldLon = current.longitude
-        if (oldLat != null &&
-            oldLon != null &&
-            distanceMeters(oldLat, oldLon, latitude, longitude) < MY_LOCATION_MOVE_METERS
-        ) {
-            return
-        }
-        val updated = _locations.value.toMutableList().apply {
-            set(index, current.copy(latitude = latitude, longitude = longitude))
-        }
+        val updated = _locations.value.withMyLocationAt(latitude, longitude) ?: return
         _locations.value = updated
         viewModelScope.launch { preferencesRepository.setSavedLocations(updated) }
     }
@@ -222,8 +206,5 @@ class CityListViewModel internal constructor(
         }
     }
 }
-
-/** How far the device has to move before My Location follows it. */
-internal const val MY_LOCATION_MOVE_METERS = 1_000.0
 
 internal const val MY_LOCATION_CHECK_INTERVAL_MS = 15 * 60 * 1000L
