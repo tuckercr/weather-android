@@ -73,14 +73,11 @@ Finished items move to Done at the bottom.
       tallest in the row) and full. Consider four, adding 2/3 and 1/3: Sky and Daylight could be
       2/3 wide when they don't need the full width, and Feels Like and UV could have smaller 1/3
       versions, so a row holds a 2/3 and a 1/3 tile.
-- [ ] **Feels Like tile design.** It now shows the feels-like temperature alone, large and centred
-      (the "Actual" line went on 11-03). Review the whole design: whether it says enough without
-      the actual temperature, how it sits beside Wind, and its colour (next item).
 - [ ] **A colour scale for some tiles.** Green, blue, orange and red, for tiles whose value has a
-      severity: Feels Like (red for very hot), Wind (red for storm force), and maybe UV and Paw
-      Check (Air Quality has its own scale already). Define what each colour means per tile. Never
-      colour alone: keep the words ("Gale", "Very hot"), and check contrast in both themes and on
-      the seasonal card colours.
+      severity: Wind (red for storm force), and maybe UV and Paw Check (Air Quality has its own
+      scale already, and Feels Like has one since 11-04). Define what each colour means per tile.
+      Never colour alone: keep the words ("Gale", "Very hot"), and check contrast in both themes and
+      on the seasonal card colours, which Feels Like's band word hasn't been checked on yet either.
 - [ ] **Sunrise and sunset in the hourly strip.** Look into slotting them in between the hours
       ("6:57 AM, Sunrise" with a sun-on-the-horizon icon), as some weather apps do. The times are
       already there (the Daylight tile uses them); check they fall in the city's time zone, and
@@ -286,6 +283,10 @@ noted. Checked against the code, not fixed yet.
 
 ## Done
 
+- [x] **Feels Like tile design** (11-04): the band beside the number (Cold, Chilly, Mild, Warm or
+      Hot, from the pets' thresholds and the walk comfort range), a five-colour bar like Air
+      Quality's, and how far it is from the actual temperature ("8° warmer than it is"). Its 1/3
+      width version waits for the tile sizes item.
 - [x] From the 11-02 review, fixed:
       - Walk reminders survive a replan after 8:30. Opening the app or tapping the briefing used
         to delete that day's (and usually tomorrow's); there's still at most one a day. iOS.
