@@ -78,10 +78,6 @@ Finished items move to Done at the bottom.
       scale already, and Feels Like has one since 11-04). Define what each colour means per tile.
       Never colour alone: keep the words ("Gale", "Very hot"), and check contrast in both themes and
       on the seasonal card colours, which Feels Like's band word hasn't been checked on yet either.
-- [ ] **Sunrise and sunset in the hourly strip.** Look into slotting them in between the hours
-      ("6:57 AM, Sunrise" with a sun-on-the-horizon icon), as some weather apps do. The times are
-      already there (the Daylight tile uses them); check they fall in the city's time zone, and
-      that the strip's icons switch between day and night at the right hour.
 - [ ] **A hint that the hourly strip scrolls.** Nothing shows there's more past the edge unless an
       hour is cut off there by luck. Consider fading the edges, letting the last hour on screen
       always peek out half cut, or a small arrow; check it at large text sizes and on iPad, where
@@ -283,6 +279,11 @@ noted. Checked against the code, not fixed yet.
 
 ## Done
 
+- [x] **Sunrise and sunset in the hourly strip** (11-04): a slim marker between the hours they
+      fall between, with the time ("6:50"), a sun on the horizon with an arrow, and a thin line.
+      The times come from Open-Meteo's daily sunrise and sunset, so the evening's strip has
+      tomorrow's sunrise; cities on the OpenWeatherMap fallback only have today's. Shading the
+      night hours in the strip was mocked up too and left for later.
 - [x] **Feels Like tile design** (11-04): the band beside the number (Cold, Chilly, Mild, Warm or
       Hot, from the pets' thresholds and the walk comfort range), a five-colour bar like Air
       Quality's, and how far it is from the actual temperature ("8° warmer than it is"). Its 1/3
