@@ -53,6 +53,50 @@ Finished items move to Done at the bottom.
   everywhere else); "Unhealthy for sensitive groups" is shortened to "Poor for some".
 - Remote Config: `air_quality_enabled` (on) and `walk_bad_air_band` (3, valid 1–5) are live.
 
+## Design review (11-03)
+
+- [ ] **Daylight tile.** What it does now (both apps): before sunrise, "Sunrise in 2 h 10 min"
+      with the sun at the start of the arc; in the day, "4 h 29 min left" with the sun along the
+      arc; after sunset, the arc filled with the sun down, "The sun has set", and that day's
+      sunrise and sunset times until midnight. It doesn't look ahead: tomorrow's sunrise only
+      shows after midnight, as "Sunrise in …". The UV index rides in the tile's header ("UV 1 ·
+      Low") while the UV tile is off (`tile_uv_enabled`, off by default), and is hidden after dark.
+      Consider: tomorrow's sunrise after sunset, and taking the UV off this tile.
+- [ ] **Main screen horizontal margins.** 16 from the screen edge to the cards on both: 16 dp on
+      Android (`padding(horizontal = 16.dp)` on the weather column) and 16 points on iOS
+      (`.padding(.horizontal, 16)` on the weather content). A point is iOS's density-independent
+      unit, like dp: 3 pixels on a 3x iPhone such as the 14 Pro. Cards add their own padding
+      inside (12 to 16). Consider reducing it, for example to 12, for more room in the hourly
+      strip and tiles; check the iPad and landscape layouts, and leave the onboarding screens' own
+      margins (24) alone.
+- [ ] **Tile sizes.** Today tiles come in two widths now: half (side by side, as tall as the
+      tallest in the row) and full. Consider four, adding 2/3 and 1/3: Sky and Daylight could be
+      2/3 wide when they don't need the full width, and Feels Like and UV could have smaller 1/3
+      versions, so a row holds a 2/3 and a 1/3 tile.
+- [ ] **A colour scale for some tiles.** Green, blue, orange and red, for tiles whose value has a
+      severity: Wind (red for storm force), and maybe UV (Air Quality has its own scale already,
+      and Feels Like and Paw Check have one since 11-04). Define what each colour means per tile.
+      Never colour alone: keep the words ("Gale", "Very hot"), and check contrast in both themes and
+      on the seasonal card colours, which Feels Like's band word hasn't been checked on yet either.
+- [ ] **A hint that the hourly strip scrolls.** Nothing shows there's more past the edge unless an
+      hour is cut off there by luck. Consider fading the edges, letting the last hour on screen
+      always peek out half cut, or a small arrow; check it at large text sizes and on iPad, where
+      more hours fit.
+- [ ] **Radar outside RainViewer's coverage.** Test a city whose coordinates are outside it
+      (RainViewer has no radar for much of Africa, central Asia and the oceans): do the tiles come
+      back empty (an empty map that reads as "no rain"), as a placeholder, or as errors? If it can
+      be told apart (RainViewer may offer a coverage layer; check its API), say "No radar here" or
+      hide the card rather than show an empty map.
+- [ ] **Tile design looks too much like other weather apps.** Review the Today tiles as a whole:
+      shape, layout, icons and type, and what would make them ours (the pets' voice, the brand
+      font, the colour scale above, the tile sizes above).
+- [ ] **A bar for dew point.** The Humidity tile has a bar for the humidity; dew point could have
+      one too (how muggy it feels), on a scale that makes sense in both units.
+- [ ] **Temperatures without the unit ("89°").** People know what they're looking at, and it would
+      set the app apart. Built behind Remote Config `temperature_units_shown` (11-03), on by
+      default, so turning it off shows "89°" instead of "89 °F" everywhere. Decide whether to make
+      that the look, and whether Settings should offer it.
+
 ## More tiles to consider (10-30)
 
 - [ ] **Wind:** gusts in the Wind tile ("14 mph, gusts 30"), and wind in the words too: the
@@ -235,6 +279,19 @@ noted. Checked against the code, not fixed yet.
 
 ## Done
 
+- [x] **Paw Check tile design** (11-04): five paws from icy to dangerous under the number, the
+      pavement's own full size and colour (blue, green, orange, red, maroon), and the icy and
+      below freezing lines in blue. A badge with when it changes later today ("Cooler after
+      6 PM") was mocked up too and left for later.
+- [x] **Sunrise and sunset in the hourly strip** (11-04): a slim marker between the hours they
+      fall between, with the time ("6:50"), a sun on the horizon with an arrow, and a thin line.
+      The times come from Open-Meteo's daily sunrise and sunset, so the evening's strip has
+      tomorrow's sunrise; cities on the OpenWeatherMap fallback only have today's. Shading the
+      night hours in the strip was mocked up too and left for later.
+- [x] **Feels Like tile design** (11-04): the band beside the number (Cold, Chilly, Mild, Warm or
+      Hot, from the pets' thresholds and the walk comfort range), a five-colour bar like Air
+      Quality's, and how far it is from the actual temperature ("8° warmer than it is"). Its 1/3
+      width version waits for the tile sizes item.
 - [x] From the 11-02 review, fixed:
       - Walk reminders survive a replan after 8:30. Opening the app or tapping the briefing used
         to delete that day's (and usually tomorrow's); there's still at most one a day. iOS.

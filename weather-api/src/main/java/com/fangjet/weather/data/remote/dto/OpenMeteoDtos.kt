@@ -12,6 +12,18 @@ data class OpenMeteoResponse(
     @SerialName("timezone") val timezone: String? = null,
     @SerialName("hourly") val hourly: OpenMeteoHourlyDto = OpenMeteoHourlyDto(),
     @SerialName("minutely_15") val minutely15: OpenMeteoMinutely15Dto = OpenMeteoMinutely15Dto(),
+    @SerialName("daily") val daily: OpenMeteoDailyDto = OpenMeteoDailyDto(),
+)
+
+/**
+ * Parallel arrays, one entry per local day from [time][i], its midnight. In a polar night both
+ * times are that midnight, and in a polar day the sunset is the next one.
+ */
+@Serializable
+data class OpenMeteoDailyDto(
+    @SerialName("time") val time: List<Long> = emptyList(),
+    @SerialName("sunrise") val sunrise: List<Long?> = emptyList(),
+    @SerialName("sunset") val sunset: List<Long?> = emptyList(),
 )
 
 /**

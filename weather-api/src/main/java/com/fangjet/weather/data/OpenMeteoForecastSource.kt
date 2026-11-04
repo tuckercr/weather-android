@@ -1,5 +1,6 @@
 package com.fangjet.weather.data
 
+import com.fangjet.weather.data.remote.dto.OpenMeteoDailyDto
 import com.fangjet.weather.data.remote.dto.OpenMeteoHourlyDto
 import com.fangjet.weather.data.remote.dto.OpenMeteoResponse
 import com.fangjet.weather.domain.DayForecast
@@ -12,6 +13,8 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import javax.inject.Inject
@@ -40,6 +43,8 @@ class OpenMeteoForecastSource @Inject constructor(
                     .addQueryParameter("latitude", latitude.toString())
                     .addQueryParameter("longitude", longitude.toString())
                     .addQueryParameter("hourly", HOURLY_FIELDS)
+                    // Each day's sunrise and sunset, for the hourly strip, which reaches into tomorrow.
+                    .addQueryParameter("daily", "sunrise,sunset")
                     .addQueryParameter("timezone", "auto")
                     .addQueryParameter("timeformat", "unixtime")
                     .addQueryParameter("forecast_days", FORECAST_DAYS.toString())
@@ -136,9 +141,30 @@ class OpenMeteoForecastSource @Inject constructor(
                     groundWet = groundWet(h, i),
                 )
             }
-            val days = ForecastAggregator.aggregate(slots, zone, units)
+            val sunTimes = sunTimes(response.daily, zone)
+            val days = ForecastAggregator.aggregate(slots, zone, units).map { day ->
+                val firstHour = day.hourlySlots.firstOrNull()?.epochSeconds
+                val sun = firstHour?.let { sunTimes[localDate(it)] }
+                if (sun == null) day else day.copy(sunriseEpoch = sun.first, sunsetEpoch = sun.second)
+            }
             val quarters = quarterHours(response)
             return if (quarters.isEmpty() || days.isEmpty()) days else listOf(days.first().copy(quarterHours = quarters)) + days.drop(1)
+        }
+
+        /**
+         * Each local day's sunrise and sunset, by its date. A time on a midnight is dropped: that's
+         * how Open-Meteo marks a day the sun doesn't rise (both on its midnight) or set (the sunset
+         * on the next).
+         */
+        internal fun sunTimes(
+            daily: OpenMeteoDailyDto,
+            zone: ZoneId,
+        ): Map<LocalDate, Pair<Long?, Long?>> {
+            fun real(epoch: Long?) = epoch?.takeUnless { Instant.ofEpochSecond(it).atZone(zone).toLocalTime() == LocalTime.MIDNIGHT }
+            return daily.time.indices.associate { i ->
+                Instant.ofEpochSecond(daily.time[i]).atZone(zone).toLocalDate() to
+                    (real(daily.sunrise.getOrNull(i)) to real(daily.sunset.getOrNull(i)))
+            }
         }
 
         /** Each amount is for the 15 minutes before its time, so its quarter starts 15 minutes earlier. */
