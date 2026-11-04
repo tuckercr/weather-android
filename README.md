@@ -61,6 +61,11 @@ WorkManager, and CI on GitHub Actions.
   or "Same as it is" within a degree). The bands come from the pets' thresholds in Remote Config:
   Cold and Hot at `pet_cold_threshold_c` and `pet_hot_threshold_c`, Mild across the walk comfort
   range, and Chilly and Warm between. The bar's end bands reach 10 °C past the pets' limits.
+- **Paw Check** tile (with a dog): the estimated temperature of dark pavement in direct sun ("About
+  128 °F"), five paws from icy to dangerous with the pavement's own full size and colour (blue,
+  green, orange, red and maroon), and a line about paws ("Too hot for paws"). Icy and below freezing
+  share the blue paw, safe and fine underfoot the green one. The limits are the `walk_*_pavement_c`
+  Remote Config keys.
 - **Air Quality** tile: the index on the city's scale (Europe's for cities on a European clock, the
   US one elsewhere), its band on a six-colour bar, and what it means for a walk, or for people
   without a dog. It comes from Open-Meteo's hourly air quality forecast, fetched with the forecast in
