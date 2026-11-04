@@ -117,7 +117,8 @@ class WorkManagerSchedulerTest {
         val local = java.time.Instant
             .ofEpochMilli(next)
             .atZone(ZoneId.systemDefault())
-        assertEquals(8 to 30, local.hour to local.minute)
+        // On the dot: never 8:29:59.999.
+        assertEquals(listOf(8, 30, 0, 0), listOf(local.hour, local.minute, local.second, local.nano))
     }
 
     // --- walk time ---
@@ -165,6 +166,19 @@ class WorkManagerSchedulerTest {
         assertEquals(
             TimeUnit.MINUTES.toMillis(60),
             WorkManagerScheduler.millisUntilNext(8, 30, at(2026, 6, 10, 7, 30)),
+        )
+    }
+
+    @Test
+    fun `the next time is the moment itself, whatever the seconds now`() {
+        val now = ZonedDateTime.of(2026, 6, 10, 7, 30, 59, 999_999_999, zone)
+        assertEquals(
+            at(2026, 6, 10, 8, 30).toInstant().toEpochMilli(),
+            WorkManagerScheduler.nextAt(8, 30, now),
+        )
+        assertEquals(
+            at(2026, 6, 11, 8, 30).toInstant().toEpochMilli(),
+            WorkManagerScheduler.nextAt(8, 30, ZonedDateTime.of(2026, 6, 10, 8, 30, 0, 1, zone)),
         )
     }
 
