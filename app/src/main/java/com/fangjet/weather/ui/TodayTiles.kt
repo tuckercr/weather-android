@@ -65,6 +65,8 @@ import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.ui.theme.PetSun
+import com.fangjet.weather.ui.theme.WalkColdBg
+import com.fangjet.weather.ui.theme.WalkColdText
 import com.fangjet.weather.ui.theme.WalkGreatBg
 import com.fangjet.weather.ui.theme.WalkGreatText
 import com.fangjet.weather.ui.theme.WalkHotBg
@@ -82,6 +84,7 @@ import com.fangjet.weather.util.daylight
 import com.fangjet.weather.util.dewPointC
 import com.fangjet.weather.util.keepUnitsTogether
 import com.fangjet.weather.util.pavementBand
+import com.fangjet.weather.util.pawScaleStep
 import com.fangjet.weather.util.skyCondition
 import com.fangjet.weather.util.uvLine
 import com.fangjet.weather.util.visibilityBand
@@ -363,6 +366,7 @@ private fun PavementTile(
                 pavement.roundToInt(),
             ),
         )
+        PawScale(step = band.pawScaleStep)
         TileNote(
             text = stringResource(
                 when (band) {
@@ -380,16 +384,55 @@ private fun PavementTile(
     }
 }
 
-/** Same shades as the walk card's ratings: dark text on the light theme, pale on the dark. */
+/**
+ * Same shades as the walk card's ratings: dark text on the light theme, pale on the dark. Blue for
+ * icy and below freezing, as on the paw scale.
+ */
 @Composable
 private fun pavementTint(band: PavementBand): Color {
     val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     return when (band) {
         PavementBand.SAFE -> if (dark) WalkGreatBg else WalkGreatText
-        PavementBand.WARM, PavementBand.PAVEMENT_OK, PavementBand.FREEZING, PavementBand.ICY -> if (dark) WalkOkayBg else WalkOkayText
+        PavementBand.WARM, PavementBand.PAVEMENT_OK -> if (dark) WalkOkayBg else WalkOkayText
+        PavementBand.FREEZING, PavementBand.ICY -> if (dark) WalkColdBg else WalkColdText
         PavementBand.TOO_HOT, PavementBand.DANGEROUS -> if (dark) WalkHotBg else WalkHotText
     }
 }
+
+/**
+ * The Paw check tile's five paws, icy to dangerous: the pavement's own full size and colour, the
+ * rest small and faded. The note says it in words, so TalkBack skips it. Same colours as iOS's
+ * `PawScale`.
+ */
+@Composable
+private fun PawScale(
+    step: Int,
+    modifier: Modifier = Modifier,
+) {
+    val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    Row(
+        modifier = modifier.clearAndSetSemantics {},
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        (if (dark) PAW_SCALE_DARK else PAW_SCALE_LIGHT).forEachIndexed { index, color ->
+            Icon(
+                imageVector = Icons.Default.Pets,
+                contentDescription = null,
+                // A little stronger on the dark card, where faint colours turn muddy.
+                tint = if (index == step) color else color.copy(alpha = if (dark) 0.4f else 0.3f),
+                modifier = Modifier.size(if (index == step) 22.dp else 15.dp),
+            )
+        }
+    }
+}
+
+/**
+ * Blue, green, orange, red and maroon, like the Feels Like and Air Quality bars. The blue and the
+ * maroon are lighter on the dark theme, where the darker ones barely show.
+ */
+private val PAW_SCALE_LIGHT = listOf(Color(0xFF378ADD), Color(0xFF4CAF50), Color(0xFFF08C2E), Color(0xFFD94141), Color(0xFF7A2230))
+private val PAW_SCALE_DARK = listOf(Color(0xFF85B7EB), Color(0xFF4CAF50), Color(0xFFF08C2E), Color(0xFFD94141), Color(0xFFC25A68))
 
 @Composable
 private fun petLineTint(): Color = if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) WalkGreatBg else WalkGreatText

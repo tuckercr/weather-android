@@ -66,6 +66,20 @@ class TodayDetailsTest {
     }
 
     @Test
+    fun `pavement bands sit on five paws`() {
+        val steps = mapOf(
+            PavementBand.ICY to 0,
+            PavementBand.FREEZING to 0,
+            PavementBand.SAFE to 1,
+            PavementBand.PAVEMENT_OK to 1,
+            PavementBand.WARM to 2,
+            PavementBand.TOO_HOT to 3,
+            PavementBand.DANGEROUS to 4,
+        )
+        steps.forEach { (band, step) -> assertEquals(band.name, step, band.pawScaleStep) }
+    }
+
+    @Test
     fun `pavement bands follow the walk thresholds`() {
         val t = PetWeatherThresholds.DEFAULT
         assertEquals(PavementBand.DANGEROUS, pavementBand(57.2, false, 20.0, t))

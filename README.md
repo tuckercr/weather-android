@@ -50,6 +50,11 @@ WorkManager, and CI on GitHub Actions.
 - **Today tiles**: Feels like, Wind, Humidity, Paw check (with a dog) and Air quality in pairs, then
   Daylight (with the UV index) and Sky across the full width. An odd tile out, usually Air quality
   when Paw check is showing, takes the full width rather than leaving a gap.
+- **Paw check** tile (with a dog): the estimated temperature of dark pavement in direct sun ("About
+  128 °F"), five paws from icy to dangerous with the pavement's own full size and colour (blue,
+  green, orange, red and maroon), and a line about paws ("Too hot for paws"). Icy and below freezing
+  share the blue paw, safe and fine underfoot the green one. The limits are the `walk_*_pavement_c`
+  Remote Config keys.
 - **Air quality** tile: the index on the city's scale (Europe's for cities on a European clock, the
   US one elsewhere), its band on a six-colour bar, and what it means for a walk, or for people
   without a dog. It comes from Open-Meteo's hourly air quality forecast, fetched with the forecast in
