@@ -113,6 +113,7 @@ class RemoteConfigRepositoryTest {
         set(RemoteConfigRepository.KEY_HOURLY_FORECAST_ENABLED, "false")
         set(RemoteConfigRepository.KEY_NEXT_RAIN_ENABLED, "false")
         set(RemoteConfigRepository.KEY_WEEK_FORECAST_ENABLED, "false")
+        set(RemoteConfigRepository.KEY_TEMPERATURE_UNITS_SHOWN, "false")
         set(RemoteConfigRepository.KEY_OPEN_METEO_ENABLED, "false")
         set(RemoteConfigRepository.KEY_DAILY_WEATHER_NOTIFICATIONS_ENABLED, "false")
         set(RemoteConfigRepository.KEY_WALK_TIME_NOTIFICATIONS_ENABLED, "false")
@@ -128,6 +129,7 @@ class RemoteConfigRepositoryTest {
         assertFalse(repo.hourlyForecastEnabled())
         assertFalse(repo.nextRainEnabled())
         assertFalse(repo.weekForecastEnabled())
+        assertFalse(repo.temperatureUnitsShown())
         assertFalse(repo.openMeteoEnabled())
         assertFalse(repo.dailyWeatherNotificationsEnabled())
         assertFalse(repo.walkTimeNotificationsEnabled())
@@ -213,6 +215,21 @@ class RemoteConfigRepositoryTest {
     }
 
     @Test
+    fun `temperatures keep their unit unless Remote Config says false`() {
+        firebaseInitialised(true)
+        val repo = RemoteConfigRepository(context)
+
+        assertTrue(RemoteConfigRepository.DEFAULT_TEMPERATURE_UNITS_SHOWN)
+        assertTrue(repo.temperatureUnitsShown())
+        set(RemoteConfigRepository.KEY_TEMPERATURE_UNITS_SHOWN, "false")
+        assertFalse(repo.temperatureUnitsShown())
+        set(RemoteConfigRepository.KEY_TEMPERATURE_UNITS_SHOWN, "true")
+        assertTrue(repo.temperatureUnitsShown())
+        set(RemoteConfigRepository.KEY_TEMPERATURE_UNITS_SHOWN, "no unit")
+        assertTrue(repo.temperatureUnitsShown())
+    }
+
+    @Test
     fun `replacement API key is trimmed and blank means none`() {
         firebaseInitialised(true)
         val repo = RemoteConfigRepository(context)
@@ -283,6 +300,7 @@ class RemoteConfigRepositoryTest {
         assertEquals(RemoteConfigRepository.DEFAULT_HOURLY_FORECAST_ENABLED, repo.hourlyForecastEnabled())
         assertEquals(RemoteConfigRepository.DEFAULT_NEXT_RAIN_ENABLED, repo.nextRainEnabled())
         assertEquals(RemoteConfigRepository.DEFAULT_WEEK_FORECAST_ENABLED, repo.weekForecastEnabled())
+        assertEquals(RemoteConfigRepository.DEFAULT_TEMPERATURE_UNITS_SHOWN, repo.temperatureUnitsShown())
         assertEquals(RemoteConfigRepository.DEFAULT_OPEN_METEO_ENABLED, repo.openMeteoEnabled())
         assertEquals(
             RemoteConfigRepository.DEFAULT_DAILY_WEATHER_NOTIFICATIONS_ENABLED,

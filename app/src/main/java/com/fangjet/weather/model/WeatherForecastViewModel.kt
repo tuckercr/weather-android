@@ -61,6 +61,7 @@ class WeatherForecastViewModel internal constructor(
     isNextRainEnabled: () -> Boolean = { true },
     isWeekForecastEnabled: () -> Boolean = { true },
     readRainOutlookSettings: () -> RainOutlookSettings = { RainOutlookSettings() },
+    isTemperatureUnitsShown: () -> Boolean = { true },
     isAirQualityEnabled: () -> Boolean = { true },
     readTodayTiles: () -> TodayTileSwitches = { TodayTileSwitches() },
     readSeasonalThemes: () -> List<SeasonalTheme> = { emptyList() },
@@ -131,6 +132,7 @@ class WeatherForecastViewModel internal constructor(
         isNextRainEnabled = remoteConfigRepository::nextRainEnabled,
         isWeekForecastEnabled = remoteConfigRepository::weekForecastEnabled,
         readRainOutlookSettings = remoteConfigRepository::rainOutlookSettings,
+        isTemperatureUnitsShown = remoteConfigRepository::temperatureUnitsShown,
         isAirQualityEnabled = remoteConfigRepository::airQualityEnabled,
         readTodayTiles = remoteConfigRepository::todayTiles,
         readSeasonalThemes = remoteConfigRepository::seasonalThemes,
@@ -152,6 +154,9 @@ class WeatherForecastViewModel internal constructor(
 
     /** Remote Config `rain_outlook_*` (validated): whether the rain outlook card shows, and what it charts. */
     val rainOutlookSettings: RainOutlookSettings = readRainOutlookSettings()
+
+    /** Remote Config `temperature_units_shown`: false shows temperatures as "89°", without the unit. */
+    val temperatureUnitsShown: Boolean = isTemperatureUnitsShown()
 
     /**
      * Remote Config `air_quality_enabled`. The fetch checks it too; this hides a reading in a

@@ -512,6 +512,7 @@ class WeatherForecastViewModelTest {
         isNextRainEnabled: () -> Boolean = { true },
         isWeekForecastEnabled: () -> Boolean = { true },
         readRainOutlookSettings: () -> RainOutlookSettings = { RainOutlookSettings() },
+        isTemperatureUnitsShown: () -> Boolean = { true },
         readPetWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
         foregroundRefreshMinMinutes: () -> Long = { 0L },
         nowMillis: () -> Long = { 0L },
@@ -530,6 +531,7 @@ class WeatherForecastViewModelTest {
         isNextRainEnabled = isNextRainEnabled,
         isWeekForecastEnabled = isWeekForecastEnabled,
         readRainOutlookSettings = readRainOutlookSettings,
+        isTemperatureUnitsShown = isTemperatureUnitsShown,
         readPetWeatherThresholds = readPetWeatherThresholds,
         foregroundRefreshMinMinutes = foregroundRefreshMinMinutes,
         nowMillis = nowMillis,
@@ -711,6 +713,12 @@ class WeatherForecastViewModelTest {
         assertEquals(RainOutlookSettings(), viewModel().rainOutlookSettings)
         val remote = RainOutlookSettings(enabled = false, hours = 6, minChance = 40)
         assertEquals(remote, viewModel(readRainOutlookSettings = { remote }).rainOutlookSettings)
+    }
+
+    @Test
+    fun `temperatures show their unit by default and drop it when Remote Config turns it off`() {
+        assertEquals(true, viewModel().temperatureUnitsShown)
+        assertEquals(false, viewModel(isTemperatureUnitsShown = { false }).temperatureUnitsShown)
     }
 
     class MainDispatcherRule(

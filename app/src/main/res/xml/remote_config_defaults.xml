@@ -51,6 +51,12 @@
         <key>rain_outlook_min_chance</key>
         <value>20</value>
     </entry>
+    <!-- Shows the unit with temperatures ("89 °F"); false shows "89°" wherever a temperature
+         carries its unit. -->
+    <entry>
+        <key>temperature_units_shown</key>
+        <value>true</value>
+    </entry>
     <!-- Forecasts for cities with coordinates: true uses Open-Meteo, false falls back to the
          OpenWeatherMap 3-hourly forecast by lat/lon. -->
     <entry>

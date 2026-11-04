@@ -16,6 +16,8 @@
     <string name="label_temp_low">L %1$d°</string>
     <string name="format_temperature_c">%d °C</string>
     <string name="format_temperature_f">%d °F</string>
+    <!-- A temperature without its unit, when Remote Config temperature_units_shown is off: "89°". -->
+    <string name="format_temperature_no_unit">%d°</string>
     <string name="format_percent">%d%%</string>
     <string name="format_wind_ms">%.1f m/s</string>
     <string name="format_wind_ms_whole">%d m/s</string>
@@ -331,8 +333,8 @@
 
     <!-- Today tiles -->
     <string name="label_pavement">Paw Check</string>
-    <string name="format_about_temperature_c">About %1$d °C</string>
-    <string name="format_about_temperature_f">About %1$d °F</string>
+    <!-- The pavement estimate, around a formatted temperature: "About 81 °F". -->
+    <string name="format_about_temperature">About %1$s</string>
     <string name="label_daylight">Daylight</string>
     <string name="label_sky">Sky</string>
     <string name="today_dew_point">Dew point %1$s</string>

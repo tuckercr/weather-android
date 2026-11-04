@@ -50,6 +50,11 @@
       "valueType": "NUMBER",
       "description": "The rain outlook only shows when some hour's rain chance, in percent, reaches this, which is also the chance from which an hour counts as wet. Whole number, valid 1–100; anything else uses 20."
     },
+    "temperature_units_shown": {
+      "defaultValue": { "value": "true" },
+      "valueType": "BOOLEAN",
+      "description": "Show the unit with temperatures (\"89 °F\"); false shows \"89°\" wherever a temperature carries its unit. Temperatures already shown without one stay as they are."
+    },
     "openweather_api_key": {
       "defaultValue": { "value": "" },
       "valueType": "STRING",
