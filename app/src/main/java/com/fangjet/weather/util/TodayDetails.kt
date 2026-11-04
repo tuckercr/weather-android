@@ -95,6 +95,19 @@ fun skyCondition(
 enum class PavementBand { DANGEROUS, TOO_HOT, WARM, SAFE, PAVEMENT_OK, FREEZING, ICY }
 
 /**
+ * Which of the Paw check tile's five paws this is, 0 (icy) to 4 (dangerous). Icy and below freezing
+ * share the first, safe and fine underfoot the second.
+ */
+val PavementBand.pawScaleStep: Int
+    get() = when (this) {
+        PavementBand.FREEZING, PavementBand.ICY -> 0
+        PavementBand.SAFE, PavementBand.PAVEMENT_OK -> 1
+        PavementBand.WARM -> 2
+        PavementBand.TOO_HOT -> 3
+        PavementBand.DANGEROUS -> 4
+    }
+
+/**
  * Below freezing it's only [PavementBand.ICY] after rain or snow ([groundWet]); dry, it's just cold.
  * [feelsLikeC] is the air's feels-like temperature, compared with the pets' hot and cold limits.
  */
