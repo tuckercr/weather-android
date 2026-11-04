@@ -79,6 +79,9 @@
 
     <!-- Day detail / upcoming forecast -->
     <string name="section_hourly">HOURLY</string>
+    <!-- A sunrise or sunset between two hours of the hourly strip, read out with its time, e.g. "Sunset, 6:50 PM". -->
+    <string name="hourly_sunrise">Sunrise, %1$s</string>
+    <string name="hourly_sunset">Sunset, %1$s</string>
     <string name="section_upcoming">REST OF WEEK</string>
     <string name="section_today">TODAY</string>
     <string name="section_radar">RADAR</string>

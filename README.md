@@ -47,6 +47,12 @@ WorkManager, and CI on GitHub Actions.
   otherwise to the nearest 10%, as everywhere in the app). Hours that have
   already passed are dropped at display time (`fromCurrentSlot`), so a cached forecast or an app
   left open never shows or advises on past hours.
+  Each sunrise and sunset still to come sits between the hours it falls between, as a slim
+  marker: the time ("6:50", the hours either side give AM or PM), a sun on the horizon with an
+  arrow up or down, and a thin line. The times are Open-Meteo's daily sunrise and sunset, so the
+  evening's strip has tomorrow's sunrise; a day without one (polar day or night) has no marker.
+  Cities on the OpenWeatherMap fallback only have today's, from the current reading. TalkBack
+  reads "Sunset, 6:50 PM". Rules in `util/SunEvents.kt`.
 - **Today tiles**: Feels Like, Wind, Humidity, Paw Check (with a dog) and Air Quality in pairs, then
   Daylight (with the UV index) and Sky across the full width. An odd tile out, usually Air Quality
   when Paw Check is showing, takes the full width rather than leaving a gap.
