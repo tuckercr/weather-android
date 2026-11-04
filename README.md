@@ -50,6 +50,11 @@ WorkManager, and CI on GitHub Actions.
 - **Today tiles**: Feels Like, Wind, Humidity, Paw Check (with a dog) and Air Quality in pairs, then
   Daylight (with the UV index) and Sky across the full width. An odd tile out, usually Air Quality
   when Paw Check is showing, takes the full width rather than leaving a gap.
+- **Feels Like** tile: the feels-like temperature with its band beside it (Cold, Chilly, Mild, Warm
+  or Hot), a five-colour bar and how far it is from the actual temperature ("8° warmer than it is",
+  or "Same as it is" within a degree). The bands come from the pets' thresholds in Remote Config:
+  Cold and Hot at `pet_cold_threshold_c` and `pet_hot_threshold_c`, Mild across the walk comfort
+  range, and Chilly and Warm between. The bar's end bands reach 10 °C past the pets' limits.
 - **Air Quality** tile: the index on the city's scale (Europe's for cities on a European clock, the
   US one elsewhere), its band on a six-colour bar, and what it means for a walk, or for people
   without a dog. It comes from Open-Meteo's hourly air quality forecast, fetched with the forecast in

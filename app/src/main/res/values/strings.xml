@@ -412,6 +412,16 @@
     <string name="pavement_ok">Fine underfoot</string>
     <string name="pavement_freezing">Below freezing</string>
     <string name="pavement_icy">Icy, watch for salt</string>
+    <!-- The Feels Like tile's bands, from the pets' hot and cold limits and the walk comfort range. -->
+    <string name="feels_like_cold">Cold</string>
+    <string name="feels_like_chilly">Chilly</string>
+    <string name="feels_like_mild">Mild</string>
+    <string name="feels_like_warm">Warm</string>
+    <string name="feels_like_hot">Hot</string>
+    <!-- The Feels Like tile's last line, in whole degrees without the unit: "8° warmer than it is". -->
+    <string name="feels_like_warmer">%1$d° warmer than it is</string>
+    <string name="feels_like_cooler">%1$d° cooler than it is</string>
+    <string name="feels_like_same">Same as it is</string>
     <string name="wind_calm">Calm</string>
     <string name="wind_light_air">Light wind</string>
     <string name="wind_light_breeze">Light breeze</string>

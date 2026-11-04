@@ -3,6 +3,7 @@ package com.fangjet.weather.util
 import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.WeatherUnits
+import kotlin.math.abs
 import kotlin.math.ln
 import kotlin.math.roundToInt
 
@@ -111,6 +112,68 @@ fun pavementBand(
         feelsLikeC >= thresholds.petHotC || feelsLikeC <= thresholds.petColdC -> PavementBand.PAVEMENT_OK
         else -> PavementBand.SAFE
     }
+
+/**
+ * The Feels Like tile's band, from the Remote Config limits behind the pets' moods and the walk
+ * advice: Hot and Cold where the pets are hot and cold, Mild across the walk comfort range, and
+ * Chilly and Warm between.
+ */
+enum class FeelsLikeBand { COLD, CHILLY, MILD, WARM, HOT }
+
+fun feelsLikeBand(
+    feelsLikeC: Double,
+    thresholds: PetWeatherThresholds,
+): FeelsLikeBand =
+    when {
+        feelsLikeC >= thresholds.petHotC -> FeelsLikeBand.HOT
+        feelsLikeC <= thresholds.petColdC -> FeelsLikeBand.COLD
+        feelsLikeC < thresholds.comfortMinC -> FeelsLikeBand.CHILLY
+        feelsLikeC <= thresholds.comfortMaxC -> FeelsLikeBand.MILD
+        else -> FeelsLikeBand.WARM
+    }
+
+/** How far the Cold and Hot bands reach past the pets' limits on the Feels Like bar. */
+const val FEELS_LIKE_END_BAND_C = 10.0
+
+/**
+ * Where the Feels Like bar's mark sits, 0 to 1: five bands of equal width, with the reading placed
+ * within its own. The end bands reach [FEELS_LIKE_END_BAND_C] past the pets' limits (-10 and 40 C
+ * with the standard thresholds), and the mark stays at the end beyond them.
+ */
+fun feelsLikeBarPosition(
+    feelsLikeC: Double,
+    thresholds: PetWeatherThresholds,
+): Double {
+    val band = feelsLikeBand(feelsLikeC, thresholds)
+    // Remote Config validates each limit, but the comfort range may still reach past the pets'
+    // limits, so its edges are kept between them.
+    val cold = thresholds.petColdC
+    val hot = maxOf(thresholds.petHotC, cold)
+    val comfortLow = thresholds.comfortMinC.coerceIn(cold, hot)
+    val comfortHigh = thresholds.comfortMaxC.coerceIn(comfortLow, hot)
+    val (low, high) = when (band) {
+        FeelsLikeBand.COLD -> cold - FEELS_LIKE_END_BAND_C to cold
+        FeelsLikeBand.CHILLY -> cold to comfortLow
+        FeelsLikeBand.MILD -> comfortLow to comfortHigh
+        FeelsLikeBand.WARM -> comfortHigh to hot
+        FeelsLikeBand.HOT -> hot to hot + FEELS_LIKE_END_BAND_C
+    }
+    val within = if (high > low) ((feelsLikeC - low) / (high - low)).coerceIn(0.0, 1.0) else 0.5
+    return (band.ordinal + within) / FeelsLikeBand.entries.size
+}
+
+/**
+ * How far the feels-like temperature is from the actual one, in whole degrees, from the two as
+ * shown, so the Feels Like tile agrees with the hero: positive when it feels warmer. 0 when they're
+ * a degree or less apart, which the tile calls the same.
+ */
+fun feelsLikeGap(
+    feelsLike: Double,
+    temperature: Double,
+): Int {
+    val gap = feelsLike.roundToInt() - temperature.roundToInt()
+    return if (abs(gap) <= 1) 0 else gap
+}
 
 private val NUMBER_BEFORE_UNIT = Regex("""(\d)[ \u202F](?=°|%|mph\b|m/s|km\b|mi\b|m\b|AM\b|PM\b)""")
 
