@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -73,12 +75,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -130,16 +135,22 @@ import com.fangjet.weather.ui.pets.walkAdviceFor
 import com.fangjet.weather.ui.theme.CatsDogsTheme
 import com.fangjet.weather.ui.theme.StaleBannerBg
 import com.fangjet.weather.ui.theme.StaleBannerText
+import com.fangjet.weather.ui.theme.WalkOkayBg
+import com.fangjet.weather.ui.theme.WalkOkayText
+import com.fangjet.weather.util.HourlyStripItem
 import com.fangjet.weather.util.NextRain
 import com.fangjet.weather.util.ReadingDay
+import com.fangjet.weather.util.SunEvent
 import com.fangjet.weather.util.UpdatePrompt
 import com.fangjet.weather.util.forecastAsCurrent
 import com.fangjet.weather.util.fromCurrentSlot
+import com.fangjet.weather.util.hourlyStrip
 import com.fangjet.weather.util.iconCodeAt
 import com.fangjet.weather.util.isDarkAt
 import com.fangjet.weather.util.isTooOldToShowAsNow
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.readingDay
+import com.fangjet.weather.util.sunEvents
 import com.fangjet.weather.util.usesMilesForDistance
 import com.fangjet.weather.util.withSunTimesToday
 import kotlinx.coroutines.delay
@@ -1070,7 +1081,10 @@ private fun CurrentWeatherContent(
                 val hourly = remember(currentSlots) { currentSlots.take(HOURLY_STRIP_COUNT) }
                 if (hourly.isNotEmpty()) {
                     SectionHeader(R.string.section_hourly)
-                    HourlyStrip(slots = hourly)
+                    val strip = remember(hourly, forecastDays, weatherToday, nowEpochSeconds) {
+                        hourlyStrip(hourly, sunEvents(forecastDays, weatherToday), nowEpochSeconds)
+                    }
+                    HourlyStrip(items = strip, utcOffsetSeconds = weather.offsetSeconds)
                 }
 
                 if (!wide) detailsSection()
@@ -1146,7 +1160,8 @@ private val PET_SCENE_MAX_WIDTH = 280.dp
 
 @Composable
 private fun HourlyStrip(
-    slots: List<HourlySlot>,
+    items: List<HourlyStripItem>,
+    utcOffsetSeconds: Int,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -1160,8 +1175,58 @@ private fun HourlyStrip(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            items(slots) { slot -> HourlyCell(slot = slot) }
+            items(items) { item ->
+                when (item) {
+                    is HourlyStripItem.Hour -> HourlyCell(slot = item.slot)
+                    is HourlyStripItem.Sun -> SunMarker(event = item.event, utcOffsetSeconds = utcOffsetSeconds)
+                }
+            }
         }
+    }
+}
+
+/**
+ * A sunrise or sunset between two hours of the strip: half a column, with the time ("6:50"), the
+ * sun on the horizon and a thin line down past the temperatures.
+ */
+@Composable
+private fun SunMarker(
+    event: SunEvent,
+    utcOffsetSeconds: Int,
+    modifier: Modifier = Modifier,
+) {
+    val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val spoken = stringResource(
+        if (event.sunrise) R.string.hourly_sunrise else R.string.hourly_sunset,
+        formatEpochTime(event.epochSeconds, utcOffsetSeconds),
+    )
+    Column(
+        modifier = modifier
+            .padding(horizontal = 2.dp)
+            .clearAndSetSemantics { contentDescription = spoken },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = formatShortEpochTime(event.epochSeconds, utcOffsetSeconds),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+            // The walk card's amber, the dark shade on the light card and the pale one on the dark.
+            color = if (dark) WalkOkayBg else WalkOkayText,
+        )
+        Image(
+            painter = painterResource(if (event.sunrise) R.drawable.wx_sunrise else R.drawable.wx_sunset),
+            contentDescription = null,
+            modifier = Modifier
+                .padding(vertical = 2.dp)
+                .size(28.dp),
+        )
+        Box(
+            modifier = Modifier
+                .width(1.5.dp)
+                .height(38.dp)
+                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(1.dp)),
+        )
     }
 }
 
@@ -1466,6 +1531,20 @@ internal fun formatEpochTime(
             .ofPattern("h:mm a"),
     )
 }
+
+/** "6:50" in the city's time, without AM or PM: the hours either side of a sun marker say which. */
+internal fun formatShortEpochTime(
+    epochSeconds: Long,
+    utcOffsetSeconds: Int,
+): String =
+    java.time.Instant
+        .ofEpochSecond(epochSeconds)
+        .atZone(java.time.ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
+        .toLocalTime()
+        .format(
+            java.time.format.DateTimeFormatter
+                .ofPattern("h:mm"),
+        )
 
 /** The compass point a wind comes from, 0 (N) to 7 (NW) clockwise; indexes `R.array.compass_points_spoken`. */
 internal fun windDirectionIndex(deg: Int): Int = ((deg + 22) / 45) % 8

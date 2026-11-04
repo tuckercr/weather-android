@@ -106,6 +106,13 @@ data class DayForecast(
      * when the source doesn't provide it.
      */
     val quarterHours: List<QuarterHour> = emptyList(),
+    /**
+     * The day's sunrise and sunset, for the hourly strip. Null when the sun doesn't rise or set that
+     * day (polar night or day), when the source doesn't say (the OpenWeather 3-hourly fallback), or
+     * in a forecast cached before they were kept.
+     */
+    val sunriseEpoch: Long? = null,
+    val sunsetEpoch: Long? = null,
 )
 
 /** Rain and snow over the 15 minutes from [epochSeconds]. */
