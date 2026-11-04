@@ -74,8 +74,8 @@ Finished items move to Done at the bottom.
       2/3 wide when they don't need the full width, and Feels Like and UV could have smaller 1/3
       versions, so a row holds a 2/3 and a 1/3 tile.
 - [ ] **A colour scale for some tiles.** Green, blue, orange and red, for tiles whose value has a
-      severity: Wind (red for storm force), and maybe UV and Paw Check (Air Quality has its own
-      scale already, and Feels Like has one since 11-04). Define what each colour means per tile.
+      severity: Wind (red for storm force), and maybe UV (Air Quality has its own scale already,
+      and Feels Like and Paw Check have one since 11-04). Define what each colour means per tile.
       Never colour alone: keep the words ("Gale", "Very hot"), and check contrast in both themes and
       on the seasonal card colours, which Feels Like's band word hasn't been checked on yet either.
 - [ ] **A hint that the hourly strip scrolls.** Nothing shows there's more past the edge unless an
@@ -279,6 +279,10 @@ noted. Checked against the code, not fixed yet.
 
 ## Done
 
+- [x] **Paw Check tile design** (11-04): five paws from icy to dangerous under the number, the
+      pavement's own full size and colour (blue, green, orange, red, maroon), and the icy and
+      below freezing lines in blue. A badge with when it changes later today ("Cooler after
+      6 PM") was mocked up too and left for later.
 - [x] **Sunrise and sunset in the hourly strip** (11-04): a slim marker between the hours they
       fall between, with the time ("6:50"), a sun on the horizon with an arrow, and a thin line.
       The times come from Open-Meteo's daily sunrise and sunset, so the evening's strip has
