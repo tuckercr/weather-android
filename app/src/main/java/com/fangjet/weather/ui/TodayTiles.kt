@@ -75,6 +75,7 @@ import com.fangjet.weather.ui.theme.WalkOkayBg
 import com.fangjet.weather.ui.theme.WalkOkayText
 import com.fangjet.weather.util.Daylight
 import com.fangjet.weather.util.DistanceUnit
+import com.fangjet.weather.util.FeelsLikeBand
 import com.fangjet.weather.util.PavementBand
 import com.fangjet.weather.util.SkyCondition
 import com.fangjet.weather.util.UvLine
@@ -82,6 +83,9 @@ import com.fangjet.weather.util.VisibilityBand
 import com.fangjet.weather.util.WindForce
 import com.fangjet.weather.util.daylight
 import com.fangjet.weather.util.dewPointC
+import com.fangjet.weather.util.feelsLikeBand
+import com.fangjet.weather.util.feelsLikeBarPosition
+import com.fangjet.weather.util.feelsLikeGap
 import com.fangjet.weather.util.keepUnitsTogether
 import com.fangjet.weather.util.pavementBand
 import com.fangjet.weather.util.pawScaleStep
@@ -128,7 +132,7 @@ internal fun TodayTiles(
     // UV gets its own tile when switched on, or when there's no Daylight tile to carry it.
     val showsUvTile = uvIndex != null && (switches.uv || !showsDaylight)
     val small = buildList<@Composable (Modifier) -> Unit> {
-        if (switches.feelsLike) add { FeelsLikeTile(weather, it) }
+        if (switches.feelsLike) add { FeelsLikeTile(weather, thresholds, it) }
         if (switches.wind) add { WindTile(weather, it) }
         if (switches.humidity) add { HumidityTile(weather, it) }
         if (switches.pawCheck && pavementNow != null) {
@@ -227,8 +231,11 @@ private fun Tile(
 }
 
 @Composable
-private fun TileValue(text: String) {
-    Text(keepUnitsTogether(text), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+private fun TileValue(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(keepUnitsTogether(text), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = modifier)
 }
 
 @Composable
@@ -246,16 +253,81 @@ private fun TileNote(
     )
 }
 
+/** The feels-like temperature with its band ("Hot"), the band bar, and how far it is from the actual temperature. */
 @Composable
 private fun FeelsLikeTile(
     weather: CurrentWeather,
+    thresholds: PetWeatherThresholds,
     modifier: Modifier,
 ) {
+    val feelsLikeC = weather.units.toCelsius(weather.feelsLike)
+    val band = feelsLikeBand(feelsLikeC, thresholds)
+    val gap = feelsLikeGap(weather.feelsLike, weather.temperature)
     Tile(Icons.Default.Thermostat, stringResource(R.string.label_feels_like), modifier) {
-        TileValue(formatTemperature(weather.feelsLike, weather.units))
-        TileNote(stringResource(R.string.today_actual, formatTemperature(weather.temperature, weather.units)))
+        // The same size as the other tiles' values, as Air Quality has its band beside it.
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            TileValue(formatTemperature(weather.feelsLike, weather.units), Modifier.alignByBaseline())
+            Text(
+                stringResource(band.nameRes()),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = feelsLikeTint(band),
+                maxLines = 1,
+                modifier = Modifier.alignByBaseline(),
+            )
+        }
+        BandBar(
+            bands = feelsLikeBands(),
+            position = feelsLikeBarPosition(feelsLikeC, thresholds).toFloat(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp)
+                .clearAndSetSemantics {},
+        )
+        TileNote(
+            when {
+                gap > 0 -> stringResource(R.string.feels_like_warmer, gap)
+                gap < 0 -> stringResource(R.string.feels_like_cooler, -gap)
+                else -> stringResource(R.string.feels_like_same)
+            },
+        )
     }
 }
+
+/** Cold to hot. The two blues are lighter on the dark theme, where the darker one barely shows. */
+@Composable
+private fun feelsLikeBands(): List<Color> {
+    val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    return listOf(
+        if (dark) Color(0xFF378ADD) else Color(0xFF185FA5),
+        if (dark) Color(0xFF85B7EB) else Color(0xFF378ADD),
+        Color(0xFF4CAF50),
+        Color(0xFFF08C2E),
+        Color(0xFFD94141),
+    )
+}
+
+/** The walk card's shades: blue for cold and chilly, green for mild, amber for warm, red for hot. */
+@Composable
+private fun feelsLikeTint(band: FeelsLikeBand): Color {
+    val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    return when (band) {
+        FeelsLikeBand.COLD, FeelsLikeBand.CHILLY -> if (dark) WalkColdBg else WalkColdText
+        FeelsLikeBand.MILD -> if (dark) WalkGreatBg else WalkGreatText
+        FeelsLikeBand.WARM -> if (dark) WalkOkayBg else WalkOkayText
+        FeelsLikeBand.HOT -> if (dark) WalkHotBg else WalkHotText
+    }
+}
+
+@StringRes
+private fun FeelsLikeBand.nameRes(): Int =
+    when (this) {
+        FeelsLikeBand.COLD -> R.string.feels_like_cold
+        FeelsLikeBand.CHILLY -> R.string.feels_like_chilly
+        FeelsLikeBand.MILD -> R.string.feels_like_mild
+        FeelsLikeBand.WARM -> R.string.feels_like_warm
+        FeelsLikeBand.HOT -> R.string.feels_like_hot
+    }
 
 @Composable
 private fun WindTile(
@@ -463,7 +535,8 @@ private fun AirQualityTile(
                 modifier = Modifier.padding(bottom = 3.dp),
             )
         }
-        AirQualityBar(
+        BandBar(
+            bands = AIR_QUALITY_BANDS,
             position = air.barPosition.toFloat(),
             modifier = Modifier
                 .fillMaxWidth()
@@ -476,9 +549,13 @@ private fun AirQualityTile(
     }
 }
 
-/** The six air quality bands, good to worst, with a mark where the reading sits. */
+/**
+ * Bands of equal width, such as the air quality bands from good to worst, with a mark where the
+ * reading sits.
+ */
 @Composable
-private fun AirQualityBar(
+private fun BandBar(
+    bands: List<Color>,
     position: Float,
     modifier: Modifier = Modifier,
 ) {
@@ -486,7 +563,7 @@ private fun AirQualityBar(
     Canvas(modifier.height(12.dp)) {
         val barHeight = 6.dp.toPx()
         val top = (size.height - barHeight) / 2
-        val bandWidth = size.width / AirQuality.BANDS
+        val bandWidth = size.width / bands.size
         clipPath(
             Path().apply {
                 addRoundRect(
@@ -500,7 +577,7 @@ private fun AirQualityBar(
                 )
             },
         ) {
-            AIR_QUALITY_BANDS.forEachIndexed { i, color ->
+            bands.forEachIndexed { i, color ->
                 drawRect(color, Offset(i * bandWidth, top), Size(bandWidth + 1, barHeight))
             }
         }
@@ -515,6 +592,7 @@ private fun AirQualityBar(
     }
 }
 
+/** The six air quality bands, good to worst. */
 private val AIR_QUALITY_BANDS = listOf(
     Color(0xFF4CAF50),
     Color(0xFFE6C531),
