@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sunrise in the hourly strip, drawn in the pet scene style like the weather icons (from wx_sunrise.svg in the iOS app). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:pathData="M9.43,31.7L5.68,30.33"
+        android:strokeColor="#FF10324A"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M9.43,31.7L5.68,30.33"
+        android:strokeColor="#FFEF9F27"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M15.11,24.3L12.82,21.03"
+        android:strokeColor="#FF10324A"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M15.11,24.3L12.82,21.03"
+        android:strokeColor="#FFEF9F27"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M32.89,24.3L35.18,21.03"
+        android:strokeColor="#FF10324A"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M32.89,24.3L35.18,21.03"
+        android:strokeColor="#FFEF9F27"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M38.57,31.7L42.32,30.33"
+        android:strokeColor="#FF10324A"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M38.57,31.7L42.32,30.33"
+        android:strokeColor="#FFEF9F27"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M12,37A12,12,0,0,1,36,37Z"
+        android:fillColor="#FFEF9F27"
+        android:strokeColor="#FF10324A"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M5,37L43,37"
+        android:strokeColor="#FF10324A"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M5,37L43,37"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M24,19.5L24,5M19.5,9.5L24,5L28.5,9.5"
+        android:strokeColor="#FF10324A"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M24,19.5L24,5M19.5,9.5L24,5L28.5,9.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

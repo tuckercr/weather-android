@@ -1,5 +1,6 @@
 package com.fangjet.weather.data
 
+import com.fangjet.weather.data.remote.dto.OpenMeteoDailyDto
 import com.fangjet.weather.data.remote.dto.OpenMeteoHourlyDto
 import com.fangjet.weather.data.remote.dto.OpenMeteoMinutely15Dto
 import com.fangjet.weather.data.remote.dto.OpenMeteoResponse
@@ -195,5 +196,55 @@ class OpenMeteoForecastSourceTest {
             listOf(QuarterHour(dayStart, 0.0, 0.0), QuarterHour(dayStart + 900, 0.4, 0.2)),
             days.first().quarterHours,
         )
+    }
+
+    @Test
+    fun `each day carries its sunrise and sunset`() {
+        val day = 86_400L
+        val r = response(48).copy(
+            daily = OpenMeteoDailyDto(
+                time = listOf(dayStart - day, dayStart, dayStart + day),
+                sunrise = listOf(dayStart - day + 7 * 3600, dayStart + 7 * 3600 + 120, dayStart + day + 7 * 3600 + 180),
+                sunset = listOf(dayStart - day + 16 * 3600, dayStart + 16 * 3600 + 2400, dayStart + day + 16 * 3600 + 2460),
+            ),
+        )
+        val days = OpenMeteoForecastSource.toDayForecasts(r, WeatherUnits.METRIC, dayStart)
+
+        assertEquals(listOf(dayStart + 7 * 3600 + 120, dayStart + day + 7 * 3600 + 180), days.map { it.sunriseEpoch })
+        assertEquals(listOf(dayStart + 16 * 3600 + 2400, dayStart + day + 16 * 3600 + 2460), days.map { it.sunsetEpoch })
+    }
+
+    @Test
+    fun `a day the sun doesn't rise or set has no sun times`() {
+        // Open-Meteo puts both on the day's midnight in a polar night, and the sunset on the next
+        // midnight in a polar day.
+        val day = 86_400L
+        val r = response(48).copy(
+            daily = OpenMeteoDailyDto(
+                time = listOf(dayStart, dayStart + day),
+                sunrise = listOf(dayStart, dayStart + day),
+                sunset = listOf(dayStart, dayStart + 2 * day),
+            ),
+        )
+        val days = OpenMeteoForecastSource.toDayForecasts(r, WeatherUnits.METRIC, dayStart)
+
+        assertEquals(2, days.size)
+        assertEquals(listOf(null, null), days.map { it.sunriseEpoch })
+        assertEquals(listOf(null, null), days.map { it.sunsetEpoch })
+    }
+
+    @Test
+    fun `sun times follow the city's own days`() {
+        // UTC+10: the local day starting at 14:00 UTC has its sunrise at 20:30 UTC (6:30 AM local).
+        val r = response(24, offset = 36_000).copy(
+            daily = OpenMeteoDailyDto(
+                time = listOf(dayStart - 36_000, dayStart + 50_400),
+                sunrise = listOf(dayStart - 36_000 + 6 * 3600, dayStart + 50_400 + 6 * 3600 + 1800),
+                sunset = listOf(dayStart - 36_000 + 18 * 3600, dayStart + 50_400 + 18 * 3600),
+            ),
+        )
+        val days = OpenMeteoForecastSource.toDayForecasts(r, WeatherUnits.METRIC, dayStart)
+
+        assertEquals(listOf(dayStart - 36_000 + 6 * 3600, dayStart + 50_400 + 6 * 3600 + 1800), days.map { it.sunriseEpoch })
     }
 }
