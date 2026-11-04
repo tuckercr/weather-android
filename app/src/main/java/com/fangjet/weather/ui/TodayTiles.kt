@@ -42,10 +42,7 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.AlignmentLine
-import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
@@ -58,7 +55,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fangjet.weather.R
@@ -234,8 +230,11 @@ private fun Tile(
 }
 
 @Composable
-private fun TileValue(text: String) {
-    Text(keepUnitsTogether(text), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+private fun TileValue(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(keepUnitsTogether(text), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = modifier)
 }
 
 @Composable
@@ -264,17 +263,9 @@ private fun FeelsLikeTile(
     val band = feelsLikeBand(feelsLikeC, thresholds)
     val gap = feelsLikeGap(weather.feelsLike, weather.temperature)
     Tile(Icons.Default.Thermostat, stringResource(R.string.label_feels_like), modifier) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                keepUnitsTogether(formatTemperature(weather.feelsLike, weather.units)),
-                style = MaterialTheme.typography.displaySmall,
-                fontSize = FEELS_LIKE_SIZE,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                modifier = Modifier
-                    .alignByBaseline()
-                    .trimmedToDigits(FEELS_LIKE_SIZE),
-            )
+        // The same size as the other tiles' values, as Air Quality has its band beside it.
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            TileValue(formatTemperature(weather.feelsLike, weather.units), Modifier.alignByBaseline())
             Text(
                 stringResource(band.nameRes()),
                 style = MaterialTheme.typography.bodyMedium,
@@ -301,25 +292,6 @@ private fun FeelsLikeTile(
         )
     }
 }
-
-private val FEELS_LIKE_SIZE = 34.sp
-
-/**
- * Lays the text out only as tall as its digits, with a little room above and below. Baloo's line is
- * 1.6 times its size, so a large number carries a wide empty band above and below it, which would
- * make this tile, and every tile in the grid with it, much taller than the rest. Digits stand 0.6 of
- * the size above the baseline and have nothing below it.
- */
-private fun Modifier.trimmedToDigits(fontSize: TextUnit) =
-    layout { measurable, constraints ->
-        val placeable = measurable.measure(constraints)
-        val above = (fontSize * 0.72f).roundToPx()
-        val below = (fontSize * 0.14f).roundToPx()
-        // While intrinsics are measured there's no baseline: only the height matters then.
-        val baseline = placeable[FirstBaseline].takeIf { it != AlignmentLine.Unspecified } ?: above
-        val top = (baseline - above).coerceAtLeast(0)
-        layout(placeable.width, minOf(above + below, placeable.height)) { placeable.place(0, -top) }
-    }
 
 /** Cold to hot. The two blues are lighter on the dark theme, where the darker one barely shows. */
 @Composable
