@@ -66,7 +66,10 @@ class WorkManagerScheduler @Inject constructor(
      * later briefing that much later too. UPDATE leaves the run under way alone.
      */
     fun keepBriefingAtHalfPastEight() {
-        val next = System.currentTimeMillis() + millisUntilNext(BRIEFING_HOUR, BRIEFING_MINUTE)
+        // The moment itself, from one reading of the clock: adding a delay worked out from a second
+        // reading put it a millisecond or so early whenever the clock ticked between the two, at
+        // 8:29:59.999.
+        val next = nextAt(BRIEFING_HOUR, BRIEFING_MINUTE)
         val request = PeriodicWorkRequestBuilder<WeatherNotificationWorker>(1, TimeUnit.DAYS)
             .setNextScheduleTimeOverride(next)
             .setConstraints(networkConstraints())
@@ -102,8 +105,8 @@ class WorkManagerScheduler @Inject constructor(
         private const val BRIEFING_MINUTE = 30
         private val LEGACY_NOTIFICATION_HOURS = listOf(9, 13, 19)
 
-        /** Time from [now] to the next [hour]:[minute] local time; a full day when it is exactly that time. */
-        internal fun millisUntilNext(
+        /** The next [hour]:[minute] local time after [now], in epoch milliseconds; tomorrow's when it is exactly that time. */
+        internal fun nextAt(
             hour: Int,
             minute: Int,
             now: ZonedDateTime = ZonedDateTime.now(),
@@ -114,7 +117,14 @@ class WorkManagerScheduler @Inject constructor(
                 .withSecond(0)
                 .withNano(0)
             if (!target.isAfter(now)) target = target.plusDays(1)
-            return target.toInstant().toEpochMilli() - now.toInstant().toEpochMilli()
+            return target.toInstant().toEpochMilli()
         }
+
+        /** Time from [now] to the next [hour]:[minute] local time; a full day when it is exactly that time. */
+        internal fun millisUntilNext(
+            hour: Int,
+            minute: Int,
+            now: ZonedDateTime = ZonedDateTime.now(),
+        ): Long = nextAt(hour, minute, now) - now.toInstant().toEpochMilli()
     }
 }

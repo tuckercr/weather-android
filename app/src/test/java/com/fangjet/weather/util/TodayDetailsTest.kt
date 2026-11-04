@@ -89,6 +89,59 @@ class TodayDetailsTest {
     }
 
     @Test
+    fun `feels like bands match the pets' moods and the walk comfort range`() {
+        val t = PetWeatherThresholds.DEFAULT
+        assertEquals(FeelsLikeBand.COLD, feelsLikeBand(-5.0, t))
+        assertEquals(FeelsLikeBand.COLD, feelsLikeBand(0.0, t))
+        assertEquals(FeelsLikeBand.CHILLY, feelsLikeBand(0.1, t))
+        assertEquals(FeelsLikeBand.CHILLY, feelsLikeBand(2.9, t))
+        assertEquals(FeelsLikeBand.MILD, feelsLikeBand(3.0, t))
+        assertEquals(FeelsLikeBand.MILD, feelsLikeBand(27.0, t))
+        assertEquals(FeelsLikeBand.WARM, feelsLikeBand(27.1, t))
+        assertEquals(FeelsLikeBand.WARM, feelsLikeBand(29.9, t))
+        assertEquals(FeelsLikeBand.HOT, feelsLikeBand(30.0, t))
+    }
+
+    @Test
+    fun `the feels like mark moves across five equal bands`() {
+        val t = PetWeatherThresholds.DEFAULT
+        assertEquals(0.0, feelsLikeBarPosition(-10.0, t), 0.001)
+        // Stays at the end past -10 C and 40 C.
+        assertEquals(0.0, feelsLikeBarPosition(-30.0, t), 0.001)
+        assertEquals(0.2, feelsLikeBarPosition(0.0, t), 0.001)
+        assertEquals(0.3, feelsLikeBarPosition(1.5, t), 0.001)
+        assertEquals(0.5, feelsLikeBarPosition(15.0, t), 0.001)
+        assertEquals(0.6, feelsLikeBarPosition(27.0, t), 0.001)
+        assertEquals(0.8, feelsLikeBarPosition(30.0, t), 0.001)
+        // Singapore feeling 89 F.
+        assertEquals(0.833, feelsLikeBarPosition(31.67, t), 0.001)
+        assertEquals(1.0, feelsLikeBarPosition(40.0, t), 0.001)
+        assertEquals(1.0, feelsLikeBarPosition(48.0, t), 0.001)
+    }
+
+    @Test
+    fun `the feels like mark keeps inside its band when the comfort range passes the pets' limits`() {
+        val t = PetWeatherThresholds.DEFAULT.copy(comfortMinC = -5.0, comfortMaxC = 35.0)
+        // Chilly and Warm are empty: the pets' limits come first.
+        assertEquals(FeelsLikeBand.COLD, feelsLikeBand(-2.0, t))
+        assertEquals(FeelsLikeBand.MILD, feelsLikeBand(1.0, t))
+        assertEquals(FeelsLikeBand.HOT, feelsLikeBand(32.0, t))
+        assertEquals(0.16, feelsLikeBarPosition(-2.0, t), 0.001)
+        assertEquals(0.5, feelsLikeBarPosition(15.0, t), 0.001)
+        assertEquals(0.84, feelsLikeBarPosition(32.0, t), 0.001)
+    }
+
+    @Test
+    fun `the feels like gap compares the two numbers as shown`() {
+        assertEquals(8, feelsLikeGap(89.4, 81.2))
+        assertEquals(-6, feelsLikeGap(28.0, 34.0))
+        // 81.6 and 83.4 show as 82 and 83.
+        assertEquals(0, feelsLikeGap(83.4, 81.6))
+        assertEquals(0, feelsLikeGap(20.0, 21.0))
+        assertEquals(2, feelsLikeGap(22.0, 20.0))
+    }
+
+    @Test
     fun `below freezing the pavement is only icy after rain or snow`() {
         val t = PetWeatherThresholds.DEFAULT
         assertEquals(PavementBand.ICY, pavementBand(-0.1, true, -3.0, t))
