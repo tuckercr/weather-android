@@ -56,6 +56,7 @@ class WeatherForecastViewModel internal constructor(
     private val onError: (errorKey: String) -> Unit = {},
     private val onSettingsOpened: () -> Unit = {},
     isWalkCardEnabled: () -> Boolean = { true },
+    isTemperatureUnitsShown: () -> Boolean = { true },
     isAirQualityEnabled: () -> Boolean = { true },
     readTodayTiles: () -> TodayTileSwitches = { TodayTileSwitches() },
     readSeasonalThemes: () -> List<SeasonalTheme> = { emptyList() },
@@ -122,6 +123,7 @@ class WeatherForecastViewModel internal constructor(
         onError = { key -> analyticsRepository.logWeatherError(key) },
         onSettingsOpened = { analyticsRepository.logSettingsOpened() },
         isWalkCardEnabled = remoteConfigRepository::walkCardEnabled,
+        isTemperatureUnitsShown = remoteConfigRepository::temperatureUnitsShown,
         isAirQualityEnabled = remoteConfigRepository::airQualityEnabled,
         readTodayTiles = remoteConfigRepository::todayTiles,
         readSeasonalThemes = remoteConfigRepository::seasonalThemes,
@@ -131,6 +133,9 @@ class WeatherForecastViewModel internal constructor(
 
     /** Remote Config `walk_card_enabled`: false hides the "time to walk the dog" card. */
     val walkCardEnabled: Boolean = isWalkCardEnabled()
+
+    /** Remote Config `temperature_units_shown`: false shows temperatures as "89°", without the unit. */
+    val temperatureUnitsShown: Boolean = isTemperatureUnitsShown()
 
     /**
      * Remote Config `air_quality_enabled`. The fetch checks it too; this hides a reading in a

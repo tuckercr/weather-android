@@ -109,6 +109,7 @@ class RemoteConfigRepositoryTest {
         set(RemoteConfigRepository.KEY_RADAR_FRAME_INTERVAL, "400")
         set(RemoteConfigRepository.KEY_RADAR_ENABLED, "false")
         set(RemoteConfigRepository.KEY_WALK_CARD_ENABLED, "false")
+        set(RemoteConfigRepository.KEY_TEMPERATURE_UNITS_SHOWN, "false")
         set(RemoteConfigRepository.KEY_OPEN_METEO_ENABLED, "false")
         set(RemoteConfigRepository.KEY_DAILY_WEATHER_NOTIFICATIONS_ENABLED, "false")
         set(RemoteConfigRepository.KEY_WALK_TIME_NOTIFICATIONS_ENABLED, "false")
@@ -121,6 +122,7 @@ class RemoteConfigRepositoryTest {
         assertEquals(400L, repo.radarFrameIntervalMs())
         assertFalse(repo.radarEnabled())
         assertFalse(repo.walkCardEnabled())
+        assertFalse(repo.temperatureUnitsShown())
         assertFalse(repo.openMeteoEnabled())
         assertFalse(repo.dailyWeatherNotificationsEnabled())
         assertFalse(repo.walkTimeNotificationsEnabled())
@@ -166,6 +168,21 @@ class RemoteConfigRepositoryTest {
 
         assertEquals(RemoteConfigRepository.DEFAULT_REFRESH_INTERVAL_MINUTES, repo.refreshIntervalMinutes())
         assertEquals(RemoteConfigRepository.DEFAULT_RADAR_ENABLED, repo.radarEnabled())
+    }
+
+    @Test
+    fun `temperatures keep their unit unless Remote Config says false`() {
+        firebaseInitialised(true)
+        val repo = RemoteConfigRepository(context)
+
+        assertTrue(RemoteConfigRepository.DEFAULT_TEMPERATURE_UNITS_SHOWN)
+        assertTrue(repo.temperatureUnitsShown())
+        set(RemoteConfigRepository.KEY_TEMPERATURE_UNITS_SHOWN, "false")
+        assertFalse(repo.temperatureUnitsShown())
+        set(RemoteConfigRepository.KEY_TEMPERATURE_UNITS_SHOWN, "true")
+        assertTrue(repo.temperatureUnitsShown())
+        set(RemoteConfigRepository.KEY_TEMPERATURE_UNITS_SHOWN, "no unit")
+        assertTrue(repo.temperatureUnitsShown())
     }
 
     @Test
@@ -236,6 +253,7 @@ class RemoteConfigRepositoryTest {
         assertEquals(RemoteConfigRepository.DEFAULT_RADAR_FRAME_INTERVAL_MS, repo.radarFrameIntervalMs())
         assertEquals(RemoteConfigRepository.DEFAULT_RADAR_ENABLED, repo.radarEnabled())
         assertEquals(RemoteConfigRepository.DEFAULT_WALK_CARD_ENABLED, repo.walkCardEnabled())
+        assertEquals(RemoteConfigRepository.DEFAULT_TEMPERATURE_UNITS_SHOWN, repo.temperatureUnitsShown())
         assertEquals(RemoteConfigRepository.DEFAULT_OPEN_METEO_ENABLED, repo.openMeteoEnabled())
         assertEquals(
             RemoteConfigRepository.DEFAULT_DAILY_WEATHER_NOTIFICATIONS_ENABLED,

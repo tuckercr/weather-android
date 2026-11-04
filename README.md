@@ -327,6 +327,7 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `radar_frame_interval_ms` | number | `850` | Delay between radar animation frames; outside 100–5000 falls back to 850 |
 | `radar_enabled` | boolean | `true` | Radar kill switch: false hides the radar section (header and card, phone and tablet layouts) and skips the RainViewer timeline and tile requests, for when RainViewer or the OpenStreetMap tiles become unavailable |
 | `walk_card_enabled` | boolean | `true` | Shows the "Best Walk Time" card; false hides it for everyone (phone and tablet layouts). Users can also turn it off in Settings |
+| `temperature_units_shown` | boolean | `true` | Shows the unit with temperatures ("89 °F"); false shows "89°" wherever a temperature carries its unit: the hero, week rows, day details, and the Feels Like, Humidity and Paw Check tiles ("About 81°"). Temperatures already shown without one (the hero's high and low, the hourly strip, the walk card, notifications) stay as they are, and the units themselves don't change. See [Units](#units) |
 | `open_meteo_enabled` | boolean | `true` | Forecasts for cities with coordinates come from Open-Meteo; false falls back to the OpenWeatherMap 3-hourly forecast by lat/lon (foreground, background refresh, and notifications) |
 | `air_quality_enabled` | boolean | `true` | Fetches hourly air quality alongside the Open-Meteo forecast; false hides the Air quality tile and the walk planner ignores the air |
 | `openweather_api_key` | string | `""` | Replacement OpenWeather API key, used from the next app start; empty uses the key built into the app. Lets a leaked key be rotated without an update. Not secret: Remote Config values reach every device |
@@ -404,7 +405,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:weather-api` | `RadarRepositoryTest` | RainViewer timeline parsing, past/nowcast frame ordering, and tile URLs |
 | `:weather-api` | `CurrentWeatherTest` | UTC-offset handling, including caches written before the offset existed |
 | `:weather-api` | `WeatherUnitsTest` | Celsius conversion and locale-to-unit mapping (US and territories imperial, others metric) |
-| `:app` | `WeatherForecastViewModelTest` | Cache-first loading, refresh races, background-refresh staleness guards, the `foreground_refresh_min_minutes` throttle, `walk_card_enabled`, and Remote Config pet thresholds |
+| `:app` | `WeatherForecastViewModelTest` | Cache-first loading, refresh races, background-refresh staleness guards, the `foreground_refresh_min_minutes` throttle, `walk_card_enabled`, `temperature_units_shown`, and Remote Config pet thresholds |
 | `:app` | `RadarViewModelTest` | Stale-timeline refresh (10 minutes, measured from the request), keeping the old timeline on a failed refresh, and `radar_enabled` gating |
 | `:app` | `SettingsViewModelTest` | Unit-override selection, *Share usage statistics*, the walk card setting, and cache clearing |
 | `:app` | `AnalyticsRepositoryTest` | Analytics gates: kill switch, user opt-out, both on, and never crashing |
@@ -415,6 +416,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `MoonPhaseTest` | The moon's phase from the date, checked against published phases |
 | `:app` | `WeatherIconTest` | Icon for each condition by day and night, moon phases, and southern-hemisphere mirroring |
 | `:app` | `CalmWindTest` | Calm wind reads as 0, and visibility at the 10 km cap reads as clear |
+| `:app` | `TemperatureTextTest` | Temperatures with and without their unit (`temperature_units_shown`): both unit systems, negatives, the same whole degrees either way, and inside "About …" and "Dew point …" |
 | `:app` | `DistanceUnitsTest` | Visibility in miles or km: the unit choice, or the measurement system for "System default" |
 | `:app` | `AppConfigModuleTest` | The OpenWeather key: a Remote Config replacement wins over the built-in key |
 | `:app` | `CurrentSlotsTest` | `fromCurrentSlot`: drops past hourly and 3-hourly slots, keeps the one in progress |
@@ -442,6 +444,11 @@ Users choose their preferred units in Settings: **System default**, **Celsius (�
 **Fahrenheit (°F)** (imperial). When set to System default, the app reads the Android 14+ temperature
 preference where available, and otherwise falls back to a locale-based heuristic (the US and its
 territories to Fahrenheit, otherwise Metric).
+
+Temperatures are whole degrees with their unit ("89 °F", "-3 °C"). With Remote Config
+`temperature_units_shown` off they show just the degree sign ("89°", "About 81°"), with the same
+number and units; `formatTemperature` is the one place that decides. The hero's high and low, the
+hourly strip, the walk card and notifications never carry the unit.
 
 Visibility follows the same choice: km for Celsius, miles for Fahrenheit. For System default it
 follows the system's measurement system, where the US and UK use miles (Android 9+; earlier
