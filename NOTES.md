@@ -40,6 +40,18 @@ Finished items move to Done at the bottom.
       end in an empty band. With no rain at all it sizes correctly (checked 10-31). Better: the
       same height for every hour, with the chance under a slightly smaller icon in the icon's own
       space, so the card never changes height and never has a gap. Both apps. (10-31)
+- [ ] **Adding a city is a poor search experience.** The search results appear under the
+      keyboard, especially when more than one city is already saved (the saved list sits above
+      them in the sheet). Consider making Add City a full-screen screen of its own, with the
+      search field at the top and the results right under it. How search itself ranks results is
+      in SEARCH.md. (11-05)
+- [ ] **Review analytics, and add parameters where they'd help.** Only four events today, three
+      with no parameters. Worth knowing: which permissions are granted (notifications, location,
+      "Allow all the time" for Follow my location) from onboarding and from Settings; how cities
+      are added (search suggestion, typed by name, My Location; `city_added`'s `source` is already
+      decided in SEARCH.md); and the dog answer and notification switches. Anonymous categories
+      only, never a place or what was typed; keep the opt-out and kill switch gates. Each change
+      updates README's analytics table, the privacy policy and the iOS app. Both apps. (11-05)
 - [ ] **Android location: "Ask every time" never clears the permanently-denied flag**, so
       "Add My Location" stays hidden after a reset in system settings (review finding 3). (10-29)
 
@@ -171,7 +183,9 @@ noted. Checked against the code, not fixed yet.
       60% but says "maybe rain"). With `walk_bad_air_band` at 4 or 5 the walk card's "Air's not
       great" can disagree with the Air tile. Both apps.
 - [ ] **City search.** Two places with the same name, state and country (two "Richmond, England,
-      GB") show as one row, so the second can't be picked. Both apps.
+      GB") show as one row, so the second can't be picked. Both apps. The search design in
+      SEARCH.md (agreed 11-05) fixes it: rows merge only within 2 km, and same-label places get
+      their county.
 
 ## Location
 
@@ -202,7 +216,8 @@ noted. Checked against the code, not fixed yet.
 
 - [ ] Licences: RainViewer is personal and educational use only, and Open-Meteo's free tier is
       non-commercial. Emails were drafted on 10-24; no replies yet. Fallback: launch with
-      `radar_enabled` / `open_meteo_enabled` off in Remote Config.
+      `radar_enabled` / `open_meteo_enabled` off in Remote Config. Plan (11-05): buy an Open-Meteo
+      licence before release; the new city search (SEARCH.md) depends on it too.
 - [ ] Future radar: RainViewer's free feed has had no forecast frames since 1 Jan. A paid layer
       (Tomorrow.io, OpenWeather maps, Xweather, MapTiler) hasn't been researched. (10-28)
 - [ ] OpenStreetMap tile policy: at scale, a commercial tile provider. (10-24)
@@ -241,6 +256,11 @@ noted. Checked against the code, not fixed yet.
 - [ ] After the first release: rename the Xcode project and targets ("Cats&Dogs") and the Android
       folder (`cats-dogs`) in their own PRs. (10-28)
 - [ ] Rename the "Furcast-Shots" and "Furcast-iPad-Shots" simulators. (10-28)
+- [ ] **Hardcoded numbers worth a Remote Config key.** Look for more like city search's 280 ms
+      wait (`GeoLocationViewModel`), which SEARCH.md proposes as `city_search_delay_ms`: values we
+      might want to tune after release without an update (timeouts, waits, limits, thresholds).
+      List them first, then pick the few worth a key; each needs a default and validation in both
+      apps. Both apps. (11-05)
 
 ## Ideas
 
