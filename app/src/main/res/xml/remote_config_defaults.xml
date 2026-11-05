@@ -21,6 +21,36 @@
         <key>walk_card_enabled</key>
         <value>true</value>
     </entry>
+    <!-- The HOURLY section (header and strip); false hides it. -->
+    <entry>
+        <key>hourly_forecast_enabled</key>
+        <value>true</value>
+    </entry>
+    <!-- The "Rain starting around 3:15 PM" line from the 15-minute forecast; false hides it. -->
+    <entry>
+        <key>next_rain_enabled</key>
+        <value>true</value>
+    </entry>
+    <!-- The rest-of-the-week section (header and day rows); false hides it. -->
+    <entry>
+        <key>week_forecast_enabled</key>
+        <value>true</value>
+    </entry>
+    <!-- The rain outlook card: the chance of rain hour by hour for the next rain_outlook_hours hours
+         (whole number, 6-12), shown only when some hour reaches rain_outlook_min_chance percent
+         (whole number, 1-100), which is also where an hour counts as wet. Anything else uses these. -->
+    <entry>
+        <key>rain_outlook_enabled</key>
+        <value>true</value>
+    </entry>
+    <entry>
+        <key>rain_outlook_hours</key>
+        <value>10</value>
+    </entry>
+    <entry>
+        <key>rain_outlook_min_chance</key>
+        <value>20</value>
+    </entry>
     <!-- Shows the unit with temperatures ("89 °F"); false shows "89°" wherever a temperature
          carries its unit. -->
     <entry>

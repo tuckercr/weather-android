@@ -87,6 +87,7 @@
     <string name="section_upcoming">REST OF WEEK</string>
     <string name="section_today">TODAY</string>
     <string name="section_radar">RADAR</string>
+    <string name="section_rain_outlook">RAIN OUTLOOK</string>
     <string name="detail_no_hourly_data">Hourly data not available for this day.</string>
 
     <!-- Error messages -->
@@ -269,6 +270,28 @@
     <string name="next_snow_starting">Snow starting around %1$s</string>
     <string name="next_snow_stopping">Snow stopping around %1$s</string>
     <string name="next_snow_continuing">Snow for the next 2 hours</string>
+
+    <!-- Rain outlook card: the chance of rain hour by hour. %s is an hour, such as "4 PM", and
+         the amounts are numbers, such as "2.5". -->
+    <string name="rain_outlook_likely_now">Rain likely now</string>
+    <string name="rain_outlook_likely_around">Rain likely around %s</string>
+    <string name="rain_outlook_chance_now">A chance of rain now</string>
+    <string name="rain_outlook_chance_around">A chance of rain around %s</string>
+    <string name="rain_outlook_stays_up">The chance stays up past %s.</string>
+    <string name="rain_outlook_drying_out">Drying out after %s.</string>
+    <string name="rain_outlook_total_mm">About %s mm in all.</string>
+    <!-- Never exactly 1; that has its own string. -->
+    <string name="rain_outlook_total_inches">About %s inches in all.</string>
+    <string name="rain_outlook_total_one_inch">About 1 inch in all.</string>
+    <string name="rain_outlook_caption">Chance of rain each hour</string>
+    <!-- Above a tapped bar: "4 PM · 70%", and "4 PM · 70% · 2.5 mm" with its amount. -->
+    <string name="rain_outlook_bar">%1$s · %2$d%%</string>
+    <string name="rain_outlook_bar_amount">%1$s · %2$d%% · %3$s</string>
+    <!-- What TalkBack reads for a bar: "4 PM, 70% chance of rain", then ", about 2.5 mm" with its amount. -->
+    <string name="rain_outlook_bar_spoken">%1$s, %2$d%% chance of rain</string>
+    <string name="rain_outlook_bar_spoken_amount">, about %s</string>
+    <string name="format_rain_mm">%s mm</string>
+    <string name="format_rain_in">%s in</string>
 
     <!-- Walk advice -->
     <string name="walk_title">Best Walk Time</string>

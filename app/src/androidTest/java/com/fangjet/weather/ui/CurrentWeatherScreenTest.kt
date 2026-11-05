@@ -12,6 +12,7 @@ import com.fangjet.weather.R
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
+import com.fangjet.weather.domain.RainOutlookSettings
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.model.LoadingState
@@ -78,15 +79,18 @@ class CurrentWeatherScreenTest {
 
     @Test
     fun staleCachedWeatherShowsWhenItIsFromAndWhy() {
-        // An hour ago, shown in London's local time (UTC+0 here).
-        val observedAt = Instant.now().epochSecond - 3_600
+        // An hour ago, in a city where it's around midday now, so the reading is always from today
+        // (one from before midnight shows as "yesterday at").
+        val now = Instant.now().epochSecond
+        val offset = middayOffset(now)
+        val observedAt = now - 3_600
         composeRule.setContent {
             CatsDogsTheme {
                 CurrentWeatherScreen(
                     locations = listOf(london),
                     activeIndex = 0,
                     weatherState = LoadingState.Success(
-                        weather().copy(observedAtEpochSeconds = observedAt, utcOffsetSeconds = 0),
+                        weather().copy(observedAtEpochSeconds = observedAt, utcOffsetSeconds = offset),
                     ),
                     staleErrorKey = "offline",
                     onTabSelected = {},
@@ -98,7 +102,7 @@ class CurrentWeatherScreenTest {
 
         composeRule
             .onNodeWithText(
-                "Showing weather from ${utcTime(observedAt)}. " + string(R.string.error_offline) + " " +
+                "Showing weather from ${localTime(observedAt, offset)}. " + string(R.string.error_offline) + " " +
                     string(R.string.error_pull_to_retry),
             ).assertIsDisplayed()
     }
@@ -165,10 +169,18 @@ class CurrentWeatherScreenTest {
             .atTime(12, 0)
             .toEpochSecond(ZoneOffset.UTC)
 
-    private fun utcTime(epochSeconds: Long): String =
+    // A whole-hour UTC offset at which it's between 11 AM and 1 PM at [epochSeconds].
+    private fun middayOffset(epochSeconds: Long): Int = ((12 * 3_600 - Math.floorMod(epochSeconds, 86_400L)) / 3_600 * 3_600).toInt()
+
+    private fun utcTime(epochSeconds: Long): String = localTime(epochSeconds, 0)
+
+    private fun localTime(
+        epochSeconds: Long,
+        offsetSeconds: Int,
+    ): String =
         Instant
             .ofEpochSecond(epochSeconds)
-            .atOffset(ZoneOffset.UTC)
+            .atOffset(ZoneOffset.ofTotalSeconds(offsetSeconds))
             .format(DateTimeFormatter.ofPattern("h:mm a"))
 
     @Test
@@ -268,6 +280,47 @@ class CurrentWeatherScreenTest {
         }
 
         composeRule.onNodeWithText("80%").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun rainOutlookShowsWhenAnHourReachesTheChance() {
+        setRainOutlookContent(RainOutlookSettings())
+
+        composeRule.onNodeWithText(string(R.string.section_rain_outlook)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.rain_outlook_likely_now)).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun rainOutlookIsHiddenWhenSwitchedOff() {
+        setRainOutlookContent(RainOutlookSettings(enabled = false))
+
+        composeRule.onAllNodesWithText(string(R.string.section_rain_outlook)).assertCountEquals(0)
+        composeRule.onAllNodesWithText(string(R.string.rain_outlook_likely_now)).assertCountEquals(0)
+    }
+
+    private fun setRainOutlookContent(settings: RainOutlookSettings) {
+        composeRule.setContent {
+            CatsDogsTheme {
+                CurrentWeatherScreen(
+                    locations = listOf(london),
+                    activeIndex = 0,
+                    weatherState = LoadingState.Success(weather()),
+                    forecastState = LoadingState.Success(
+                        listOf(
+                            dayForecast(
+                                dateLabel = "Mon, Jan 1",
+                                hourlySlots = listOf(hourlySlot(timeLabel = "9 AM", precipitationChance = 80)),
+                            ),
+                        ),
+                    ),
+                    radarEnabled = false,
+                    rainOutlookSettings = settings,
+                    onTabSelected = {},
+                    onAddCityClick = {},
+                    onRetry = {},
+                )
+            }
+        }
     }
 
     @Test

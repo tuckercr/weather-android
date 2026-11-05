@@ -41,18 +41,29 @@ WorkManager, and CI on GitHub Actions.
 - **Next rain** line under the top card, only when rain or snow is due in the next 2 hours: "Rain
   starting around 3:15 PM", "Rain stopping around 4:30 PM" or "Rain for the next 2 hours", from
   Open-Meteo's 15-minute forecast (0.1 mm in 15 minutes counts; it stops after 30 dry minutes).
-  Rules in `util/NextRain.kt`.
+  Rules in `util/NextRain.kt`. `next_rain_enabled` hides it remotely.
 - **Hourly strip** with the next 24 forecast slots (hours from Open-Meteo, 3-hour slots on the
   OpenWeatherMap fallback): time, condition icon, temperature, and rain chance (hidden under 10%,
   otherwise to the nearest 10%, as everywhere in the app). Hours that have
   already passed are dropped at display time (`fromCurrentSlot`), so a cached forecast or an app
-  left open never shows or advises on past hours.
+  left open never shows or advises on past hours. `hourly_forecast_enabled` hides the section
+  (header and strip) remotely.
   Each sunrise and sunset still to come sits between the hours it falls between, as a slim
   marker: the time ("6:50", the hours either side give AM or PM), a sun on the horizon with an
   arrow up or down, and a thin line. The times are Open-Meteo's daily sunrise and sunset, so the
   evening's strip has tomorrow's sunrise; a day without one (polar day or night) has no marker.
   Cities on the OpenWeatherMap fallback only have today's, from the current reading. TalkBack
   reads "Sunset, 6:50 PM". Rules in `util/SunEvents.kt`.
+- **Rain outlook** card straight after the hourly strip (before TODAY on phones, before the radar on
+  tablets and in landscape): the chance of rain for each of the next 10 hours as bars, with a dashed
+  line at 50%. The headline says when rain is likeliest ("Rain likely around 4 PM" from 50%, "A
+  chance of rain now" below that), and the detail when it dries up ("Drying out after 7 PM." or
+  "The chance stays up past 12 AM.") and, from 0.5 mm (0.01 in), how much falls in all ("About 2.5
+  mm in all."). Tap a bar for its hour, chance and amount. The hourly icon comes from Open-Meteo's
+  best single model and the chance from its ensemble, so they can disagree; the chart shows the
+  outlook plainly. It only appears when some hour reaches 20%, and then takes the place of the
+  next-rain line, using its words as the headline. Rules in `util/RainOutlook.kt`;
+  `rain_outlook_enabled`, `rain_outlook_hours` and `rain_outlook_min_chance` tune it remotely.
 - **Today tiles**: Feels Like, Wind, Humidity, Paw Check (with a dog) and Air Quality in pairs, then
   Daylight (with the UV index) and Sky across the full width. An odd tile out, usually Air Quality
   when Paw Check is showing, takes the full width rather than leaving a gap.
@@ -77,7 +88,8 @@ WorkManager, and CI on GitHub Actions.
   they read on light and dark cards. Night icons show the moon's phase for that hour, worked out
   from the date (no API).
 - **Multi-day forecast** shown inline, aggregated to the city's local-timezone days with tappable
-  day details: each hour's temperature and rain chance.
+  day details: each hour's temperature and rain chance. `week_forecast_enabled` hides the rest of
+  the week (header and day rows) remotely.
 - **Rain probability** surfaced per hour and per day.
 - **Animated radar**: a RainViewer precipitation loop (recent past plus short-range nowcast) over
   an OpenStreetMap base, with a timeline scrubber, colour legend, play/pause, and an
@@ -327,6 +339,12 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `radar_frame_interval_ms` | number | `850` | Delay between radar animation frames; outside 100–5000 falls back to 850 |
 | `radar_enabled` | boolean | `true` | Radar kill switch: false hides the radar section (header and card, phone and tablet layouts) and skips the RainViewer timeline and tile requests, for when RainViewer or the OpenStreetMap tiles become unavailable |
 | `walk_card_enabled` | boolean | `true` | Shows the "Best Walk Time" card; false hides it for everyone (phone and tablet layouts). Users can also turn it off in Settings |
+| `hourly_forecast_enabled` | boolean | `true` | Shows the HOURLY section; false hides its header and strip for everyone (phone and tablet layouts) |
+| `next_rain_enabled` | boolean | `true` | Shows the "Rain starting around 3:15 PM" line from the 15-minute forecast; false hides it for everyone |
+| `week_forecast_enabled` | boolean | `true` | Shows the rest-of-the-week section; false hides its header and day rows for everyone (phone and tablet layouts) |
+| `rain_outlook_enabled` | boolean | `true` | Shows the rain outlook card; false hides it for everyone, and the next-rain line shows as before |
+| `rain_outlook_hours` | number | `10` | Hours the rain outlook charts, from the current one; whole number, valid 6–12 |
+| `rain_outlook_min_chance` | number | `20` | The rain outlook only shows when some hour reaches this rain chance (%), which is also the chance from which an hour counts as wet ("Drying out after …"); whole number, valid 1–100 |
 | `temperature_units_shown` | boolean | `true` | Shows the unit with temperatures ("89 °F"); false shows "89°" wherever a temperature carries its unit: the hero, week rows, day details, and the Feels Like, Humidity and Paw Check tiles ("About 81°"). Temperatures already shown without one (the hero's high and low, the hourly strip, the walk card, notifications) stay as they are, and the units themselves don't change. See [Units](#units) |
 | `open_meteo_enabled` | boolean | `true` | Forecasts for cities with coordinates come from Open-Meteo; false falls back to the OpenWeatherMap 3-hourly forecast by lat/lon (foreground, background refresh, and notifications) |
 | `air_quality_enabled` | boolean | `true` | Fetches hourly air quality alongside the Open-Meteo forecast; false hides the Air quality tile and the walk planner ignores the air |
@@ -396,7 +414,8 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | Module | Test class | What it covers |
 |---|---|---|
 | `:weather-api` | `ForecastAggregatorTest` | Noon-slot selection, grouping by the city's local days (not UTC), daily min/max and rain chance, chronological hourly slots |
-| `:weather-api` | `OpenMeteoForecastSourceTest` | Open-Meteo mapping: drops past hours, city-timezone grouping and labels (half-hour offsets, DST), weather codes, UV, pavement heat |
+| `:weather-api` | `OpenMeteoForecastSourceTest` | Open-Meteo mapping: drops past hours, city-timezone grouping and labels (half-hour offsets, DST), weather codes, UV, pavement heat, each hour's rain amount |
+| `:weather-api` | `HourlySlotTest` | A forecast cached before hourly rain amounts still decodes, and the amount is cached |
 | `:weather-api` | `WeatherHelpersTest` | WMO weather-code mapping to conditions and day/night icons; pavement-heat estimate |
 | `:weather-api` | `OpenWeatherParsingTest` | Kotlinx Serialization parsing of OpenWeatherMap current-weather and forecast payloads, including the UTC offset |
 | `:weather-api` | `GeocodingDirectParsingTest` | Geocoding payload parsing when `state` is omitted |
@@ -405,7 +424,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:weather-api` | `RadarRepositoryTest` | RainViewer timeline parsing, past/nowcast frame ordering, and tile URLs |
 | `:weather-api` | `CurrentWeatherTest` | UTC-offset handling, including caches written before the offset existed |
 | `:weather-api` | `WeatherUnitsTest` | Celsius conversion and locale-to-unit mapping (US and territories imperial, others metric) |
-| `:app` | `WeatherForecastViewModelTest` | Cache-first loading, refresh races, background-refresh staleness guards, the `foreground_refresh_min_minutes` throttle, `walk_card_enabled`, `temperature_units_shown`, and Remote Config pet thresholds |
+| `:app` | `WeatherForecastViewModelTest` | Cache-first loading, refresh races, background-refresh staleness guards, the `foreground_refresh_min_minutes` throttle, `walk_card_enabled`, the section switches, `temperature_units_shown`, and Remote Config pet thresholds |
 | `:app` | `RadarViewModelTest` | Stale-timeline refresh (10 minutes, measured from the request), keeping the old timeline on a failed refresh, and `radar_enabled` gating |
 | `:app` | `SettingsViewModelTest` | Unit-override selection, *Share usage statistics*, the walk card setting, and cache clearing |
 | `:app` | `AnalyticsRepositoryTest` | Analytics gates: kill switch, user opt-out, both on, and never crashing |
@@ -420,6 +439,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `DistanceUnitsTest` | Visibility in miles or km: the unit choice, or the measurement system for "System default" |
 | `:app` | `AppConfigModuleTest` | The OpenWeather key: a Remote Config replacement wins over the built-in key |
 | `:app` | `CurrentSlotsTest` | `fromCurrentSlot`: drops past hourly and 3-hourly slots, keeps the one in progress |
+| `:app` | `RainOutlookTest` | When the rain outlook shows (minimum chance, switch, window size), its headline (now or around, likely or a chance, the next-rain line's words), drying out, the total in mm or inches, and the bars |
 | `:app` | `LocaleWeatherUnitsTest` | An explicit Celsius/Fahrenheit system preference beats the locale; unknown falls back to it |
 | `:app` | `WelcomeViewModelTest` | Onboarding state and persistence |
 | `:app` | `CityListViewModelTest` | Add, remove, reorder, active-city tracking, legacy single-city migration, and `city_added` firing |
@@ -435,7 +455,7 @@ Compose UI tests live in `app/src/androidTest` and run on an emulator in CI via 
 |---|---|
 | `WelcomeScreenTest` | Welcome copy and the *Get started* callback |
 | `OnboardingNotificationScreenTest` | Notification onboarding copy, both buttons, and *Not now* |
-| `CurrentWeatherScreenTest` | Current-weather screen states: empty, error with retry, forecast error, upcoming day, hourly strip and rain chance, radar shown by default and hidden when `radar_enabled` is off |
+| `CurrentWeatherScreenTest` | Current-weather screen states: empty, error with retry, forecast error, upcoming day, hourly strip and rain chance, the rain outlook shown for a wet hour and hidden when `rain_outlook_enabled` is off, radar shown by default and hidden when `radar_enabled` is off |
 | `LocationsScreenTest` | Manage Locations: tapping a row makes it active, Move up / Move down accessibility actions, delete buttons name their city |
 
 ## Units

@@ -3,6 +3,7 @@ package com.fangjet.weather.data
 import android.content.Context
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.PetWeatherThresholds
+import com.fangjet.weather.domain.RainOutlookSettings
 import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.SeasonalThemes
 import com.fangjet.weather.domain.TodayTileSwitches
@@ -64,6 +65,28 @@ class RemoteConfigRepository @Inject constructor(
 
     /** False hides the "time to walk the dog" card on the current-weather screen. */
     fun walkCardEnabled(): Boolean = boolean(KEY_WALK_CARD_ENABLED) ?: DEFAULT_WALK_CARD_ENABLED
+
+    /** False hides the HOURLY section (header and strip) on the current-weather screen. */
+    fun hourlyForecastEnabled(): Boolean = boolean(KEY_HOURLY_FORECAST_ENABLED) ?: DEFAULT_HOURLY_FORECAST_ENABLED
+
+    /** False hides the "Rain starting around 3:15 PM" line, from the 15-minute forecast. */
+    fun nextRainEnabled(): Boolean = boolean(KEY_NEXT_RAIN_ENABLED) ?: DEFAULT_NEXT_RAIN_ENABLED
+
+    /** False hides the rest-of-the-week section (header and day rows) on the current-weather screen. */
+    fun weekForecastEnabled(): Boolean = boolean(KEY_WEEK_FORECAST_ENABLED) ?: DEFAULT_WEEK_FORECAST_ENABLED
+
+    /**
+     * The rain outlook card: on or off, the hours it charts (a whole number, 6 to 12) and the chance
+     * some hour must reach for it to show (a whole number, 1 to 100). Anything else uses the default.
+     */
+    fun rainOutlookSettings(): RainOutlookSettings {
+        val defaults = RainOutlookSettings()
+        return RainOutlookSettings(
+            enabled = boolean(KEY_RAIN_OUTLOOK_ENABLED) ?: defaults.enabled,
+            hours = wholeNumber(KEY_RAIN_OUTLOOK_HOURS)?.takeIf { it in RAIN_OUTLOOK_HOURS_RANGE } ?: defaults.hours,
+            minChance = wholeNumber(KEY_RAIN_OUTLOOK_MIN_CHANCE)?.takeIf { it in RAIN_OUTLOOK_MIN_CHANCE_RANGE } ?: defaults.minChance,
+        )
+    }
 
     /**
      * Whether temperatures show their unit ("89 °F"). False shows just the degree sign ("89°")
@@ -296,6 +319,21 @@ class RemoteConfigRepository @Inject constructor(
 
         const val KEY_WALK_CARD_ENABLED = "walk_card_enabled"
         const val DEFAULT_WALK_CARD_ENABLED = true
+
+        const val KEY_HOURLY_FORECAST_ENABLED = "hourly_forecast_enabled"
+        const val DEFAULT_HOURLY_FORECAST_ENABLED = true
+
+        const val KEY_NEXT_RAIN_ENABLED = "next_rain_enabled"
+        const val DEFAULT_NEXT_RAIN_ENABLED = true
+
+        const val KEY_WEEK_FORECAST_ENABLED = "week_forecast_enabled"
+        const val DEFAULT_WEEK_FORECAST_ENABLED = true
+
+        const val KEY_RAIN_OUTLOOK_ENABLED = "rain_outlook_enabled"
+        const val KEY_RAIN_OUTLOOK_HOURS = "rain_outlook_hours"
+        const val KEY_RAIN_OUTLOOK_MIN_CHANCE = "rain_outlook_min_chance"
+        private val RAIN_OUTLOOK_HOURS_RANGE = 6..12
+        private val RAIN_OUTLOOK_MIN_CHANCE_RANGE = 1..100
 
         const val KEY_TEMPERATURE_UNITS_SHOWN = "temperature_units_shown"
         const val DEFAULT_TEMPERATURE_UNITS_SHOWN = true

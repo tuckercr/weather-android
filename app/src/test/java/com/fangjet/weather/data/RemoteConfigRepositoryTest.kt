@@ -2,6 +2,7 @@ package com.fangjet.weather.data
 
 import android.content.Context
 import com.fangjet.weather.domain.PetWeatherThresholds
+import com.fangjet.weather.domain.RainOutlookSettings
 import com.google.android.gms.tasks.OnCompleteListener
 import com.google.android.gms.tasks.Task
 import com.google.firebase.Firebase
@@ -109,6 +110,9 @@ class RemoteConfigRepositoryTest {
         set(RemoteConfigRepository.KEY_RADAR_FRAME_INTERVAL, "400")
         set(RemoteConfigRepository.KEY_RADAR_ENABLED, "false")
         set(RemoteConfigRepository.KEY_WALK_CARD_ENABLED, "false")
+        set(RemoteConfigRepository.KEY_HOURLY_FORECAST_ENABLED, "false")
+        set(RemoteConfigRepository.KEY_NEXT_RAIN_ENABLED, "false")
+        set(RemoteConfigRepository.KEY_WEEK_FORECAST_ENABLED, "false")
         set(RemoteConfigRepository.KEY_TEMPERATURE_UNITS_SHOWN, "false")
         set(RemoteConfigRepository.KEY_OPEN_METEO_ENABLED, "false")
         set(RemoteConfigRepository.KEY_DAILY_WEATHER_NOTIFICATIONS_ENABLED, "false")
@@ -122,6 +126,9 @@ class RemoteConfigRepositoryTest {
         assertEquals(400L, repo.radarFrameIntervalMs())
         assertFalse(repo.radarEnabled())
         assertFalse(repo.walkCardEnabled())
+        assertFalse(repo.hourlyForecastEnabled())
+        assertFalse(repo.nextRainEnabled())
+        assertFalse(repo.weekForecastEnabled())
         assertFalse(repo.temperatureUnitsShown())
         assertFalse(repo.openMeteoEnabled())
         assertFalse(repo.dailyWeatherNotificationsEnabled())
@@ -164,10 +171,47 @@ class RemoteConfigRepositoryTest {
         firebaseInitialised(true)
         set(RemoteConfigRepository.KEY_REFRESH_INTERVAL, "soon")
         set(RemoteConfigRepository.KEY_RADAR_ENABLED, "maybe")
+        set(RemoteConfigRepository.KEY_HOURLY_FORECAST_ENABLED, "off")
+        set(RemoteConfigRepository.KEY_NEXT_RAIN_ENABLED, "")
+        set(RemoteConfigRepository.KEY_WEEK_FORECAST_ENABLED, "0.5")
         val repo = RemoteConfigRepository(context)
 
         assertEquals(RemoteConfigRepository.DEFAULT_REFRESH_INTERVAL_MINUTES, repo.refreshIntervalMinutes())
         assertEquals(RemoteConfigRepository.DEFAULT_RADAR_ENABLED, repo.radarEnabled())
+        assertEquals(RemoteConfigRepository.DEFAULT_HOURLY_FORECAST_ENABLED, repo.hourlyForecastEnabled())
+        assertEquals(RemoteConfigRepository.DEFAULT_NEXT_RAIN_ENABLED, repo.nextRainEnabled())
+        assertEquals(RemoteConfigRepository.DEFAULT_WEEK_FORECAST_ENABLED, repo.weekForecastEnabled())
+    }
+
+    @Test
+    fun `rain outlook reads its switch and whole numbers in range`() {
+        firebaseInitialised(true)
+        set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_ENABLED, "false")
+        set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_HOURS, "6")
+        set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_MIN_CHANCE, "100.0")
+        val repo = RemoteConfigRepository(context)
+
+        assertEquals(RainOutlookSettings(enabled = false, hours = 6, minChance = 100), repo.rainOutlookSettings())
+        set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_HOURS, "12")
+        set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_MIN_CHANCE, "1")
+        assertEquals(RainOutlookSettings(enabled = false, hours = 12, minChance = 1), repo.rainOutlookSettings())
+    }
+
+    @Test
+    fun `rain outlook values out of range, fractional or junk fall back to the defaults`() {
+        firebaseInitialised(true)
+        val repo = RemoteConfigRepository(context)
+
+        listOf("5", "13", "8.5", "-10", "lots", "").forEach { raw ->
+            set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_HOURS, raw)
+            assertEquals(raw, RainOutlookSettings().hours, repo.rainOutlookSettings().hours)
+        }
+        listOf("0", "101", "20.5", "-1", "some", "").forEach { raw ->
+            set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_MIN_CHANCE, raw)
+            assertEquals(raw, RainOutlookSettings().minChance, repo.rainOutlookSettings().minChance)
+        }
+        set(RemoteConfigRepository.KEY_RAIN_OUTLOOK_ENABLED, "perhaps")
+        assertEquals(RainOutlookSettings().enabled, repo.rainOutlookSettings().enabled)
     }
 
     @Test
@@ -253,6 +297,9 @@ class RemoteConfigRepositoryTest {
         assertEquals(RemoteConfigRepository.DEFAULT_RADAR_FRAME_INTERVAL_MS, repo.radarFrameIntervalMs())
         assertEquals(RemoteConfigRepository.DEFAULT_RADAR_ENABLED, repo.radarEnabled())
         assertEquals(RemoteConfigRepository.DEFAULT_WALK_CARD_ENABLED, repo.walkCardEnabled())
+        assertEquals(RemoteConfigRepository.DEFAULT_HOURLY_FORECAST_ENABLED, repo.hourlyForecastEnabled())
+        assertEquals(RemoteConfigRepository.DEFAULT_NEXT_RAIN_ENABLED, repo.nextRainEnabled())
+        assertEquals(RemoteConfigRepository.DEFAULT_WEEK_FORECAST_ENABLED, repo.weekForecastEnabled())
         assertEquals(RemoteConfigRepository.DEFAULT_TEMPERATURE_UNITS_SHOWN, repo.temperatureUnitsShown())
         assertEquals(RemoteConfigRepository.DEFAULT_OPEN_METEO_ENABLED, repo.openMeteoEnabled())
         assertEquals(
@@ -265,6 +312,7 @@ class RemoteConfigRepositoryTest {
         assertEquals(RemoteConfigRepository.DEFAULT_ANALYTICS_ENABLED, repo.analyticsEnabled())
         assertNull(repo.openWeatherApiKey())
         assertEquals(PetWeatherThresholds.DEFAULT, repo.petWeatherThresholds())
+        assertEquals(RainOutlookSettings(enabled = true, hours = 10, minChance = 20), repo.rainOutlookSettings())
     }
 
     /** A value that parses like Remote Config's own: numbers and booleans throw on junk. */

@@ -63,6 +63,11 @@ data class HourlySlot(
     val units: WeatherUnits,
     /** Probability of precipitation as a percentage, 0..100. */
     val precipitationChance: Int = 0,
+    /**
+     * The hour's forecast rain and snow, in mm of water whatever the [units]. Null when unknown: the
+     * OpenWeatherMap 3-hourly fallback, and forecasts cached before it existed.
+     */
+    val precipitationMm: Double? = null,
     /** UV index (0..11+); null when the source doesn't provide it. */
     val uvIndex: Double? = null,
     /** Estimated sun-baked pavement temperature in [units]; null when unknown. */

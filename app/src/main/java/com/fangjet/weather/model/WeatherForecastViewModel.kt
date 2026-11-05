@@ -10,6 +10,7 @@ import com.fangjet.weather.data.WeatherRepository
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.PetWeatherThresholds
+import com.fangjet.weather.domain.RainOutlookSettings
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.TodayTileSwitches
@@ -56,6 +57,10 @@ class WeatherForecastViewModel internal constructor(
     private val onError: (errorKey: String) -> Unit = {},
     private val onSettingsOpened: () -> Unit = {},
     isWalkCardEnabled: () -> Boolean = { true },
+    isHourlyForecastEnabled: () -> Boolean = { true },
+    isNextRainEnabled: () -> Boolean = { true },
+    isWeekForecastEnabled: () -> Boolean = { true },
+    readRainOutlookSettings: () -> RainOutlookSettings = { RainOutlookSettings() },
     isTemperatureUnitsShown: () -> Boolean = { true },
     isAirQualityEnabled: () -> Boolean = { true },
     readTodayTiles: () -> TodayTileSwitches = { TodayTileSwitches() },
@@ -123,6 +128,10 @@ class WeatherForecastViewModel internal constructor(
         onError = { key -> analyticsRepository.logWeatherError(key) },
         onSettingsOpened = { analyticsRepository.logSettingsOpened() },
         isWalkCardEnabled = remoteConfigRepository::walkCardEnabled,
+        isHourlyForecastEnabled = remoteConfigRepository::hourlyForecastEnabled,
+        isNextRainEnabled = remoteConfigRepository::nextRainEnabled,
+        isWeekForecastEnabled = remoteConfigRepository::weekForecastEnabled,
+        readRainOutlookSettings = remoteConfigRepository::rainOutlookSettings,
         isTemperatureUnitsShown = remoteConfigRepository::temperatureUnitsShown,
         isAirQualityEnabled = remoteConfigRepository::airQualityEnabled,
         readTodayTiles = remoteConfigRepository::todayTiles,
@@ -133,6 +142,18 @@ class WeatherForecastViewModel internal constructor(
 
     /** Remote Config `walk_card_enabled`: false hides the "time to walk the dog" card. */
     val walkCardEnabled: Boolean = isWalkCardEnabled()
+
+    /** Remote Config `hourly_forecast_enabled`: false hides the HOURLY section. */
+    val hourlyForecastEnabled: Boolean = isHourlyForecastEnabled()
+
+    /** Remote Config `next_rain_enabled`: false hides the "Rain starting around 3:15 PM" line. */
+    val nextRainEnabled: Boolean = isNextRainEnabled()
+
+    /** Remote Config `week_forecast_enabled`: false hides the rest-of-the-week section. */
+    val weekForecastEnabled: Boolean = isWeekForecastEnabled()
+
+    /** Remote Config `rain_outlook_*` (validated): whether the rain outlook card shows, and what it charts. */
+    val rainOutlookSettings: RainOutlookSettings = readRainOutlookSettings()
 
     /** Remote Config `temperature_units_shown`: false shows temperatures as "89°", without the unit. */
     val temperatureUnitsShown: Boolean = isTemperatureUnitsShown()
