@@ -550,6 +550,126 @@ class WeatherRepositoryTest {
             assertEquals("Broken clouds", slot.description)
         }
 
+    // --- the current reading from Open-Meteo, OpenWeather as the backup ---
+
+    /** Records what it's asked and answers [answer]. */
+    private class RecordingPlaceNames(
+        private val answer: String?,
+    ) : PlaceNaming {
+        val requests = mutableListOf<Pair<Double, Double>>()
+
+        override suspend fun name(
+            latitude: Double,
+            longitude: Double,
+        ): String? {
+            requests += latitude to longitude
+            return answer
+        }
+    }
+
+    private fun currentRepository(
+        api: FakeOpenWeatherApi = FakeOpenWeatherApi(),
+        openMeteo: OpenMeteoForecastSource = openMeteo(OPEN_METEO_CURRENT_BODY),
+        placeNames: PlaceNaming = PlaceNaming.None,
+        apiKey: String = "test-key",
+        openMeteoEnabled: Boolean = true,
+    ) = WeatherRepository(
+        api,
+        openMeteo,
+        apiKey,
+        ZoneOffset.UTC,
+        Json,
+        forecastSourcePolicy = { openMeteoEnabled },
+        placeNames = placeNames,
+    )
+
+    @Test
+    fun `fetchCurrentWeather with coordinates uses Open-Meteo's reading`() =
+        runBlocking {
+            val api = FakeOpenWeatherApi()
+            val placeNames = RecordingPlaceNames("Knoxville")
+            val repository = currentRepository(api = api, placeNames = placeNames)
+
+            val weather = repository
+                .fetchCurrentWeather(WeatherUnits.IMPERIAL, "Austin, TX, US", latitude = 30.2672, longitude = -97.7431)
+                .getOrThrow()
+
+            assertEquals("Austin, TX, US", weather.cityName)
+            assertEquals(63.3, weather.temperature, 0.001)
+            assertEquals(63.8, weather.feelsLike, 0.001)
+            assertEquals(0, api.currentWeatherCallCount)
+            assertEquals("A saved city keeps its own label", 0, placeNames.requests.size)
+        }
+
+    @Test
+    fun `fetchCurrentWeather names My Location with the phone`() =
+        runBlocking {
+            val placeNames = RecordingPlaceNames("Knoxville")
+            val repository = currentRepository(placeNames = placeNames)
+
+            val weather = repository.fetchCurrentWeather(WeatherUnits.IMPERIAL, latitude = 35.9168, longitude = -83.9597).getOrThrow()
+
+            assertEquals("Knoxville", weather.cityName)
+            assertEquals(listOf(35.9168 to -83.9597), placeNames.requests)
+        }
+
+    @Test
+    fun `fetchCurrentWeather calls My Location by its label when the phone can't name it`() =
+        runBlocking {
+            val repository = currentRepository(placeNames = RecordingPlaceNames(null))
+
+            val weather = repository.fetchCurrentWeather(WeatherUnits.IMPERIAL, latitude = 35.9168, longitude = -83.9597).getOrThrow()
+
+            assertEquals("My Location", weather.cityName)
+        }
+
+    @Test
+    fun `fetchCurrentWeather falls back to OpenWeather when Open-Meteo fails, without a lookup`() =
+        runBlocking {
+            val api = FakeOpenWeatherApi()
+            val placeNames = RecordingPlaceNames("Knoxville")
+            val repository = currentRepository(api = api, openMeteo = openMeteo(failure = IOException("down")), placeNames = placeNames)
+
+            val weather = repository.fetchCurrentWeather(WeatherUnits.IMPERIAL, latitude = 35.9168, longitude = -83.9597).getOrThrow()
+
+            assertEquals("OpenWeather City", weather.cityName)
+            assertEquals(1, api.currentWeatherCallCount)
+            assertEquals("No lookup is spent on a failed reading", 0, placeNames.requests.size)
+        }
+
+    @Test
+    fun `fetchCurrentWeather falls back to OpenWeather without a temperature`() =
+        runBlocking {
+            val api = FakeOpenWeatherApi()
+            val repository = currentRepository(api = api, openMeteo = openMeteo("""{"current":{"time":1793986200}}"""))
+
+            repository.fetchCurrentWeather(WeatherUnits.IMPERIAL, "Knoxville", latitude = 1.0, longitude = 2.0).getOrThrow()
+
+            assertEquals(1, api.currentWeatherCallCount)
+        }
+
+    @Test
+    fun `fetchCurrentWeather uses OpenWeather when open_meteo_enabled is off`() =
+        runBlocking {
+            val api = FakeOpenWeatherApi()
+            val repository = currentRepository(api = api, openMeteoEnabled = false)
+
+            val weather = repository.fetchCurrentWeather(WeatherUnits.IMPERIAL, latitude = 1.0, longitude = 2.0).getOrThrow()
+
+            assertEquals("OpenWeather City", weather.cityName)
+            assertEquals(1, api.currentWeatherCallCount)
+        }
+
+    @Test
+    fun `Open-Meteo's reading needs no OpenWeather key`() =
+        runBlocking {
+            val repository = currentRepository(apiKey = " ", placeNames = RecordingPlaceNames("Knoxville"))
+
+            val weather = repository.fetchCurrentWeather(WeatherUnits.IMPERIAL, latitude = 1.0, longitude = 2.0).getOrThrow()
+
+            assertEquals(63.3, weather.temperature, 0.001)
+        }
+
     // --- open_meteo_enabled (ForecastSourcePolicy) ---
 
     private val openMeteoBody =
@@ -775,3 +895,11 @@ class WeatherRepositoryTest {
         )
     }
 }
+
+/** Open-Meteo's current reading at 12:30 in Knoxville on 11-06: 63.3° feeling like 63.8°, clear. */
+internal const val OPEN_METEO_CURRENT_BODY =
+    """{"utc_offset_seconds":-18000,"current":{"time":1793986200,"interval":900,"temperature_2m":63.3,
+    "apparent_temperature":63.8,"relative_humidity_2m":62,"weather_code":0,"cloud_cover":5,
+    "pressure_msl":1014.8,"wind_speed_10m":1.1,"wind_direction_10m":267,"visibility":29300.0,"is_day":1},
+    "daily":{"time":[1793941200],"sunrise":[1793966580],"sunset":[1794004500],
+    "temperature_2m_max":[65.6],"temperature_2m_min":[48.0]}}"""

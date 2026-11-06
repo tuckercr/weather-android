@@ -1,5 +1,6 @@
 package com.fangjet.weather.data
 
+import com.fangjet.weather.data.remote.dto.OpenMeteoCurrentResponse
 import com.fangjet.weather.data.remote.dto.OpenMeteoDailyDto
 import com.fangjet.weather.data.remote.dto.OpenMeteoHourlyDto
 import com.fangjet.weather.data.remote.dto.OpenMeteoResponse
@@ -35,6 +36,52 @@ class OpenMeteoForecastSource @Inject constructor(
         latitude: Double,
         longitude: Double,
     ): Result<List<DayForecast>> =
+        get(
+            units,
+            latitude,
+            longitude,
+            mapOf(
+                "hourly" to HOURLY_FIELDS,
+                // Each day's sunrise and sunset, for the hourly strip, which reaches into tomorrow.
+                "daily" to "sunrise,sunset",
+                "forecast_days" to FORECAST_DAYS.toString(),
+                // Yesterday too, so the pavement and wet ground remember last night's weather.
+                "past_days" to "1",
+                // A few hours of 15-minute rain and snow from now, for "Rain starting around…"
+                // (a little more than the 2 hours shown, so a cached forecast still covers them).
+                "minutely_15" to "precipitation,snowfall",
+                "forecast_minutely_15" to QUARTER_HOURS.toString(),
+                "past_minutely_15" to "0",
+            ),
+        ) { body ->
+            val parsed = json.decodeFromString(OpenMeteoResponse.serializer(), body)
+            toDayForecasts(parsed, units, System.currentTimeMillis() / 1000)
+        }
+
+    /** The reading now, for the hero, with today's high, low, sunrise and sunset ([OpenMeteoCurrent]). */
+    suspend fun fetchCurrent(
+        units: WeatherUnits,
+        latitude: Double,
+        longitude: Double,
+    ): Result<OpenMeteoCurrentResponse> =
+        get(
+            units,
+            latitude,
+            longitude,
+            mapOf(
+                "current" to CURRENT_FIELDS,
+                "daily" to "sunrise,sunset,temperature_2m_max,temperature_2m_min",
+                "forecast_days" to "1",
+            ),
+        ) { body -> json.decodeFromString(OpenMeteoCurrentResponse.serializer(), body) }
+
+    private suspend fun <T> get(
+        units: WeatherUnits,
+        latitude: Double,
+        longitude: Double,
+        fields: Map<String, String>,
+        parse: (String) -> T,
+    ): Result<T> =
         withContext(Dispatchers.IO) {
             runCatching {
                 val url = BASE_URL
@@ -42,27 +89,15 @@ class OpenMeteoForecastSource @Inject constructor(
                     .newBuilder()
                     .addQueryParameter("latitude", latitude.toString())
                     .addQueryParameter("longitude", longitude.toString())
-                    .addQueryParameter("hourly", HOURLY_FIELDS)
-                    // Each day's sunrise and sunset, for the hourly strip, which reaches into tomorrow.
-                    .addQueryParameter("daily", "sunrise,sunset")
+                    .apply { fields.forEach { (name, value) -> addQueryParameter(name, value) } }
                     .addQueryParameter("timezone", "auto")
                     .addQueryParameter("timeformat", "unixtime")
-                    .addQueryParameter("forecast_days", FORECAST_DAYS.toString())
-                    // Yesterday too, so the pavement and wet ground remember last night's weather.
-                    .addQueryParameter("past_days", "1")
-                    // A few hours of 15-minute rain and snow from now, for "Rain starting around…"
-                    // (a little more than the 2 hours shown, so a cached forecast still covers them).
-                    .addQueryParameter("minutely_15", "precipitation,snowfall")
-                    .addQueryParameter("forecast_minutely_15", QUARTER_HOURS.toString())
-                    .addQueryParameter("past_minutely_15", "0")
                     .addQueryParameter("temperature_unit", if (units == WeatherUnits.IMPERIAL) "fahrenheit" else "celsius")
                     .addQueryParameter("wind_speed_unit", if (units == WeatherUnits.IMPERIAL) "mph" else "ms")
                     .build()
                 okHttpClient.newCall(Request.Builder().url(url).build()).execute().use { response ->
                     if (!response.isSuccessful) error(if (response.code >= 500) "server_error" else "generic")
-                    val body = response.body?.string() ?: error("invalid_payload")
-                    val parsed = json.decodeFromString(OpenMeteoResponse.serializer(), body)
-                    toDayForecasts(parsed, units, System.currentTimeMillis() / 1000)
+                    parse(response.body?.string() ?: error("invalid_payload"))
                 }
             }
         }
@@ -74,6 +109,9 @@ class OpenMeteoForecastSource @Inject constructor(
             "temperature_2m,apparent_temperature,precipitation_probability,weather_code," +
                 "wind_speed_10m,wind_direction_10m,relative_humidity_2m,pressure_msl," +
                 "uv_index,shortwave_radiation,is_day,precipitation,snow_depth"
+        private const val CURRENT_FIELDS =
+            "temperature_2m,apparent_temperature,relative_humidity_2m,weather_code," +
+                "cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,visibility,is_day"
 
         private const val QUARTER_HOURS = 16
         private const val QUARTER_HOUR_SECONDS = 15 * 60L

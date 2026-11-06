@@ -32,9 +32,6 @@ Finished items move to Done at the bottom.
       card ("Storms from 4 PM, walk before 3"), and possibly the pets' hero line. Check that both
       forecast providers give thunderstorm codes hourly. Should storm hours also be dropped from
       suggested walks, like bad air? (10-30)
-- [ ] **My Location: prefer the city name** over the neighbourhood OpenWeather reports
-      ("Horinouchi" for central Tokyo). Needs a reverse-geocoding choice (Apple and Android's own
-      geocoders, or OpenWeather's reverse lookup). (10-30)
 - [ ] **Hourly card too tall when the rain chance is off screen.** Every hour keeps a line for
       the rain chance if any hour has one, so with rain only later in the day the hours on screen
       end in an empty band. With no rain at all it sizes correctly (checked 10-31). Better: the
@@ -222,6 +219,16 @@ noted. Checked against the code, not fixed yet.
 - [ ] OpenStreetMap tile policy: at scale, a commercial tile provider. (10-24)
 - [ ] The OpenWeather key ships in the app: watch usage on the dashboard, rotate via Remote Config
       if abused. (10-24)
+- [ ] **OpenWeather stays as the fallback** (decided 11-06). Since 11-06 it's only a backup: cities
+      saved by name only (no coordinates), the reading when Open-Meteo fails, everything when
+      `open_meteo_enabled` is off, and the city search fallback (all of search on Android until
+      SEARCH.md is built there). Removing it later would need Android's new search, a choice for
+      name-only cities (stop saving typed names, or look them up on update and ask to re-add the
+      ones not found), the Open-Meteo licence with nothing to switch to, and dropping the key, the
+      iOS build check, the CI secrets, `openweather_api_key`, the `openweather` search provider,
+      the Settings credit and the privacy policy mention. (11-06)
+- [ ] Privacy policy and store privacy answers: My Location's coordinates now also go to the
+      phone's place lookup (Apple's on iPhone, Google's on Android) to name it. (11-06)
 - [ ] Set `ios_app_store_url` in Remote Config to `https://apps.apple.com/app/id6827945995` once the
       app is live. Until then the iOS update screen has no Update button. (10-30)
 - [ ] Mac: the iPad app isn't offered on Apple silicon Macs. Try it on a Mac, then tick Mac
@@ -249,6 +256,11 @@ noted. Checked against the code, not fixed yet.
 - [ ] Check on a device: the Remote Config switches hiding notification types, the Walk time
       channel only appearing once you have a dog, and the 15-minute My Location check. (10-29)
 - [ ] The half-hourly refresh while the app stays open (an overnight test). (10-26)
+- [ ] With `open_meteo_enabled` off, check nothing breaks on both phones: the hero and Today tiles
+      (OpenWeather's reading, and My Location's name from it), the 3-hourly strip and days, the
+      walk card, the air quality tile and rain outlook (missing rather than broken), city search on
+      the OpenWeather fallback, and the 8:30 briefing. Only for your own phones: a Remote Config
+      condition on their app instances, or a debug build with the default flipped. (11-06)
 
 ## Infrastructure
 
@@ -298,6 +310,18 @@ noted. Checked against the code, not fixed yet.
 
 ## Done
 
+- [x] **The hero's reading from Open-Meteo** (11-06): in Knoxville the hero said 70°F and the
+      hourly strip 62 to 64°F. Both were working as built: the hero was OpenWeather's reading,
+      which leans on the nearest weather station (the airport, 12 km away, had 69.8°F), and the
+      strip is Open-Meteo's forecast for the exact spot, which matched it there. The hero, Feels
+      Like and the other Today tiles now take Open-Meteo's current reading for the spot, so they
+      agree with the strip; OpenWeather's reading is the backup when Open-Meteo fails or is
+      switched off. Open-Meteo gives no place name, so My Location is named by the phone's own
+      lookup (the town, else the county, else the state), kept until My Location moves 1 km, and
+      "My Location" when the lookup fails. That also settles "prefer the city name" over
+      OpenWeather's neighbourhood ("Horinouchi" for central Tokyo; Tokyo not checked yet). iOS
+      `Services/OpenMeteoCurrent.swift` and `PlaceNames.swift`, Android `OpenMeteoCurrent.kt` and
+      `PlaceNames.kt`.
 - [x] **Add location, a full screen of its own** (11-06): the search results sat under the
       keyboard in a sheet below the saved list. Manage Locations' Add location button and the
       empty weather screen now open a full screen with the results right under the field, the

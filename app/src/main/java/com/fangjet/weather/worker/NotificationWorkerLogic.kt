@@ -94,7 +94,7 @@ internal class NotificationWorkerLogic(
 
         val weather = fetchCurrentWeather(
             units,
-            // "My Location" has no city name of its own: an empty label lets the API's name for
+            // "My Location" has no city name of its own: an empty label lets the phone's name for
             // the place show ("57° in Mountain View"), as on the app's own screen.
             if (location.isCurrentLocation) "" else location.label,
             location.latitude,

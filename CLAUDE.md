@@ -57,9 +57,10 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
   routes onboarding and screens; `ui/pets/` has the moods, the scene and `WalkAdvisor`), `util/`
   (`StaleWeather`, `NextRain`, `TodayDetails` and other pure rules), `worker/`, `analytics/`, `di/`
   (Hilt).
-- **Forecasts.** Cities with coordinates get their forecast from Open-Meteo (hourly, UV, pavement
-  heat, the 15-minute precipitation behind `NextRain`, air quality in the same request); name-only
-  cities fall back to OpenWeather's 3-hourly forecast. Open-Meteo's WMO codes are mapped to
+- **Forecasts.** Cities with coordinates get their current reading and forecast from Open-Meteo
+  (hourly, UV, pavement heat, the 15-minute precipitation behind `NextRain`, air quality in the
+  same request), with OpenWeather's reading as the backup and My Location named by the phone
+  (`DevicePlaceNames`); name-only cities fall back to OpenWeather's reading and 3-hourly forecast. Open-Meteo's WMO codes are mapped to
   OpenWeather-style condition and icon codes, so moods and icons work the same for both.
 - **Cache first.** Cached weather and forecast paint at once and stay on screen if a refresh fails;
   `util/StaleWeather.kt` decides how an old reading is shown.

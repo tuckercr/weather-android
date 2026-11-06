@@ -27,8 +27,15 @@ class WeatherRepository @Inject constructor(
     private val forecastSourcePolicy: ForecastSourcePolicy = ForecastSourcePolicy.OpenMeteoPreferred,
     // Hourly air quality for the tile and the walk planner; null leaves it out (tests).
     private val airQuality: AirQualitySource? = null,
+    // Names My Location when its reading comes from Open-Meteo.
+    private val placeNames: PlaceNaming = PlaceNaming.None,
 ) {
 
+    /**
+     * With coordinates, Open-Meteo's reading for the exact spot, which agrees with the hourly strip.
+     * OpenWeather's is the backup: when Open-Meteo fails or Remote Config switches it off, and for
+     * name-only cities. An empty [locationLabel] (My Location) is named by the phone.
+     */
     suspend fun fetchCurrentWeather(
         units: WeatherUnits,
         locationLabel: String = "",
@@ -36,6 +43,9 @@ class WeatherRepository @Inject constructor(
         latitude: Double? = null,
         longitude: Double? = null,
     ): Result<CurrentWeather> {
+        if (latitude != null && longitude != null && openMeteoEnabled()) {
+            openMeteoCurrent(units, locationLabel, latitude, longitude)?.let { return Result.success(it) }
+        }
         val key = apiKey.trim()
         if (key.isEmpty()) {
             return Result.failure(IllegalStateException("missing_api_key"))
@@ -122,6 +132,24 @@ class WeatherRepository @Inject constructor(
             )
             mapForecast(response, units)
         }.mapApiFailure()
+    }
+
+    /**
+     * Null when Open-Meteo fails or sends no reading. The place is named only after a reading
+     * arrives, so a failure doesn't spend one of the phone's lookups.
+     */
+    private suspend fun openMeteoCurrent(
+        units: WeatherUnits,
+        locationLabel: String,
+        latitude: Double,
+        longitude: Double,
+    ): CurrentWeather? {
+        val response = openMeteo.fetchCurrent(units, latitude, longitude).getOrNull() ?: return null
+        val weather = OpenMeteoCurrent.weather(response, units, cityName = "") ?: return null
+        val cityName = locationLabel.trim().ifEmpty {
+            runCatching { placeNames.name(latitude, longitude) }.getOrNull() ?: PlaceNaming.MY_LOCATION_LABEL
+        }
+        return weather.copy(cityName = cityName)
     }
 
     /** A failing policy never breaks forecasts: fall back to the default, Open-Meteo. */
