@@ -44,7 +44,9 @@ Finished items move to Done at the bottom.
       keyboard, especially when more than one city is already saved (the saved list sits above
       them in the sheet). Consider making Add City a full-screen screen of its own, with the
       search field at the top and the results right under it. How search itself ranks results is
-      in SEARCH.md. (11-05)
+      in SEARCH.md. When it's designed, show what Add will do before it's tapped: label the button
+      with the place it would add ("Add Malmö, SE") or highlight that row, and say when it would
+      ask for a pick instead. (11-05)
 - [ ] **Review analytics, and add parameters where they'd help.** Only four events today, three
       with no parameters. Worth knowing: which permissions are granted (notifications, location,
       "Allow all the time" for Follow my location) from onboarding and from Settings; how cities

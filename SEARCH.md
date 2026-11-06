@@ -221,8 +221,9 @@ Reviewed and agreed 11-05; not built yet. The details are in the sections below.
 3. **Sorting on the phone:** the phone's country first, then same-name places nearest to My
    Location first, with a size guard (`city_search_size_ratio`, 20) so Paris, France stays above
    Paris, Texas. No sorting on the OpenWeather fallback.
-4. **Add with nothing tapped** takes the first row whose name matches what was typed, otherwise
-   asks for a pick. **Already saved** is a label match or within 2 km, My Location aside.
+4. **Add with nothing tapped** takes the first row whose name matches what was typed, accents
+   ignored, unless a row above it is `city_search_size_ratio` times bigger; otherwise it asks for
+   a pick. **Already saved** is a label match or within 2 km, My Location aside.
 5. **US ZIP codes** work; other postcodes search nothing, but town names with a number in them
    (100 Mile House) still search.
 6. **Copy:** "town or city" to search, "location" for what's saved; the strings are approved.
@@ -245,7 +246,7 @@ in-app default and validation, so a bad console value falls back instead of brea
 | `city_search_results` | number | `8` | Most suggestions shown; whole number, valid 3–10. OpenWeather never returns more than 5 |
 | `city_search_country_first` | boolean | `true` | Suggestions in the phone's country go first, otherwise in the provider's order |
 | `city_search_nearest_first` | boolean | `true` | Places with the same name are listed nearest first, measured from My Location when it's saved (no location is read for this) |
-| `city_search_size_ratio` | number | `20` | Neither rule above can lift a place above one this many times its population, so a US phone still gets Paris, France before Paris, Texas (86×). Whole number, valid 2–1000; `0` turns the guard off. Anything else uses the default |
+| `city_search_size_ratio` | number | `20` | Neither rule above can lift a place above one this many times its population, so a US phone still gets Paris, France before Paris, Texas (86×). Whole number, valid 2–1000; `0` turns the guard off. Anything else uses the default. The same ratio limits which row Add takes with nothing tapped ([Add with nothing picked](#add-with-nothing-picked)) |
 | `city_search_delay_ms` | number | `280` | Wait after the last keystroke before searching; whole number, valid 100–1000. Raising it cuts calls if usage gets close to a quota. New key: today the 280 is fixed in code ([GeoLocationViewModel.kt:67](app/src/main/java/com/fangjet/weather/model/GeoLocationViewModel.kt:67)) |
 
 Left out on purpose: the minimum query length (2 is right for both providers: Open-Meteo matches
@@ -380,9 +381,26 @@ Decided 11-05. With prefix search, the top row can be a different place from wha
 puts Nashville first), so Add stops guessing from a fragment:
 
 - **A list is showing:** Add takes the first row whose name matches what was typed, ignoring case,
-  accents and anything after a comma (that part is matched as in [Copy](#copy)). "Paris" adds the
-  first Paris in the sorted list (France, thanks to the size guard). "Nas" matches no row, so Add
-  shows "Pick a town or city from the list" (new string, `add_pick_from_list`) and adds nothing.
+  accents and anything after a comma (that part is matched as in [Copy](#copy)), unless a row
+  above it has at least `city_search_size_ratio` times its population (decided 11-05). That's the
+  size guard's rule, so a matching row with no population isn't taken past one that has one, and
+  with the guard off (`0`) Add takes the first matching row. Otherwise Add shows "Pick a town or
+  city from the list" (new string, `add_pick_from_list`) and adds nothing.
+- **Accents are never needed.** Matching them exactly first was considered and rejected: small
+  places spelled exactly as typed sit below the city people mean ("Malmo" has small US Malmos
+  under Malmö, "Cancun" an exact "Cancun" fifth). The size check is what keeps "Nas" from adding
+  Nås, Sweden.
+- Checked live (11-05, Open-Meteo, the eight rows shown after filtering and sorting, on a UK and a
+  US phone):
+
+  | Typed | UK phone | US phone |
+  |---|---|---|
+  | Paris | Paris, France | Paris, France |
+  | Sao Paulo, Malmo, Cancun | São Paulo, Malmö, Cancún (the top row) | The same |
+  | Bath | Bath, England (top, country first) | Asks: Bath, Maine is second, under Bathinda (34× bigger) |
+  | Nas | Asks: its only match, Nås, Sweden (205 people), is eighth, under Nashik (over 7,000× bigger) | Asks: no match among the eight |
+  | Nash | Asks: Nash, Texas (3,141) is third, under Nashik | Asks: under Nashville (219× bigger) |
+  | Koln | Asks: Cologne is the top row, but no row is named Koln | The same |
 - **No list** (offline, or the search failed): the typed name is saved without coordinates, as
   today.
 - **Filling in coordinates later** (`CityListViewModel.addLocation` and
@@ -390,6 +408,8 @@ puts Nashville first), so Add stops guessing from a fragment:
   filtering and sorting, and the phone's region. No matching row leaves the location name-only,
   on OpenWeather's forecast by name, as today.
 - A tapped suggestion is added as it is, as today.
+- How the screen shows which row Add would take (the button's label or a highlighted row) is left
+  to the full-screen Add location screen (NOTES.md).
 
 ### Where the code goes
 
