@@ -6,7 +6,14 @@
     <string name="action_try_again">Try again</string>
     <string name="cd_navigate_back">Back</string>
     <string name="label_feels_like">Feels Like</string>
-    <string name="label_humidity">Humidity</string>
+    <string name="label_fluff_factor">Fluff Factor</string>
+    <string name="format_humidity_spoken">Humidity %1$d%%</string>
+    <string name="fluff_dry">Dry air, static fur</string>
+    <string name="fluff_comfy">Misty\'s fur is behaving</string>
+    <string name="fluff_sticky">Misty\'s fluffing up</string>
+    <string name="fluff_muggy_dog">Puffy fur, panting pup</string>
+    <string name="fluff_muggy">Misty\'s getting puffy</string>
+    <string name="fluff_soupy">Misty has gone full floof</string>
     <string name="label_wind">Wind</string>
     <!-- Today's high and low on the top card, in whole degrees: "H 64° · L 61°". -->
     <string name="label_temp_range">H %1$d° · L %2$d°</string>

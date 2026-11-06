@@ -197,6 +197,34 @@ private val NUMBER_BEFORE_UNIT = Regex("""(\d)[ \u202F](?=°|%|mph\b|m/s|km\b|mi
  */
 fun keepUnitsTogether(text: String): String = text.replace(NUMBER_BEFORE_UNIT, "$1\u00A0")
 
+/**
+ * The Fluff Factor tile's bands. Misty's fur goes from sleek to full floof, with static sparks in
+ * dry air. Same bands as iOS's `TodayDetails.FluffLevel`.
+ */
+enum class FluffLevel { DRY, COMFY, STICKY, MUGGY, SOUPY }
+
+/** Below this humidity the air is dry enough for static. */
+private const val DRY_BELOW_PERCENT = 35
+
+/**
+ * Mugginess goes by the dew point (humidity alone rises and falls with the temperature): sticky
+ * from 16 °C (61 °F), muggy from 18 °C (64 °F), soupy from 21 °C (70 °F). Below that, the air is
+ * dry under 35% humidity, when fur crackles with static, and comfy otherwise (cool, damp air
+ * included). No dew point means 0% humidity.
+ */
+fun fluffLevel(
+    dewPointC: Double?,
+    humidityPercent: Int,
+): FluffLevel =
+    when {
+        dewPointC == null -> FluffLevel.DRY
+        dewPointC >= 21.0 -> FluffLevel.SOUPY
+        dewPointC >= 18.0 -> FluffLevel.MUGGY
+        dewPointC >= 16.0 -> FluffLevel.STICKY
+        humidityPercent < DRY_BELOW_PERCENT -> FluffLevel.DRY
+        else -> FluffLevel.COMFY
+    }
+
 /** Dew point in Celsius (Magnus formula); null when the humidity is 0, where it's undefined. */
 fun dewPointC(
     temperatureC: Double,
