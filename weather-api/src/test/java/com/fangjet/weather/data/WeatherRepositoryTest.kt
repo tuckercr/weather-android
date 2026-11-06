@@ -449,7 +449,7 @@ class WeatherRepositoryTest {
                         humidity = 88,
                         pressure = 1005,
                     ),
-                    wind = WindDto(speed = 3.6, deg = 200),
+                    wind = WindDto(speed = 3.6, deg = 200, gust = 6.1),
                     visibility = 8000,
                     clouds = CloudsDto(all = 90),
                 ),
@@ -466,6 +466,7 @@ class WeatherRepositoryTest {
             assertEquals(1005, weather.pressureHpa)
             assertEquals(3.6, weather.windSpeed, 0.001)
             assertEquals(200, weather.windDeg)
+            assertEquals(6.1, weather.windGust ?: 0.0, 0.001)
             assertEquals(8000, weather.visibilityMeters)
             assertEquals(90, weather.cloudPercent)
             assertEquals(10.0, weather.tempMin, 0.001)
@@ -900,6 +901,6 @@ class WeatherRepositoryTest {
 internal const val OPEN_METEO_CURRENT_BODY =
     """{"utc_offset_seconds":-18000,"current":{"time":1793986200,"interval":900,"temperature_2m":63.3,
     "apparent_temperature":63.8,"relative_humidity_2m":62,"weather_code":0,"cloud_cover":5,
-    "pressure_msl":1014.8,"wind_speed_10m":1.1,"wind_direction_10m":267,"visibility":29300.0,"is_day":1},
+    "pressure_msl":1014.8,"wind_speed_10m":1.1,"wind_direction_10m":267,"wind_gusts_10m":9.8,"visibility":29300.0,"is_day":1},
     "daily":{"time":[1793941200],"sunrise":[1793966580],"sunset":[1794004500],
     "temperature_2m_max":[65.6],"temperature_2m_min":[48.0]}}"""
