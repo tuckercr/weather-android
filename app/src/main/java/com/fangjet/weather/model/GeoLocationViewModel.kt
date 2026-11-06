@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fangjet.weather.data.GeocodingRepository
 import com.fangjet.weather.domain.CitySuggestion
-import com.fangjet.weather.domain.SavedLocation
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -28,36 +27,21 @@ class GeoLocationViewModel @Inject constructor(
     private val _citySuggestLoading = MutableStateFlow(false)
     val citySuggestLoading: StateFlow<Boolean> = _citySuggestLoading.asStateFlow()
 
-    /** Set after user picks a geocoder suggestion; cleared when the input field changes. */
-    private val _selectedSuggestion = MutableStateFlow<CitySuggestion?>(null)
-    val selectedSuggestion: StateFlow<CitySuggestion?> = _selectedSuggestion.asStateFlow()
+    /**
+     * The last search failed (offline, say), as opposed to finding nothing, so Add location can
+     * save the typed name instead. Cleared when the text changes.
+     */
+    private val _searchFailed = MutableStateFlow(false)
+    val searchFailed: StateFlow<Boolean> = _searchFailed.asStateFlow()
 
     private var suggestJob: Job? = null
 
-    /**
-     * What Add city adds: the picked suggestion, otherwise the top one showing, otherwise the typed
-     * name (its coordinates are looked up later, so a city can be added offline). Null with nothing
-     * typed.
-     */
-    fun locationToAdd(): SavedLocation? {
-        val suggestion = _selectedSuggestion.value ?: _citySuggestions.value.firstOrNull()
-        if (suggestion != null) {
-            return SavedLocation(
-                label = suggestion.label,
-                latitude = suggestion.weatherLat,
-                longitude = suggestion.weatherLon,
-            )
-        }
-        val typed = _cityInput.value.trim()
-        return if (typed.isEmpty()) null else SavedLocation(label = typed, latitude = null, longitude = null)
-    }
-
     fun onCityInputChange(value: String) {
         _cityInput.value = value
-        _selectedSuggestion.value = null
+        _searchFailed.value = false
         suggestJob?.cancel()
         val trimmed = value.trim()
-        if (trimmed.length < 2) {
+        if (trimmed.length < MIN_SEARCH_LENGTH) {
             _citySuggestions.value = emptyList()
             _citySuggestLoading.value = false
             return
@@ -76,28 +60,7 @@ class GeoLocationViewModel @Inject constructor(
             }
             _citySuggestLoading.value = false
             _citySuggestions.value = result.getOrElse { emptyList() }
+            _searchFailed.value = result.isFailure
         }
-    }
-
-    fun onCitySuggestionChosen(suggestion: CitySuggestion) {
-        suggestJob?.cancel()
-        _citySuggestions.value = emptyList()
-        _citySuggestLoading.value = false
-        _selectedSuggestion.value = suggestion
-        _cityInput.value = suggestion.label
-    }
-
-    fun dismissSuggestions() {
-        suggestJob?.cancel()
-        _citySuggestions.value = emptyList()
-        _citySuggestLoading.value = false
-    }
-
-    fun reset() {
-        suggestJob?.cancel()
-        _cityInput.value = ""
-        _citySuggestions.value = emptyList()
-        _citySuggestLoading.value = false
-        _selectedSuggestion.value = null
     }
 }

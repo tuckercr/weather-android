@@ -24,36 +24,44 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.notificationIndex
-import com.fangjet.weather.model.GeoLocationViewModel
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+/**
+ * Manage Locations: reorder and remove, and the Add location button, which opens the full-screen
+ * [AddLocationRoute]. [locationAdded] is the name of a location just added there, confirmed here
+ * once ("Malmö added") and then cleared with [onLocationAddedShown].
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocationsRoute(
@@ -61,57 +69,18 @@ fun LocationsRoute(
     onReorder: (fromIndex: Int, toIndex: Int) -> Unit,
     onRemove: (index: Int) -> Unit,
     onNavigateBack: () -> Unit,
-    geoViewModel: GeoLocationViewModel,
-    cityListViewModel: com.fangjet.weather.model.CityListViewModel,
+    onAddLocation: () -> Unit,
+    locationAdded: String? = null,
+    onLocationAddedShown: () -> Unit = {},
 ) {
-    var showAddSheet by remember { mutableStateOf(false) }
-
-    val cityInput by geoViewModel.cityInput.collectAsStateWithLifecycle()
-    val suggestions by geoViewModel.citySuggestions.collectAsStateWithLifecycle()
-    val suggestLoading by geoViewModel.citySuggestLoading.collectAsStateWithLifecycle()
-    val selectedSuggestion by geoViewModel.selectedSuggestion.collectAsStateWithLifecycle()
-
-    val addMyLocation = rememberAddMyLocation(
-        locations = locations,
-        onLocated = cityListViewModel::addLocation,
-    )
-
-    if (showAddSheet) {
-        val sheetState = rememberModalBottomSheetState()
-        ModalBottomSheet(
-            onDismissRequest = {
-                geoViewModel.reset()
-                showAddSheet = false
-            },
-            sheetState = sheetState,
-        ) {
-            AddCitySheetContent(
-                savedLocations = locations,
-                cityInput = cityInput,
-                suggestions = suggestions,
-                suggestLoading = suggestLoading,
-                selectedSuggestion = selectedSuggestion,
-                onCityInputChange = geoViewModel::onCityInputChange,
-                onSuggestionChosen = geoViewModel::onCitySuggestionChosen,
-                onAddCity = {
-                    geoViewModel.locationToAdd()?.let(cityListViewModel::addLocation)
-                    geoViewModel.reset()
-                    showAddSheet = false
-                },
-                onRemoveSaved = cityListViewModel::removeLocation,
-                onAddMyLocation = addMyLocation?.let { add ->
-                    {
-                        add()
-                        geoViewModel.reset()
-                        showAddSheet = false
-                    }
-                },
-                onDismiss = {
-                    geoViewModel.reset()
-                    showAddSheet = false
-                },
-            )
-        }
+    val snackbarHostState = remember { SnackbarHostState() }
+    // Outlives the effect below, which restarts when the name is cleared.
+    val scope = rememberCoroutineScope()
+    val resources = LocalResources.current
+    LaunchedEffect(locationAdded) {
+        val name = locationAdded ?: return@LaunchedEffect
+        onLocationAddedShown()
+        scope.launch { snackbarHostState.showSnackbar(resources.getString(R.string.format_location_added, name)) }
     }
 
     Scaffold(
@@ -126,21 +95,15 @@ fun LocationsRoute(
                         )
                     }
                 },
-                actions = {
-                    IconButton(onClick = { showAddSheet = true }) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = stringResource(R.string.cd_add_location),
-                        )
-                    }
-                },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         DraggableLocationList(
             locations = locations,
             onReorder = onReorder,
             onRemove = onRemove,
+            onAddLocation = onAddLocation,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
@@ -154,6 +117,7 @@ internal fun DraggableLocationList(
     onReorder: (fromIndex: Int, toIndex: Int) -> Unit,
     onRemove: (index: Int) -> Unit,
     modifier: Modifier = Modifier,
+    onAddLocation: (() -> Unit)? = null,
 ) {
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
@@ -318,6 +282,18 @@ internal fun DraggableLocationList(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 6.dp),
             )
+        }
+        if (onAddLocation != null) {
+            OutlinedButton(
+                onClick = onAddLocation,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(stringResource(R.string.action_add_city))
+            }
         }
     }
 }
