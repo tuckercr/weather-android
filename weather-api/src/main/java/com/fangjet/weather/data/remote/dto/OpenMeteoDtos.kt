@@ -24,6 +24,36 @@ data class OpenMeteoDailyDto(
     @SerialName("time") val time: List<Long> = emptyList(),
     @SerialName("sunrise") val sunrise: List<Long?> = emptyList(),
     @SerialName("sunset") val sunset: List<Long?> = emptyList(),
+    // Asked for only with the current reading, for the day's high and low.
+    @SerialName("temperature_2m_max") val temperatureMax: List<Double?> = emptyList(),
+    @SerialName("temperature_2m_min") val temperatureMin: List<Double?> = emptyList(),
+)
+
+/**
+ * Response of Open-Meteo's /v1/forecast asked for the `current` reading and today's `daily` values,
+ * with `timeformat=unixtime` and `timezone=auto`.
+ */
+@Serializable
+data class OpenMeteoCurrentResponse(
+    @SerialName("utc_offset_seconds") val utcOffsetSeconds: Int = 0,
+    @SerialName("current") val current: OpenMeteoCurrentDto = OpenMeteoCurrentDto(),
+    @SerialName("daily") val daily: OpenMeteoDailyDto = OpenMeteoDailyDto(),
+)
+
+/** The model's reading for the current 15 minutes, starting at [time]. Visibility is in metres whatever the units. */
+@Serializable
+data class OpenMeteoCurrentDto(
+    @SerialName("time") val time: Long? = null,
+    @SerialName("temperature_2m") val temperature: Double? = null,
+    @SerialName("apparent_temperature") val apparentTemperature: Double? = null,
+    @SerialName("relative_humidity_2m") val relativeHumidity: Int? = null,
+    @SerialName("weather_code") val weatherCode: Int? = null,
+    @SerialName("cloud_cover") val cloudCover: Int? = null,
+    @SerialName("pressure_msl") val seaLevelPressure: Double? = null,
+    @SerialName("wind_speed_10m") val windSpeed: Double? = null,
+    @SerialName("wind_direction_10m") val windDirection: Int? = null,
+    @SerialName("visibility") val visibility: Double? = null,
+    @SerialName("is_day") val isDay: Int? = null,
 )
 
 /**

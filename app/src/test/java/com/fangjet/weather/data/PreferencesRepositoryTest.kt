@@ -123,6 +123,28 @@ class PreferencesRepositoryTest {
             assertEquals("Paris", prefs.lastCity.first())
         }
 
+    @Test
+    fun `My Location's fallback name never becomes the last city`() =
+        runTest {
+            val prefs = repository()
+
+            prefs.setLastCity("Paris")
+            prefs.setLastCity("My Location")
+
+            assertEquals("Paris", prefs.lastCity.first())
+        }
+
+    @Test
+    fun `My Location's place name is remembered with where it was looked up`() =
+        runTest {
+            val prefs = repository()
+            assertNull(prefs.rememberedPlaceName())
+
+            prefs.setRememberedPlaceName(DevicePlaceNames.Remembered("Knoxville", 35.9168, -83.9597))
+
+            assertEquals(DevicePlaceNames.Remembered("Knoxville", 35.9168, -83.9597), prefs.rememberedPlaceName())
+        }
+
     // --- weather and forecast caches ---
 
     @Test

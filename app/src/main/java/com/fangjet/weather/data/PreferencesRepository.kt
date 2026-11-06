@@ -72,7 +72,20 @@ class PreferencesRepository internal constructor(
     }
 
     suspend fun setLastCity(cityName: String) {
+        // My Location's name when the phone couldn't name it: no city to look up if the list is
+        // ever rebuilt from this.
+        if (cityName == PlaceNaming.MY_LOCATION_LABEL) return
         dataStore.edit { it[KEY_LAST_CITY] = cityName }
+    }
+
+    /** My Location's last name from the phone's lookup, with where it was looked up ([DevicePlaceNames]). */
+    suspend fun rememberedPlaceName(): DevicePlaceNames.Remembered? =
+        dataStore.data.first()[KEY_MY_LOCATION_PLACE_NAME]?.let { raw ->
+            runCatching { json.decodeFromString<DevicePlaceNames.Remembered>(raw) }.getOrNull()
+        }
+
+    suspend fun setRememberedPlaceName(remembered: DevicePlaceNames.Remembered) {
+        dataStore.edit { it[KEY_MY_LOCATION_PLACE_NAME] = json.encodeToString(remembered) }
     }
 
     suspend fun setSavedLocations(locations: List<SavedLocation>) {
@@ -254,5 +267,6 @@ class PreferencesRepository internal constructor(
         private val KEY_FOLLOW_MY_LOCATION = booleanPreferencesKey("follow_my_location")
         private val KEY_LAST_RAIN_ALERT_START = longPreferencesKey("last_rain_alert_start")
         private val KEY_UPDATE_BANNER_DISMISSED_AT = longPreferencesKey("update_banner_dismissed_at")
+        private val KEY_MY_LOCATION_PLACE_NAME = stringPreferencesKey("my_location_place_name")
     }
 }

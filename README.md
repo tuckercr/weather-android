@@ -20,8 +20,8 @@ WorkManager, and CI on GitHub Actions.
 
 - **Current conditions** for any city: temperature, feels-like, today's high and low (from the
   day's forecast, over all of its hours), humidity, wind
-  speed and direction ("0 mph", with no direction, when calm), visibility ("Clear" at
-  OpenWeather's 10 km cap), cloud cover, UV index (daytime, from Open-Meteo), and sunrise/sunset.
+  speed and direction ("0 mph", with no direction, when calm), visibility ("Clear" from
+  10 km), cloud cover, UV index (daytime, from Open-Meteo), and sunrise/sunset.
 - **Pets that react to the weather**: Sunny the dog and Misty the cat, drawn in Compose, whose scene
   and caption follow the conditions (sunny, cloudy, rain, storm, snow, hot, cold, night). Captions
   name them ("Sunny wants puddles. Misty wants a towel."), and at night follow the city's time of
@@ -209,6 +209,12 @@ emulator with a clean status bar:
 3. **Current Weather**: shows the active city's conditions, an hourly strip, an animated
    precipitation radar, the pets and best walk time, and the upcoming days inline. Switch between
    saved cities with the tabs or pull to refresh. With no locations yet, it offers *Add location*.
+   For cities with coordinates the conditions are Open-Meteo's current reading for the spot, so
+   they agree with the hourly strip; OpenWeatherMap's `data/2.5/weather` reading is the backup
+   when Open-Meteo fails or `open_meteo_enabled` is off, and serves cities saved by name only. My
+   Location is named by the phone's own lookup (Android's `Geocoder`): the town, else the county,
+   else the state, kept until My Location moves 1 km (`DevicePlaceNames`), and "My Location"
+   when the lookup fails.
 4. **Add location**: a full screen, opened from *Add location* in Manage Locations or on the empty
    weather screen, and closed with its X. Results from the
    [Geocoding API](https://openweathermap.org/api/geocoding-api) appear right under the field, the
@@ -358,7 +364,7 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `rain_outlook_hours` | number | `10` | Hours the rain outlook charts, from the current one; whole number, valid 6–12 |
 | `rain_outlook_min_chance` | number | `20` | The rain outlook only shows when some hour reaches this rain chance (%), which is also the chance from which an hour counts as wet ("Drying out after …"); whole number, valid 1–100 |
 | `temperature_units_shown` | boolean | `true` | Shows the unit with temperatures ("89 °F"); false shows "89°" wherever a temperature carries its unit: the hero, week rows, day details, and the Feels Like, Humidity and Paw Check tiles ("About 81°"). Temperatures already shown without one (the hero's high and low, the hourly strip, the walk card, notifications) stay as they are, and the units themselves don't change. See [Units](#units) |
-| `open_meteo_enabled` | boolean | `true` | Forecasts for cities with coordinates come from Open-Meteo; false falls back to the OpenWeatherMap 3-hourly forecast by lat/lon (foreground, background refresh, and notifications) |
+| `open_meteo_enabled` | boolean | `true` | The current reading and forecasts for cities with coordinates come from Open-Meteo; false falls back to OpenWeatherMap's reading and 3-hourly forecast by lat/lon (foreground, background refresh, and notifications) |
 | `air_quality_enabled` | boolean | `true` | Fetches hourly air quality alongside the Open-Meteo forecast; false hides the Air quality tile and the walk planner ignores the air |
 | `openweather_api_key` | string | `""` | Replacement OpenWeather API key, used from the next app start; empty uses the key built into the app. Lets a leaked key be rotated without an update. Not secret: Remote Config values reach every device |
 | `android_min_supported_version` | string | `""` | Below this version (e.g. `1.1`) the app shows only "Time for an update" until it's updated. Empty never asks. iOS has its own key |
@@ -432,7 +438,8 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:weather-api` | `OpenWeatherParsingTest` | Kotlinx Serialization parsing of OpenWeatherMap current-weather and forecast payloads, including the UTC offset |
 | `:weather-api` | `GeocodingDirectParsingTest` | Geocoding payload parsing when `state` is omitted |
 | `:weather-api` | `GeocodingRepositoryTest` | City search: input trimming, label formatting (and the name, rest of the label and short label Add location shows), short-query and missing-key short-circuits, failure wrapping |
-| `:weather-api` | `WeatherRepositoryTest` | Repository contract: coordinate routing (incl. `open_meteo_enabled` on/off and a failing `ForecastSourcePolicy`), city-query trimming, error mapping |
+| `:weather-api` | `WeatherRepositoryTest` | Repository contract: coordinate routing (incl. `open_meteo_enabled` on/off and a failing `ForecastSourcePolicy`), Open-Meteo's reading with OpenWeather as the backup, My Location's name, city-query trimming, error mapping |
+| `:weather-api` | `OpenMeteoCurrentTest` | Open-Meteo's current reading mapped for the hero, today's range holding the reading |
 | `:weather-api` | `RadarRepositoryTest` | RainViewer timeline parsing, past/nowcast frame ordering, and tile URLs |
 | `:weather-api` | `CurrentWeatherTest` | UTC-offset handling, including caches written before the offset existed |
 | `:weather-api` | `WeatherUnitsTest` | Celsius conversion and locale-to-unit mapping (US and territories imperial, others metric) |
@@ -447,6 +454,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `MoonPhaseTest` | The moon's phase from the date, checked against published phases |
 | `:app` | `WeatherIconTest` | Icon for each condition by day and night, moon phases, and southern-hemisphere mirroring |
 | `:app` | `CalmWindTest` | Calm wind reads as 0, and visibility at the 10 km cap reads as clear |
+| `:app` | `DevicePlaceNamesTest` | My Location's name kept until it moves 1 km, failed lookups tried again |
 | `:app` | `TemperatureTextTest` | Temperatures with and without their unit (`temperature_units_shown`): both unit systems, negatives, the same whole degrees either way, and inside "About …" and "Dew point …" |
 | `:app` | `DistanceUnitsTest` | Visibility in miles or km: the unit choice, or the measurement system for "System default" |
 | `:app` | `AppConfigModuleTest` | The OpenWeather key: a Remote Config replacement wins over the built-in key |

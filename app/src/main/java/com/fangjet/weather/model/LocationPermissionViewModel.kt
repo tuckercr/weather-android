@@ -8,6 +8,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.fangjet.weather.data.PlaceNaming
 import com.fangjet.weather.domain.SavedLocation
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.LocationServices
@@ -122,7 +123,7 @@ class LocationPermissionViewModel internal constructor(
                     Timber.d("fetchLocation: success lat=${location.latitude} lon=${location.longitude}")
                     _state.value = LocationFetchState.Located(
                         SavedLocation(
-                            label = "My Location",
+                            label = PlaceNaming.MY_LOCATION_LABEL,
                             latitude = location.latitude,
                             longitude = location.longitude,
                             isCurrentLocation = true,
