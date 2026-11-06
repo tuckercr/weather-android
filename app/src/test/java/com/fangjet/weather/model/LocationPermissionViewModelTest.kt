@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -112,6 +113,32 @@ class LocationPermissionViewModelTest {
             assertEquals(LocationFetchState.Failed, viewModel.state.value)
             assertEquals(1, fetcher.lastLocationCallCount)
             assertEquals(1, fetcher.currentLocationCallCount)
+        }
+
+    @Test
+    fun `currentPosition asks for a fresh fix, not the last known one, and leaves the state alone`() =
+        runTest {
+            val fetcher = FakeLocationFetcher(
+                lastLocation = DeviceLocation(35.96, -83.92),
+                currentLocation = DeviceLocation(36.03, -84.1),
+            )
+            val viewModel = viewModel(locationFetcher = fetcher)
+
+            val here = viewModel.currentPosition()
+
+            assertEquals(SavedLocation("My Location", 36.03, -84.1, isCurrentLocation = true), here)
+            assertEquals(0, fetcher.lastLocationCallCount)
+            assertEquals(LocationFetchState.Idle, viewModel.state.value)
+        }
+
+    @Test
+    fun `currentPosition is null without permission or a fix`() =
+        runTest {
+            val fetcher = FakeLocationFetcher(currentLocation = DeviceLocation(36.03, -84.1))
+
+            assertNull(viewModel(hasLocationPermission = false, locationFetcher = fetcher).currentPosition())
+            assertEquals(0, fetcher.currentLocationCallCount)
+            assertNull(viewModel(locationFetcher = FakeLocationFetcher()).currentPosition())
         }
 
     @Test

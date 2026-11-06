@@ -98,6 +98,22 @@ class LocationPermissionViewModel internal constructor(
         _state.value = LocationFetchState.PermissionDenied
     }
 
+    /**
+     * The device's position now, waited for, for pull to refresh on My Location: a fresh fix (at most
+     * 30 seconds old), not the last known one, which can be from anywhere. Null without permission
+     * or a fix. Leaves [state] alone. Same as iOS's `currentPosition`.
+     */
+    suspend fun currentPosition(): SavedLocation? {
+        if (!hasLocationPermission()) return null
+        val location = runCatching { locationFetcher.tryCurrentLocation() }.getOrNull() ?: return null
+        return SavedLocation(
+            label = PlaceNaming.MY_LOCATION_LABEL,
+            latitude = location.latitude,
+            longitude = location.longitude,
+            isCurrentLocation = true,
+        )
+    }
+
     fun fetchLocation() {
         if (!hasLocationPermission()) {
             Timber.w("fetchLocation called but permission not granted")
