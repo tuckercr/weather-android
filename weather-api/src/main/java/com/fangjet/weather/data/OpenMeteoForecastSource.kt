@@ -111,7 +111,7 @@ class OpenMeteoForecastSource @Inject constructor(
                 "uv_index,shortwave_radiation,is_day,precipitation,snow_depth"
         private const val CURRENT_FIELDS =
             "temperature_2m,apparent_temperature,relative_humidity_2m,weather_code," +
-                "cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,visibility,is_day"
+                "cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility,is_day"
 
         private const val QUARTER_HOURS = 16
         private const val QUARTER_HOUR_SECONDS = 15 * 60L

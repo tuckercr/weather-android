@@ -50,13 +50,10 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.AirQuality
 import com.fangjet.weather.domain.CurrentWeather
@@ -86,6 +83,7 @@ import com.fangjet.weather.util.dewPointC
 import com.fangjet.weather.util.feelsLikeBand
 import com.fangjet.weather.util.feelsLikeBarPosition
 import com.fangjet.weather.util.feelsLikeGap
+import com.fangjet.weather.util.gustWorthMentioning
 import com.fangjet.weather.util.keepUnitsTogether
 import com.fangjet.weather.util.pavementBand
 import com.fangjet.weather.util.pawScaleStep
@@ -94,6 +92,7 @@ import com.fangjet.weather.util.uvLine
 import com.fangjet.weather.util.visibilityBand
 import com.fangjet.weather.util.visibilityDistance
 import com.fangjet.weather.util.windForce
+import com.fangjet.weather.util.windsockDroopDegrees
 import kotlin.math.roundToInt
 
 /**
@@ -329,6 +328,7 @@ private fun FeelsLikeBand.nameRes(): Int =
         FeelsLikeBand.HOT -> R.string.feels_like_hot
     }
 
+/** The speed beside a windsock whose droop shows the strength, with where the wind comes from and any gusts that stand out underneath. */
 @Composable
 private fun WindTile(
     weather: CurrentWeather,
@@ -337,66 +337,88 @@ private fun WindTile(
     val force = windForce(weather.windSpeed, weather.units)
     val calm = force == WindForce.CALM || isCalmWind(weather.windSpeed, weather.units)
     Tile(Icons.Default.Air, stringResource(R.string.label_wind), modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            WindCompass(
-                fromDegrees = weather.windDeg.takeUnless { calm },
-                modifier = Modifier.size(36.dp),
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
             TileValue(formatWind(weather.windSpeed, weather.units))
+            Spacer(Modifier.weight(1f))
+            Windsock(
+                droopDegrees = windsockDroopDegrees(weather.windSpeed, weather.units),
+                modifier = Modifier.size(40.dp),
+            )
         }
-        // The arrow shows the direction, so the note is just the wind's name; TalkBack, which can't
-        // see the arrow, hears the direction too.
-        TileNote(
-            if (calm) stringResource(R.string.wind_calm) else stringResource(force.nameRes()),
-            spoken = if (calm) {
-                null
-            } else {
-                stringResource(
-                    R.string.today_wind_from_spoken,
-                    stringArrayResource(R.array.compass_points_spoken)[windDirectionIndex(weather.windDeg)],
-                    stringResource(force.nameRes()),
-                )
-            },
-        )
+        if (calm) {
+            TileNote(stringResource(R.string.wind_calm))
+        } else {
+            // The windsock shows how strong it is, so the note gives where it comes from; TalkBack
+            // also hears the wind's name.
+            val direction = windDirectionIndex(weather.windDeg)
+            val from = stringArrayResource(R.array.compass_points)[direction]
+            val fromSpoken = stringArrayResource(R.array.compass_points_spoken)[direction]
+            val name = stringResource(force.nameRes()).lowercase()
+            val gust = gustWorthMentioning(weather.windSpeed, weather.windGust, weather.units)?.let { formatWind(it, weather.units) }
+            TileNote(
+                if (gust == null) {
+                    stringResource(R.string.today_wind_from, from)
+                } else {
+                    stringResource(R.string.today_wind_from_gusts, from, gust.substringBefore(' '))
+                },
+                spoken = if (gust == null) {
+                    stringResource(R.string.today_wind_from_spoken, fromSpoken, name)
+                } else {
+                    stringResource(R.string.today_wind_from_gusts_spoken, fromSpoken, name, gust)
+                },
+            )
+        }
     }
 }
 
 /**
- * A compass dial with N at the top and an arrow pointing the way the wind blows, as Apple and
- * Google Weather draw it: a wind from the NW points SE. No arrow when it's calm.
+ * A windsock on its pole, side on: limp when calm, flying straight out in a strong breeze. Five
+ * stripes, orange and white, narrowing to the tail. Same drawing as iOS's `Windsock`.
  */
 @Composable
-private fun WindCompass(
-    fromDegrees: Int?,
+private fun Windsock(
+    droopDegrees: Double,
     modifier: Modifier = Modifier,
 ) {
-    val ring = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-    val arrow = MaterialTheme.colorScheme.primary
-    val textMeasurer = rememberTextMeasurer()
-    val north = MaterialTheme.typography.labelSmall.copy(color = arrow, fontSize = 8.sp)
-    Canvas(modifier = modifier) {
-        val radius = size.minDimension / 2 - 1.dp.toPx()
-        drawCircle(ring, radius = radius, style = Stroke(width = 1.5.dp.toPx()))
-        val label = textMeasurer.measure("N", north)
-        drawText(label, topLeft = Offset(center.x - label.size.width / 2f, center.y - radius + 1.dp.toPx()))
-        if (fromDegrees != null) {
-            // Drawn pointing north, then turned to point downwind (from + 180°).
-            rotate(degrees = fromDegrees + 180f, pivot = center) {
-                val tip = Offset(center.x, center.y - radius * 0.5f)
-                val tail = Offset(center.x, center.y + radius * 0.5f)
-                drawLine(arrow, start = tail, end = tip, strokeWidth = 2.5.dp.toPx(), cap = StrokeCap.Round)
-                val head = radius * 0.32f
-                val path = Path().apply {
-                    moveTo(tip.x, tip.y - 2.dp.toPx())
-                    lineTo(tip.x - head * 0.7f, tip.y + head * 0.6f)
-                    lineTo(tip.x + head * 0.7f, tip.y + head * 0.6f)
+    val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val pole = if (dark) Color(0xFFB4B2A9) else Color(0xFF5F5E5A)
+    Canvas(modifier = modifier.clearAndSetSemantics {}) {
+        // Low enough that the mouth clears the top when it flies straight out.
+        val pivot = Offset(3.dp.toPx(), 7.dp.toPx())
+        drawLine(
+            pole,
+            start = Offset(pivot.x, 1.5.dp.toPx()),
+            end = Offset(pivot.x, size.height - 1.5.dp.toPx()),
+            strokeWidth = 2.5.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        val length = minOf(size.width - pivot.x - 2.dp.toPx(), size.height - pivot.y - 2.dp.toPx())
+        val mouth = length * 0.17f
+        val tail = length * 0.08f
+        // Drawn flying straight out to the right of the pivot, then turned down by the droop.
+        rotate(degrees = droopDegrees.toFloat(), pivot = pivot) {
+            for (stripe in 0 until WINDSOCK_STRIPES) {
+                val x0 = pivot.x + length * stripe / WINDSOCK_STRIPES
+                val x1 = pivot.x + length * (stripe + 1) / WINDSOCK_STRIPES
+                val h0 = mouth + (tail - mouth) * stripe / WINDSOCK_STRIPES
+                val h1 = mouth + (tail - mouth) * (stripe + 1) / WINDSOCK_STRIPES
+                val band = Path().apply {
+                    moveTo(x0, pivot.y - h0)
+                    lineTo(x1, pivot.y - h1)
+                    lineTo(x1, pivot.y + h1)
+                    lineTo(x0, pivot.y + h0)
                     close()
                 }
-                drawPath(path, arrow)
+                drawPath(band, if (stripe % 2 == 0) WINDSOCK_ORANGE else Color.White)
+                drawPath(band, WINDSOCK_SEAM, style = Stroke(width = 0.6.dp.toPx()))
             }
         }
     }
 }
+
+private const val WINDSOCK_STRIPES = 5
+private val WINDSOCK_ORANGE = Color(0xFFF08C2E)
+private val WINDSOCK_SEAM = Color(0xFFB3621C)
 
 @Composable
 private fun HumidityTile(

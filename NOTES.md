@@ -227,8 +227,9 @@ noted. Checked against the code, not fixed yet.
       ones not found), the Open-Meteo licence with nothing to switch to, and dropping the key, the
       iOS build check, the CI secrets, `openweather_api_key`, the `openweather` search provider,
       the Settings credit and the privacy policy mention. (11-06)
-- [ ] Privacy policy and store privacy answers: My Location's coordinates now also go to the
-      phone's place lookup (Apple's on iPhone, Google's on Android) to name it. (11-06)
+- [ ] Store privacy answers (App Store App Privacy, Play Data safety): My Location's coordinates
+      now also go to the phone's place lookup (Apple's on iPhone, Google's on Android) to name it.
+      The privacy policy on sunnyandmisty.com says so since 11-06. (11-06)
 - [ ] Set `ios_app_store_url` in Remote Config to `https://apps.apple.com/app/id6827945995` once the
       app is live. Until then the iOS update screen has no Update button. (10-30)
 - [ ] Mac: the iPad app isn't offered on Apple silicon Macs. Try it on a Mac, then tick Mac

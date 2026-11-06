@@ -170,6 +170,26 @@ class TodayDetailsTest {
     }
 
     @Test
+    fun `the windsock lifts with the wind until a strong breeze`() {
+        assertEquals(75.0, windsockDroopDegrees(0.0, WeatherUnits.METRIC), 0.001)
+        assertEquals(37.5, windsockDroopDegrees(5.4, WeatherUnits.METRIC), 0.01)
+        assertEquals(31.6, windsockDroopDegrees(14.0, WeatherUnits.IMPERIAL), 0.1)
+        assertEquals(0.0, windsockDroopDegrees(10.8, WeatherUnits.METRIC), 0.001)
+        assertEquals(0.0, windsockDroopDegrees(40.0, WeatherUnits.IMPERIAL), 0.001)
+    }
+
+    @Test
+    fun `gusts are mentioned when they stand out from the wind`() {
+        assertEquals(24.0, gustWorthMentioning(14.0, 24.0, WeatherUnits.IMPERIAL))
+        // 4 mph above the wind is nothing to mention; 5 is.
+        assertNull(gustWorthMentioning(10.0, 14.0, WeatherUnits.IMPERIAL))
+        assertEquals(15.0, gustWorthMentioning(10.0, 15.0, WeatherUnits.IMPERIAL))
+        assertNull(gustWorthMentioning(10.0, null, WeatherUnits.IMPERIAL))
+        assertEquals(6.4, gustWorthMentioning(3.0, 6.4, WeatherUnits.METRIC))
+        assertNull(gustWorthMentioning(3.0, 5.0, WeatherUnits.METRIC))
+    }
+
+    @Test
     fun `wind force uses the Beaufort scale in either unit`() {
         assertEquals(WindForce.CALM, windForce(0.2, WeatherUnits.METRIC))
         assertEquals(WindForce.LIGHT_AIR, windForce(1.0, WeatherUnits.IMPERIAL))

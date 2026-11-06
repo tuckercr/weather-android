@@ -405,6 +405,19 @@
     <string name="uv_easing_off">Easing off now</string>
     <!-- What screen readers hear on the Wind tile, which shows the direction only as an arrow. -->
     <string name="today_wind_from_spoken">From the %1$s, %2$s</string>
+    <string name="today_wind_from">From the %1$s</string>
+    <string name="today_wind_from_gusts">From the %1$s, gusts %2$s</string>
+    <string name="today_wind_from_gusts_spoken">From the %1$s, %2$s, gusts %3$s</string>
+    <string-array name="compass_points">
+        <item>N</item>
+        <item>NE</item>
+        <item>E</item>
+        <item>SE</item>
+        <item>S</item>
+        <item>SW</item>
+        <item>W</item>
+        <item>NW</item>
+    </string-array>
     <string-array name="compass_points_spoken">
         <item>north</item>
         <item>northeast</item>

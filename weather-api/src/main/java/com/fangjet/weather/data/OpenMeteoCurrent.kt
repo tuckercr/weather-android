@@ -48,6 +48,7 @@ internal object OpenMeteoCurrent {
             pressureHpa = (reading.seaLevelPressure ?: 0.0).roundToInt(),
             windSpeed = reading.windSpeed ?: 0.0,
             windDeg = reading.windDirection ?: 0,
+            windGust = reading.windGusts,
             visibilityMeters = reading.visibility?.roundToInt(),
             cloudPercent = reading.cloudCover ?: 0,
             units = units,

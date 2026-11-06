@@ -34,6 +34,11 @@ data class CurrentWeather(
      * recorded. Shown as "Showing weather from ..." when a refresh fails and cached data stays up.
      */
     val observedAtEpochSeconds: Long? = null,
+    /**
+     * The strongest gusts now, in the wind speed's units; null when the provider doesn't say, and
+     * in data cached before it was recorded.
+     */
+    val windGust: Double? = null,
 ) {
     /**
      * Offset for rendering the location's local time. Unknown offsets use the device's own zone,
