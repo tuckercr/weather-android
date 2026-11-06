@@ -54,6 +54,7 @@ val RadarLegendColors = listOf(
 
 // Pet scene: hero card backgrounds per weather mood. The hero keeps its own light palette in
 // both themes, so text on it always uses PetInk.
+val PetSkyFair = Color(0xFFFCE7B4)
 val PetSkySunny = Color(0xFFFAC775)
 val PetSkyCloudy = Color(0xFFB3DDF2)
 val PetSkyRain = Color(0xFF81C7EC)

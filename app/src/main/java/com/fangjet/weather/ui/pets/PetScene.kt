@@ -67,6 +67,7 @@ import com.fangjet.weather.ui.theme.PetScarfAlt
 import com.fangjet.weather.ui.theme.PetShine
 import com.fangjet.weather.ui.theme.PetSkyCloudy
 import com.fangjet.weather.ui.theme.PetSkyCold
+import com.fangjet.weather.ui.theme.PetSkyFair
 import com.fangjet.weather.ui.theme.PetSkyHot
 import com.fangjet.weather.ui.theme.PetSkyNight
 import com.fangjet.weather.ui.theme.PetSkyRain
@@ -91,6 +92,7 @@ private const val SCENE_H = 150f
 
 val PetMood.skyColor: Color
     get() = when (this) {
+        PetMood.FAIR -> PetSkyFair
         PetMood.SUNNY -> PetSkySunny
         PetMood.CLOUDY -> PetSkyCloudy
         PetMood.RAIN -> PetSkyRain
@@ -123,6 +125,7 @@ private fun PetMood.captionsRes(
     hasDog: Boolean,
 ): Int =
     when (this) {
+        PetMood.FAIR -> if (hasDog) R.array.pet_caption_fair else R.array.pet_caption_fair_no_dog
         PetMood.SUNNY -> if (hasDog) R.array.pet_caption_sunny else R.array.pet_caption_sunny_no_dog
         PetMood.CLOUDY -> if (hasDog) R.array.pet_caption_cloudy else R.array.pet_caption_cloudy_no_dog
         PetMood.RAIN -> if (hasDog) R.array.pet_caption_rain else R.array.pet_caption_rain_no_dog
@@ -293,7 +296,7 @@ private fun DrawScope.drawSky(
     southernHemisphere: Boolean,
 ) {
     when (mood) {
-        PetMood.SUNNY -> drawCircle(PetSun, 18f * s, p(220f, 32f))
+        PetMood.FAIR, PetMood.SUNNY -> drawCircle(PetSun, 18f * s, p(220f, 32f))
         PetMood.HOT -> drawCircle(PetSunHot, 24f * s, p(220f, 32f))
         PetMood.NIGHT -> drawMoon(moonPhase, southernHemisphere, p(215f, 30f), 16f * s)
         PetMood.CLOUDY -> cloud(PetCloud, 210f, 30f, s)

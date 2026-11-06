@@ -188,10 +188,15 @@
     <string name="settings_manage_locations">Manage Locations</string>
 
     <!-- Pet scene captions, in the pets' voice: Sunny is the dog, Misty the cat. One is picked per day. -->
-    <string-array name="pet_caption_sunny">
+    <string-array name="pet_caption_fair">
         <item>Perfect walkies weather! Off we go.</item>
         <item>Misty has claimed the sunniest windowsill.</item>
         <item>Sunshine and tail wags all round.</item>
+    </string-array>
+    <string-array name="pet_caption_sunny">
+        <item>Sunglasses on. It\'s a warm one today.</item>
+        <item>Warm out. Shady walks and plenty of water.</item>
+        <item>Misty has claimed the sunniest windowsill.</item>
     </string-array>
     <string-array name="pet_caption_cloudy">
         <item>A bit grey, but Sunny is still keen for a walk.</item>
@@ -234,10 +239,15 @@
     </string-array>
     <!-- Without a dog (Settings' Dog walking off): the same moods with the walks and paw care swapped
          for things Misty would do. Storm and late night have no walks, so they keep the lists above. -->
-    <string-array name="pet_caption_sunny_no_dog">
+    <string-array name="pet_caption_fair_no_dog">
         <item>Lovely day out. Misty will supervise from the window.</item>
         <item>Misty has claimed the sunniest windowsill.</item>
         <item>Sunshine and tail wags all round.</item>
+    </string-array>
+    <string-array name="pet_caption_sunny_no_dog">
+        <item>Sunglasses on. It\'s a warm one today.</item>
+        <item>Warm out. Misty has found the coolest spot in the house.</item>
+        <item>Misty has claimed the sunniest windowsill.</item>
     </string-array>
     <string-array name="pet_caption_cloudy_no_dog">
         <item>A bit grey. Misty says it\'s a blanket sort of day.</item>
