@@ -23,8 +23,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -65,6 +67,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.layout
@@ -134,6 +137,7 @@ import com.fangjet.weather.util.NextRain
 import com.fangjet.weather.util.ReadingDay
 import com.fangjet.weather.util.SunEvent
 import com.fangjet.weather.util.UpdatePrompt
+import com.fangjet.weather.util.besideRainChance
 import com.fangjet.weather.util.forecastAsCurrent
 import com.fangjet.weather.util.fromCurrentSlot
 import com.fangjet.weather.util.hourlyStrip
@@ -1008,10 +1012,14 @@ private fun HourlyStrip(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            items(items) { item ->
+            itemsIndexed(items) { index, item ->
                 when (item) {
                     is HourlyStripItem.Hour -> HourlyCell(slot = item.slot)
-                    is HourlyStripItem.Sun -> SunMarker(event = item.event, utcOffsetSeconds = utcOffsetSeconds)
+                    is HourlyStripItem.Sun -> SunMarker(
+                        event = item.event,
+                        utcOffsetSeconds = utcOffsetSeconds,
+                        besideRain = items.besideRainChance(index) { displayedRainChance(it.precipitationChance) != null },
+                    )
                 }
             }
         }
@@ -1020,12 +1028,15 @@ private fun HourlyStrip(
 
 /**
  * A sunrise or sunset between two hours of the strip: half a column, with the time ("6:50"), the
- * sun on the horizon and a thin line down past the temperatures.
+ * sun on the horizon and a thin line beside the temperatures, running on beside the rain chances
+ * when an hour either side shows one ([besideRain]). It's never taller than the hours beside it, so
+ * the strip doesn't grow for it.
  */
 @Composable
 private fun SunMarker(
     event: SunEvent,
     utcOffsetSeconds: Int,
+    besideRain: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
@@ -1057,9 +1068,26 @@ private fun SunMarker(
         Box(
             modifier = Modifier
                 .width(1.5.dp)
-                .height(38.dp)
                 .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(1.dp)),
-        )
+        ) {
+            // An unseen temperature, and rain chance when there is one beside it, laid out as in an
+            // hour cell, give the line their height whatever the text size; they overflow the line's
+            // width without widening it.
+            Column(
+                modifier = Modifier
+                    .wrapContentWidth(unbounded = true)
+                    .alpha(0f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = "0°",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                if (besideRain) PrecipChance(percent = 50)
+            }
+        }
     }
 }
 

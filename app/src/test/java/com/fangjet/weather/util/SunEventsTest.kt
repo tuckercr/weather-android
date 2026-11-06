@@ -76,6 +76,22 @@ class SunEventsTest {
         assertEquals("6:05", formatShortEpochTime(at(6, 5), 0))
     }
 
+    @Test
+    fun `the line runs on beside the rain chances only when an hour either side shows one`() {
+        val wet = slots(16..19).map { it.copy(precipitationChance = if (it.epochSeconds == at(18)) 30 else 0) }
+        val items = hourlyStrip(wet, listOf(SunEvent(sunrise = false, epochSeconds = at(17, 49))), at(16))
+        val shows = { slot: HourlySlot -> slot.precipitationChance >= 10 }
+
+        assertEquals(listOf("16", "17", "sunset", "18", "19"), ids(items))
+        // 6 PM, after the sunset, shows 30%.
+        assertEquals(true, items.besideRainChance(2, shows))
+        // A dry strip, or rain only further along, keeps it short.
+        val dry = hourlyStrip(slots(16..19), listOf(SunEvent(sunrise = false, epochSeconds = at(17, 49))), at(16))
+        assertEquals(false, dry.besideRainChance(2, shows))
+        val later = slots(16..21).map { it.copy(precipitationChance = if (it.epochSeconds == at(21)) 80 else 0) }
+        assertEquals(false, hourlyStrip(later, listOf(SunEvent(false, at(17, 49))), at(16)).besideRainChance(2, shows))
+    }
+
     private fun ids(items: List<HourlyStripItem>) =
         items.map { item ->
             when (item) {
