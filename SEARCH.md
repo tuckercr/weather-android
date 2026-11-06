@@ -223,7 +223,8 @@ Reviewed and agreed 11-05; not built yet. The details are in the sections below.
    Paris, Texas. No sorting on the OpenWeather fallback.
 4. **Add with nothing tapped** takes the first row whose name matches what was typed, otherwise
    asks for a pick. **Already saved** is a label match or within 2 km, My Location aside.
-5. **US ZIP codes** work; other postcodes search nothing.
+5. **US ZIP codes** work; other postcodes search nothing, but town names with a number in them
+   (100 Mile House) still search.
 6. **Copy:** "town or city" to search, "location" for what's saved; the strings are approved.
 7. **Analytics:** `source` and `provider` on `city_added`.
 8. **Remote Config keys** and their defaults, all approved.
@@ -341,8 +342,13 @@ finds Beverly Hills and "37203" Nashville, but British postcodes go wrong ("E14"
 places in Abu Dhabi, "SW1A" finds Westminster Abbey).
 
 - **Five digits** (the text before any comma): search as usual, keeping only US rows.
-- **Any other text with a digit in it** (a British postcode, ZIP+4, a typo): search nothing and
-  show no list. Town names don't contain digits.
+- **A postcode** (decided 11-05): search nothing and show no list when a word mixes letters and
+  digits (E14, SW1A 1AA, K1A 0B1, D02 X285), unless it's an ordinal (1st, 10th), or when the text
+  is only digits, spaces and hyphens but not five digits (ZIP+4 "90210-1234", a typo). Every
+  British outward code mixes them in one word, while real towns keep a number as a word of its
+  own (100 Mile House, 23 August in Romania, 10th of Ramadan City in Egypt), so those still
+  search. A Dutch postcode ("1012 AB") is a number word and a letter word, so it still searches
+  and finds nothing useful; accepted.
 - **On the OpenWeather fallback:** no ZIP search (its direct search doesn't take postcodes); the
   list stays empty.
 - Add with nothing tapped can't take "90210", since the row's name (Beverly Hills) doesn't match
