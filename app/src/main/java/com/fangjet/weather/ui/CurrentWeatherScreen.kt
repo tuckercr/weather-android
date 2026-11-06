@@ -532,10 +532,11 @@ fun CurrentWeatherScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp)
-                        .verticalScroll(rememberScrollState()),
+                        .verticalScroll(rememberScrollState())
+                        // The same gap below the tabs (or the title bar) as between the cards.
+                        .padding(top = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Spacer(modifier = Modifier.height(8.dp))
                     when (weatherState) {
                         LoadingState.Idle, LoadingState.Loading -> Box(
                             modifier = Modifier
