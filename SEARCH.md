@@ -3,6 +3,9 @@
 How adding a city by name works today, and what could make the results more sensible. Written
 11-05 after "Nas" (on the way to "Nashville") gave strange results and "Nashvill" gave none.
 
+The same file is in both repos, like NOTES.md: keep the two in step. Its code references are to
+the Android app.
+
 ## The current flow
 
 1. **The sheet.** `AddCitySheetContent`
@@ -85,7 +88,7 @@ What this shows:
 - **The 5-row cap hides real places.** "Springfield" has no room for Springfield TN, KY or VA.
   "Paris,US" helps a US user, but not one in Tennessee (Paris TN is third).
 
-To run these again without printing the key (from the repo root):
+To run these again without printing the key (from the Android repo's root):
 
 ```bash
 KEY=$(grep '^OWM_API_KEY=' local.properties | cut -d= -f2-); for q in Nas Nash Nashvill Nashville Paris Springfield; do echo "== $q"; curl -s "https://api.openweathermap.org/geo/1.0/direct?q=$q&limit=5&appid=$KEY" | python3 -c 'import json,sys; [print(" ", r["name"], r.get("state"), r["country"]) for r in json.load(sys.stdin)]'; done
