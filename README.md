@@ -64,7 +64,7 @@ WorkManager, and CI on GitHub Actions.
   outlook plainly. It only appears when some hour reaches 20%, and then takes the place of the
   next-rain line, using its words as the headline. Rules in `util/RainOutlook.kt`;
   `rain_outlook_enabled`, `rain_outlook_hours` and `rain_outlook_min_chance` tune it remotely.
-- **Today tiles**: Feels Like, Wind, Humidity, Paw Check (with a dog) and Air Quality in pairs, then
+- **Today tiles**: Feels Like, Wind, Fluff Factor, Paw Check (with a dog) and Air Quality in pairs, then
   Daylight (with the UV index) and Sky across the full width. An odd tile out, usually Air Quality
   when Paw Check is showing, takes the full width rather than leaving a gap.
 - **Feels Like** tile: the feels-like temperature with its band beside it (Cold, Chilly, Mild, Warm
@@ -77,6 +77,13 @@ WorkManager, and CI on GitHub Actions.
   green, orange, red and maroon), and a line about paws ("Too hot for paws"). Icy and below freezing
   share the blue paw, safe and fine underfoot the green one. The limits are the `walk_*_pavement_c`
   Remote Config keys.
+- **Fluff Factor** tile: the humidity with the dew point under it ("Dew point 50°"), beside Misty,
+  whose fur goes from sleek to full floof as it gets muggy, and her line about it. Mugginess goes by
+  dew point, since humidity alone rises and falls with the temperature: Sticky from 16 °C / 61 °F
+  ("Misty's fluffing up"), Muggy from 18 °C / 64 °F ("Puffy fur, panting pup", or "Misty's getting
+  puffy" without a dog) and Soupy from 21 °C / 70 °F ("Misty has gone full floof"). Below that it's
+  Dry under 35% humidity (static sparks, "Dry air, static fur") and Comfy otherwise ("Misty's fur
+  is behaving").
 - **Air Quality** tile: the index on the city's scale (Europe's for cities on a European clock, the
   US one elsewhere), its band on a six-colour bar, and what it means for a walk, or for people
   without a dog. It comes from Open-Meteo's hourly air quality forecast, fetched with the forecast in
@@ -363,7 +370,7 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `rain_outlook_enabled` | boolean | `true` | Shows the rain outlook card; false hides it for everyone, and the next-rain line shows as before |
 | `rain_outlook_hours` | number | `10` | Hours the rain outlook charts, from the current one; whole number, valid 6–12 |
 | `rain_outlook_min_chance` | number | `20` | The rain outlook only shows when some hour reaches this rain chance (%), which is also the chance from which an hour counts as wet ("Drying out after …"); whole number, valid 1–100 |
-| `temperature_units_shown` | boolean | `true` | Shows the unit with temperatures ("89 °F"); false shows "89°" wherever a temperature carries its unit: the hero, week rows, day details, and the Feels Like, Humidity and Paw Check tiles ("About 81°"). Temperatures already shown without one (the hero's high and low, the hourly strip, the walk card, notifications) stay as they are, and the units themselves don't change. See [Units](#units) |
+| `temperature_units_shown` | boolean | `true` | Shows the unit with temperatures ("89 °F"); false shows "89°" wherever a temperature carries its unit: the hero, week rows, day details, and the Feels Like and Paw Check tiles ("About 81°"). Temperatures already shown without one (the hero's high and low, the hourly strip, the walk card, notifications) stay as they are, and the units themselves don't change. See [Units](#units) |
 | `open_meteo_enabled` | boolean | `true` | The current reading and forecasts for cities with coordinates come from Open-Meteo; false falls back to OpenWeatherMap's reading and 3-hourly forecast by lat/lon (foreground, background refresh, and notifications) |
 | `air_quality_enabled` | boolean | `true` | Fetches hourly air quality alongside the Open-Meteo forecast; false hides the Air quality tile and the walk planner ignores the air |
 | `openweather_api_key` | string | `""` | Replacement OpenWeather API key, used from the next app start; empty uses the key built into the app. Lets a leaked key be rotated without an update. Not secret: Remote Config values reach every device |

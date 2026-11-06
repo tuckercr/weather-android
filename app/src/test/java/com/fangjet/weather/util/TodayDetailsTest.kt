@@ -170,6 +170,25 @@ class TodayDetailsTest {
     }
 
     @Test
+    fun `Misty fluffs up as the dew point rises and crackles in dry air`() {
+        assertEquals(FluffLevel.DRY, fluffLevel(null, 0))
+        assertEquals(FluffLevel.DRY, fluffLevel(5.0, 34))
+        assertEquals(FluffLevel.COMFY, fluffLevel(5.0, 35))
+        assertEquals(FluffLevel.COMFY, fluffLevel(15.9, 60))
+        assertEquals(FluffLevel.STICKY, fluffLevel(16.0, 60))
+        assertEquals(FluffLevel.MUGGY, fluffLevel(18.0, 60))
+        assertEquals(FluffLevel.MUGGY, fluffLevel(20.9, 60))
+        assertEquals(FluffLevel.SOUPY, fluffLevel(21.0, 60))
+        // Muggy wins over dry: 30% at 38 °C still has a dew point of about 18 °C.
+        assertEquals(FluffLevel.MUGGY, fluffLevel(18.2, 30))
+        // 87% at 9.5 °C is damp, not dry: a dew point of about 7.5 °C.
+        assertEquals(FluffLevel.COMFY, fluffLevel(dewPointC(9.5, 87), 87))
+        // 62% at 20 °C is a dew point of about 12.5 °C; 85% at 27 °C about 24 °C.
+        assertEquals(FluffLevel.COMFY, fluffLevel(dewPointC(20.0, 62), 62))
+        assertEquals(FluffLevel.SOUPY, fluffLevel(dewPointC(27.0, 85), 85))
+    }
+
+    @Test
     fun `wind force uses the Beaufort scale in either unit`() {
         assertEquals(WindForce.CALM, windForce(0.2, WeatherUnits.METRIC))
         assertEquals(WindForce.LIGHT_AIR, windForce(1.0, WeatherUnits.IMPERIAL))

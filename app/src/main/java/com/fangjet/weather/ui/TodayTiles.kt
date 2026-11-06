@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
@@ -76,6 +77,7 @@ import com.fangjet.weather.ui.theme.WalkOkayText
 import com.fangjet.weather.util.Daylight
 import com.fangjet.weather.util.DistanceUnit
 import com.fangjet.weather.util.FeelsLikeBand
+import com.fangjet.weather.util.FluffLevel
 import com.fangjet.weather.util.PavementBand
 import com.fangjet.weather.util.SkyCondition
 import com.fangjet.weather.util.UvLine
@@ -86,6 +88,7 @@ import com.fangjet.weather.util.dewPointC
 import com.fangjet.weather.util.feelsLikeBand
 import com.fangjet.weather.util.feelsLikeBarPosition
 import com.fangjet.weather.util.feelsLikeGap
+import com.fangjet.weather.util.fluffLevel
 import com.fangjet.weather.util.keepUnitsTogether
 import com.fangjet.weather.util.pavementBand
 import com.fangjet.weather.util.pawScaleStep
@@ -94,7 +97,10 @@ import com.fangjet.weather.util.uvLine
 import com.fangjet.weather.util.visibilityBand
 import com.fangjet.weather.util.visibilityDistance
 import com.fangjet.weather.util.windForce
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 /**
  * Today's details as a grid of tiles: feels like, wind, humidity, pavement, UV and air quality in pairs (an
@@ -134,7 +140,7 @@ internal fun TodayTiles(
     val small = buildList<@Composable (Modifier) -> Unit> {
         if (switches.feelsLike) add { FeelsLikeTile(weather, thresholds, it) }
         if (switches.wind) add { WindTile(weather, it) }
-        if (switches.humidity) add { HumidityTile(weather, it) }
+        if (switches.humidity) add { HumidityTile(weather, hasDog, it) }
         if (switches.pawCheck && pavementNow != null) {
             add { PavementTile(pavementNow, groundWet, weather.feelsLike, units, thresholds, it) }
         }
@@ -398,24 +404,141 @@ private fun WindCompass(
     }
 }
 
+/**
+ * Fluff Factor: the humidity with the dew point under it, beside Misty, whose fur fluffs up as the
+ * dew point rises, and her line about it.
+ */
 @Composable
 private fun HumidityTile(
     weather: CurrentWeather,
+    hasDog: Boolean,
     modifier: Modifier,
 ) {
-    Tile(Icons.Default.WaterDrop, stringResource(R.string.label_humidity), modifier) {
-        TileValue(stringResource(R.string.format_percent, weather.humidityPercent))
-        LinearProgressIndicator(
-            progress = { weather.humidityPercent / 100f },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 2.dp)
-                // The percentage above already says it.
-                .clearAndSetSemantics {},
-            drawStopIndicator = {},
-        )
-        dewPointC(weather.units.toCelsius(weather.temperature), weather.humidityPercent)?.let { dewC ->
-            TileNote(stringResource(R.string.today_dew_point, formatTemperature(weather.units.fromCelsius(dewC), weather.units)))
+    val dewC = dewPointC(weather.units.toCelsius(weather.temperature), weather.humidityPercent)
+    val level = fluffLevel(dewC, weather.humidityPercent)
+    Tile(Icons.Default.WaterDrop, stringResource(R.string.label_fluff_factor), modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                val spoken = stringResource(R.string.format_humidity_spoken, weather.humidityPercent)
+                TileValue(
+                    stringResource(R.string.format_percent, weather.humidityPercent),
+                    modifier = Modifier.clearAndSetSemantics { contentDescription = spoken },
+                )
+                if (dewC != null) {
+                    Text(
+                        stringResource(
+                            R.string.today_dew_point,
+                            formatTemperature(weather.units.fromCelsius(dewC), weather.units, unitShown = false),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
+            }
+            FluffyMisty(level, Modifier.size(width = 48.dp, height = 42.dp))
+        }
+        TileNote(stringResource(fluffLineRes(level, hasDog)))
+    }
+}
+
+/** Misty's line on the Fluff Factor tile. With a dog, muggy says the pup is panting: dogs cool down by panting, which works badly in muggy air. */
+@StringRes
+internal fun fluffLineRes(
+    level: FluffLevel,
+    hasDog: Boolean,
+): Int =
+    when (level) {
+        FluffLevel.DRY -> R.string.fluff_dry
+        FluffLevel.COMFY -> R.string.fluff_comfy
+        FluffLevel.STICKY -> R.string.fluff_sticky
+        FluffLevel.MUGGY -> if (hasDog) R.string.fluff_muggy_dog else R.string.fluff_muggy
+        FluffLevel.SOUPY -> R.string.fluff_soupy
+    }
+
+/** How far the tufts reach past Misty's head, by [FluffLevel]. */
+private val FLUFF_TUFT_REACH = listOf(0f, 0f, 1.4f, 2.6f, 4f)
+
+/**
+ * Misty's head, as in the hero, with her fur sleek in dry air and fluffing up as it gets muggy: a
+ * ring of tufts round her head grows with each [FluffLevel], and dry air gives her static sparks.
+ * Drawn on a 60 x 52 grid. Same drawing as iOS's `FluffyMisty`.
+ */
+@Composable
+private fun FluffyMisty(
+    level: FluffLevel,
+    modifier: Modifier = Modifier,
+) {
+    // Lighter on the dark card, where her usual grey sinks into it.
+    val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val fur = if (dark) Color(0xFF8C8B85) else Color(0xFF5F5E5A)
+    Canvas(modifier = modifier.clearAndSetSemantics {}) {
+        val scale = minOf(size.width / 60f, size.height / 52f)
+        val originX = (size.width - 60f * scale) / 2f
+        val originY = (size.height - 52f * scale) / 2f
+
+        fun point(
+            x: Float,
+            y: Float,
+        ) = Offset(originX + x * scale, originY + y * scale)
+
+        fun poly(
+            color: Color,
+            points: List<Pair<Float, Float>>,
+        ) {
+            val path = Path()
+            points.forEachIndexed { index, (x, y) ->
+                val at = point(x, y)
+                if (index == 0) path.moveTo(at.x, at.y) else path.lineTo(at.x, at.y)
+            }
+            path.close()
+            drawPath(path, color)
+        }
+
+        fun oval(
+            color: Color,
+            cx: Float,
+            cy: Float,
+            rx: Float,
+            ry: Float,
+        ) = drawOval(color, topLeft = point(cx - rx, cy - ry), size = Size(rx * 2 * scale, ry * 2 * scale))
+
+        val reach = FLUFF_TUFT_REACH[level.ordinal]
+        if (reach > 0f) {
+            val tufts = 18
+            poly(
+                fur,
+                (0 until tufts).map { index ->
+                    val angle = index.toDouble() / tufts * 2 * PI - PI / 2
+                    val radius = 17f + if (index % 2 == 0) 0f else reach
+                    (30f + radius * cos(angle).toFloat()) to (31f + radius * sin(angle).toFloat())
+                },
+            )
+        }
+        poly(fur, listOf(15f to 22f, 18f to 6f, 27f to 17f))
+        poly(fur, listOf(33f to 17f, 42f to 6f, 45f to 22f))
+        poly(Color(0xFFED93B1), listOf(18f to 19f, 19.5f to 11f, 24f to 17f))
+        poly(Color(0xFFED93B1), listOf(36f to 17f, 40.5f to 11f, 42f to 19f))
+        oval(fur, 30f, 31f, 16f, 16f)
+        poly(Color(0xFFF1EFE8), listOf(28.5f to 17f, 31.5f to 17f, 34f to 33f, 26f to 33f))
+        oval(Color(0xFFF1EFE8), 26f, 36f, 6f, 5f)
+        oval(Color(0xFFF1EFE8), 34f, 36f, 6f, 5f)
+        oval(Color(0xFF10324A), 24.5f, 28f, 2f, 2f)
+        oval(Color(0xFF10324A), 35.5f, 28f, 2f, 2f)
+        poly(Color(0xFFE8849A), listOf(28.2f to 32f, 31.8f to 32f, 30f to 34.3f))
+        if (level == FluffLevel.DRY) {
+            // Static sparks either side.
+            for (side in listOf(
+                listOf(5f to 12f, 9f to 15f, 6f to 17f, 10f to 21f),
+                listOf(55f to 12f, 51f to 15f, 54f to 17f, 50f to 21f),
+            )) {
+                val spark = Path()
+                side.forEachIndexed { index, (x, y) ->
+                    val at = point(x, y)
+                    if (index == 0) spark.moveTo(at.x, at.y) else spark.lineTo(at.x, at.y)
+                }
+                drawPath(spark, Color(0xFFEF9F27), style = Stroke(width = 1.4f * scale, cap = StrokeCap.Round, join = StrokeJoin.Round))
+            }
         }
     }
 }
