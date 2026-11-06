@@ -23,7 +23,10 @@ WorkManager, and CI on GitHub Actions.
   speed and direction ("0 mph", with no direction, when calm), visibility ("Clear" from
   10 km), cloud cover, UV index (daytime, from Open-Meteo), and sunrise/sunset.
 - **Pets that react to the weather**: Sunny the dog and Misty the cat, drawn in Compose, whose scene
-  and caption follow the conditions (sunny, cloudy, rain, storm, snow, hot, cold, night). Captions
+  and caption follow the conditions (fair, sunny, cloudy, rain, storm, snow, hot, cold, night). A
+  clear day follows the Feels Like tile's bands: fair (a pale yellow card and the sun) when it's
+  chilly or mild, sunny (amber, Sunny in sunglasses) when it's warm, above `walk_comfort_max_c`,
+  and hot from `pet_hot_threshold_c`. Captions
   name them ("Sunny wants puddles. Misty wants a towel."), and at night follow the city's time of
   night (evening, late night, before dawn). The night sky shows the moon's real phase, lit from the
   other side in the southern hemisphere.

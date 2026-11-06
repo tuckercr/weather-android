@@ -540,7 +540,7 @@ class NotificationWorkerLogicTest {
     fun `the notification carries the pets' mood and hemisphere for its picture`() =
         runTest {
             val posted = mutableListOf<WeatherNotification>()
-            // 72 °F and clear in the daytime: the sunny scene.
+            // 72 °F and clear in the daytime: the fair scene (mild, so no sunglasses).
             logic(postNotification = { posted += it }).doWork()
             logic(
                 savedLocations = listOf(SavedLocation(label = "Sydney", latitude = -33.9, longitude = 151.2)),
@@ -548,7 +548,7 @@ class NotificationWorkerLogicTest {
                 postNotification = { posted += it },
             ).doWork()
 
-            assertEquals(PetMood.SUNNY, posted[0].mood)
+            assertEquals(PetMood.FAIR, posted[0].mood)
             assertEquals(false, posted[0].southernHemisphere)
             assertEquals(PetMood.NIGHT, posted[1].mood)
             assertEquals(true, posted[1].southernHemisphere)
