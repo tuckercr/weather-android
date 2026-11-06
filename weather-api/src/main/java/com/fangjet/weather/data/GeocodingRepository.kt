@@ -42,6 +42,8 @@ class GeocodingRepository @Inject constructor(
             label = label,
             weatherLat = lat,
             weatherLon = lon,
+            name = name,
+            countryCode = country,
         )
     }
 }

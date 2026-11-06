@@ -5,7 +5,6 @@
     <string name="action_retry">Retry</string>
     <string name="action_try_again">Try again</string>
     <string name="cd_navigate_back">Back</string>
-    <string name="field_city_label">City</string>
     <string name="label_feels_like">Feels Like</string>
     <string name="label_humidity">Humidity</string>
     <string name="label_wind">Wind</string>
@@ -44,27 +43,36 @@
     <string name="location_onboarding_body">Misty likes to know which window she\'s looking out of. Allow your location to see the weather where you are.</string>
     <string name="location_allow_button">Use my location</string>
     <string name="location_skip_button">Enter a city manually</string>
-    <string name="add_my_location_failed">Couldn\'t find your location. Try again, or add a city by name.</string>
+    <string name="add_my_location_failed">Couldn\'t find your location. Try again, or search for a town or city.</string>
     <string name="location_fetch_failed">Could not determine your location. You can still add cities manually.</string>
 
     <!-- Multi-city -->
-    <string name="cd_add_city">Add a city</string>
-    <string name="cd_remove_city">Remove city</string>
     <string name="cd_precip_chance">Chance of precipitation</string>
-    <string name="action_add_city">Add city</string>
-    <string name="cd_add_location">Add location</string>
+    <string name="action_add_city">Add location</string>
     <string name="cd_delete_location">Delete %1$s</string>
     <string name="cd_notification_city">Notifications</string>
-    <string name="locations_notification_footnote">Notifications are for My Location, otherwise the top city.</string>
+    <string name="locations_notification_footnote">Notifications are for My Location, otherwise the top location.</string>
     <string name="a11y_move_up">Move up</string>
     <string name="a11y_move_down">Move down</string>
-    <string name="action_cancel">Cancel</string>
-    <string name="add_city_sheet_title">Manage cities</string>
-    <string name="saved_cities_section">SAVED CITIES</string>
-    <string name="search_city_section">ADD A NEW CITY</string>
     <string name="add_my_location">Add My Location</string>
-    <string name="empty_cities_title">No cities added yet</string>
-    <string name="empty_cities_body">Tap the + button to add your first city and get started.</string>
+    <string name="empty_cities_title">No locations added yet</string>
+    <string name="empty_cities_body">Add your first location to get started.</string>
+
+    <!-- Add location: a full screen, opened from Manage Locations and the empty weather screen. -->
+    <string name="add_location_title">Add location</string>
+    <string name="add_location_search_hint">Search for a town or city</string>
+    <string name="cd_close">Close</string>
+    <string name="cd_clear_search">Clear search</string>
+    <!-- On a result that's already one of the saved locations. -->
+    <string name="location_saved">Saved</string>
+    <!-- The button above the keyboard says what it does: "Add Malmö, SE", "Go to London, GB". -->
+    <string name="format_add_location">Add %1$s</string>
+    <string name="format_go_to_location">Go to %1$s</string>
+    <!-- The search failed (offline, say), so the typed name is saved and looked up later. -->
+    <string name="format_add_typed_location">Add “%1$s”</string>
+    <string name="add_pick_from_list">Pick a town or city from the list</string>
+    <!-- Shown on Manage Locations after adding: "Malmö added". -->
+    <string name="format_location_added">%1$s added</string>
 
     <!-- Radar -->
     <string name="radar_no_location">No location selected</string>
@@ -106,7 +114,7 @@
          error_pull_to_retry, as pulling to refresh is the only way to retry there. -->
     <string name="error_offline">Misty knocked the Wi-Fi off the shelf.</string>
     <string name="error_pull_to_retry">Pull to try again.</string>
-    <string name="error_city_not_found">We couldn\'t find that city. Try a different search.</string>
+    <string name="error_city_not_found">We couldn\'t find that town or city. Try a different search.</string>
     <string name="error_bad_api_key">Invalid API key. Rebuild the app with a valid OWM_API_KEY.</string>
     <string name="error_rate_limited">Too many requests. Please wait a moment and try again.</string>
     <string name="error_server">The weather service is napping. Try again in a few minutes.</string>

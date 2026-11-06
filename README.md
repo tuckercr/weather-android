@@ -208,27 +208,39 @@ emulator with a clean status bar:
    permission. Existing installs are migrated so they are never re-prompted.
 3. **Current Weather**: shows the active city's conditions, an hourly strip, an animated
    precipitation radar, the pets and best walk time, and the upcoming days inline. Switch between
-   saved cities with the tabs, pull to refresh, or add a city by name with autocomplete from the
-   [Geocoding API](https://openweathermap.org/api/geocoding-api) (a selected suggestion pins exact
-   latitude/longitude so the result is unambiguous).
-4. **Forecast**: cities with coordinates use [Open-Meteo](https://open-meteo.com) (true hourly,
+   saved cities with the tabs or pull to refresh. With no locations yet, it offers *Add location*.
+4. **Add location**: a full screen, opened from *Add location* in Manage Locations or on the empty
+   weather screen, and closed with its X. Results from the
+   [Geocoding API](https://openweathermap.org/api/geocoding-api) appear right under the field, the
+   name above its state and country, with the letters typed so far in bold. Tapping a row adds it
+   (its coordinates are saved, so the result is unambiguous). The button above the keyboard says
+   what it will do, and the keyboard's Search key does the same: "Add Malmö, SE" adds the first row
+   named what was typed (accents ignored, so "Malmo" finds Malmö). Otherwise it asks "Pick a town
+   or city from the list", as it also will when a row above the match has 20 times its population,
+   so "Nas" never adds Nås, Sweden (results with populations come with the planned Open-Meteo
+   search; OpenWeather's have none). A place already saved (the same label, or within 2 km; My Location aside)
+   is marked *Saved* and its button reads "Go to London, GB", which shows its weather. If the search
+   fails (offline, say), the button adds the typed name and its coordinates are looked up later.
+   *Add My Location* shows while My Location isn't saved. After adding, the app goes back to where
+   it was opened from; Manage Locations confirms with "Malmö added".
+5. **Forecast**: cities with coordinates use [Open-Meteo](https://open-meteo.com) (true hourly,
    with UV); cities without coordinates, or all cities when the `open_meteo_enabled` Remote Config
    switch is off, use OpenWeatherMap's `data/2.5/forecast` (free tier, 3-hour slots). Each calendar
    day shows the slot closest to local noon, plus the daily high/low and rain chance derived from
    all slots; tapping a day opens its full hourly breakdown.
-5. **Radar**: RainViewer radar frames (recent past plus short-range nowcast) are stitched over an
+6. **Radar**: RainViewer radar frames (recent past plus short-range nowcast) are stitched over an
    OpenStreetMap base and animated, with a scrubber, legend, and OpenStreetMap / RainViewer credit
    caption. All frame times display in the selected city's timezone. RainViewer publishes a frame
    every 10 minutes, so a timeline that old is refetched on resume and every 10 minutes while the
    screen is resumed; the current loop stays on screen during the refresh, and a failed refresh
    keeps it.
-6. **Settings**, top to bottom:
+7. **Settings**, top to bottom:
    - **My Pets**: *I have a dog* turns on the walk card, the Paw Check tile, the briefing's walk
      sentence and the Walk time notification ("Walk times, pavement checks and walk reminders").
      The Walk time notification channel is only created once there's a dog, and never deleted.
-   - **My Locations**: *Manage Locations* to add, reorder and delete cities. A bell marks the city
-     notifications are for: My Location, otherwise the top city. The city tabs on the main screen
-     choose which city it shows.
+   - **My Locations**: *Manage Locations* to reorder and delete locations, with *Add location* under
+     the list. A bell marks the location notifications are for: My Location, otherwise the top
+     location. The city tabs on the main screen choose which city it shows.
    - **Notifications**: a row showing how many are on ("2 on", or "Off"), which opens its own
      screen: a link to the app's system settings while notifications aren't allowed, then a switch
      for each kind (*Morning briefing*, *Walk time*, *Rain alerts*). Walk time only shows with a
@@ -247,11 +259,11 @@ emulator with a clean status bar:
    - **About**: the OpenWeather and Open-Meteo attributions, the
      [privacy policy](https://sunnyandmisty.com/privacy), and the version at the bottom ("Version 1.0.0" for build 1,
      with "· Debug build" in debug builds).
-7. **Notifications**: WorkManager runs the 8:30 AM briefing (unless `daily_weather_notifications_enabled`
+8. **Notifications**: WorkManager runs the 8:30 AM briefing (unless `daily_weather_notifications_enabled`
    is off), which also plans the one-off walk-time nudge, and refreshes
    the notification city's cached data (My Location when saved, otherwise the first city), and the city tab last viewed when it's another one, in the background every `weather_refresh_interval_minutes`; the
    schedule survives reboots.
-8. **Error handling**: network failures, HTTP errors, empty API keys, and malformed payloads all
+9. **Error handling**: network failures, HTTP errors, empty API keys, and malformed payloads all
    surface as inline error messages with *Retry* where appropriate.
 
 ### Trying notifications
@@ -419,7 +431,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:weather-api` | `WeatherHelpersTest` | WMO weather-code mapping to conditions and day/night icons; pavement-heat estimate |
 | `:weather-api` | `OpenWeatherParsingTest` | Kotlinx Serialization parsing of OpenWeatherMap current-weather and forecast payloads, including the UTC offset |
 | `:weather-api` | `GeocodingDirectParsingTest` | Geocoding payload parsing when `state` is omitted |
-| `:weather-api` | `GeocodingRepositoryTest` | City search: input trimming, label formatting, short-query and missing-key short-circuits, failure wrapping |
+| `:weather-api` | `GeocodingRepositoryTest` | City search: input trimming, label formatting (and the name, rest of the label and short label Add location shows), short-query and missing-key short-circuits, failure wrapping |
 | `:weather-api` | `WeatherRepositoryTest` | Repository contract: coordinate routing (incl. `open_meteo_enabled` on/off and a failing `ForecastSourcePolicy`), city-query trimming, error mapping |
 | `:weather-api` | `RadarRepositoryTest` | RainViewer timeline parsing, past/nowcast frame ordering, and tile URLs |
 | `:weather-api` | `CurrentWeatherTest` | UTC-offset handling, including caches written before the offset existed |
@@ -443,7 +455,8 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `LocaleWeatherUnitsTest` | An explicit Celsius/Fahrenheit system preference beats the locale; unknown falls back to it |
 | `:app` | `WelcomeViewModelTest` | Onboarding state and persistence |
 | `:app` | `CityListViewModelTest` | Add, remove, reorder, active-city tracking, legacy single-city migration, and `city_added` firing |
-| `:app` | `GeoLocationViewModelTest` | City autocomplete: short input, latest search wins, pinned coordinates from a suggestion |
+| `:app` | `GeoLocationViewModelTest` | City autocomplete: short input, latest search wins, a failed search told apart from finding nothing |
+| `:app` | `AddLocationRulesTest` | Add location's button: the first row named what was typed (accents ignored), the size check that stops "Nas" adding Nås, saved places (label or within 2 km, never My Location) gone to, and failed or empty searches |
 | `:app` | `LocationPermissionViewModelTest` | Current-location lookup: permission denial, cached vs current location, failure |
 | `:app` | `NotificationWorkerLogicTest` | Briefing text, walk-time planning and nudge, rain alerts (lead, quiet hours, once per shower), city-timezone "today" matching, and the switches |
 | `:app` | `UpdateWorkerLogicTest` | Background refresh result routing, caching, and resolved units |
@@ -457,6 +470,7 @@ Compose UI tests live in `app/src/androidTest` and run on an emulator in CI via 
 | `OnboardingNotificationScreenTest` | Notification onboarding copy, both buttons, and *Not now* |
 | `CurrentWeatherScreenTest` | Current-weather screen states: empty, error with retry, forecast error, upcoming day, hourly strip and rain chance, the rain outlook shown for a wet hour and hidden when `rain_outlook_enabled` is off, radar shown by default and hidden when `radar_enabled` is off |
 | `LocationsScreenTest` | Manage Locations: tapping a row makes it active, Move up / Move down accessibility actions, delete buttons name their city |
+| `AddLocationScreenTest` | Add location: the button names what it adds and the Search key does the same, tapping a row adds it, a far smaller match asks for a pick, a saved place is marked and gone to, and the X closes it |
 
 ## Units
 

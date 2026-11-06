@@ -42,6 +42,11 @@ class GeocodingRepositoryTest {
             assertEquals(30.2672, suggestions.first().weatherLat, 0.0001)
             assertEquals(-97.7431, suggestions.first().weatherLon, 0.0001)
             assertEquals("London, GB", suggestions.last().label)
+            // The Add location screen shows the name above the rest, and the button "Add Austin, US".
+            assertEquals("Austin", suggestions.first().name)
+            assertEquals("TX, US", suggestions.first().detail)
+            assertEquals("Austin, US", suggestions.first().shortLabel)
+            assertEquals("GB", suggestions.last().detail)
         }
 
     @Test

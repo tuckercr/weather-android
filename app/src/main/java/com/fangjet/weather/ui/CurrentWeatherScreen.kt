@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,13 +27,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WaterDrop
@@ -48,11 +44,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
@@ -60,7 +52,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -79,7 +70,6 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -93,7 +83,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -108,7 +97,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.fangjet.weather.R
-import com.fangjet.weather.domain.CitySuggestion
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
@@ -120,7 +108,6 @@ import com.fangjet.weather.domain.SeasonalThemes
 import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.model.CityListViewModel
-import com.fangjet.weather.model.GeoLocationViewModel
 import com.fangjet.weather.model.LoadingState
 import com.fangjet.weather.model.LocationFetchState
 import com.fangjet.weather.model.LocationPermissionViewModel
@@ -171,8 +158,8 @@ private val AUTO_REFRESH_INTERVAL = 30.minutes
 private val STALE_RECHECK_INTERVAL = 5.minutes
 
 /**
- * "My Location" for screens that can add it. Returns the add-city sheet's "Add My Location" action,
- * or null when it's already in the list or the system won't ask for location any more. Without
+ * "My Location" for screens that can add it. Returns the Add location screen's "Add My Location"
+ * action, or null when it's already in the list or the system won't ask for location any more. Without
  * access it asks first, so "Only this time" / "Ask every time" users can still add it. Access is
  * re-read on every resume, so changing it in system settings shows or hides the action on return.
  *
@@ -242,7 +229,7 @@ internal fun rememberAddMyLocation(
 
     val context = LocalContext.current
     LaunchedEffect(state) {
-        // The sheet has closed by now, so a fix that fails to add My Location says so here.
+        // A fix that fails to add My Location says so here.
         if (state == LocationFetchState.Failed && fetchingToAdd) {
             fetchingToAdd = false
             Toast.makeText(context, R.string.add_my_location_failed, Toast.LENGTH_LONG).show()
@@ -281,12 +268,14 @@ internal fun rememberAddMyLocation(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CurrentWeatherRoute(onOpenSettings: () -> Unit = {}) {
+fun CurrentWeatherRoute(
+    onOpenSettings: () -> Unit = {},
+    onAddLocation: () -> Unit = {},
+) {
     val activity = LocalActivity.current as ComponentActivity
     val cityListViewModel = hiltViewModel<CityListViewModel>(viewModelStoreOwner = activity)
     val weatherForecastViewModel =
         hiltViewModel<WeatherForecastViewModel>(viewModelStoreOwner = activity)
-    val geoViewModel = hiltViewModel<GeoLocationViewModel>(viewModelStoreOwner = activity)
     // Same owner RadarCard uses, so this is the instance that would load the timeline.
     val radarEnabled = hiltViewModel<RadarViewModel>().radarEnabled
     val settingsViewModel = hiltViewModel<SettingsViewModel>(viewModelStoreOwner = activity)
@@ -305,10 +294,6 @@ fun CurrentWeatherRoute(onOpenSettings: () -> Unit = {}) {
     val forecastState by weatherForecastViewModel.forecast.collectAsStateWithLifecycle()
     val isRefreshing by weatherForecastViewModel.isRefreshing.collectAsStateWithLifecycle()
     val staleErrorKey by weatherForecastViewModel.staleErrorKey.collectAsStateWithLifecycle()
-    val cityInput by geoViewModel.cityInput.collectAsStateWithLifecycle()
-    val suggestions by geoViewModel.citySuggestions.collectAsStateWithLifecycle()
-    val suggestLoading by geoViewModel.citySuggestLoading.collectAsStateWithLifecycle()
-    val selectedSuggestion by geoViewModel.selectedSuggestion.collectAsStateWithLifecycle()
 
     // Full refresh whenever the active location changes
     LaunchedEffect(activeLocation) {
@@ -350,7 +335,9 @@ fun CurrentWeatherRoute(onOpenSettings: () -> Unit = {}) {
     }
 
     val locationsLoaded by cityListViewModel.locationsLoaded.collectAsStateWithLifecycle()
-    val addMyLocation = rememberAddMyLocation(
+    // Adds My Location unprompted and keeps it where the device is; adding it by hand is on the
+    // Add location screen.
+    rememberAddMyLocation(
         locations = locations,
         onLocated = cityListViewModel::addLocation,
         autoAdd = true,
@@ -358,8 +345,6 @@ fun CurrentWeatherRoute(onOpenSettings: () -> Unit = {}) {
         onRefreshed = cityListViewModel::updateCurrentLocation,
         claimRefresh = { cityListViewModel.claimMyLocationCheck() },
     )
-
-    var showAddSheet by remember { mutableStateOf(false) }
 
     CompositionLocalProvider(
         LocalDistanceInMiles provides distanceInMiles,
@@ -388,7 +373,7 @@ fun CurrentWeatherRoute(onOpenSettings: () -> Unit = {}) {
                 weatherForecastViewModel.logSettingsOpened()
                 onOpenSettings()
             },
-            onAddCityClick = { showAddSheet = true },
+            onAddCityClick = onAddLocation,
             topBanner = {
                 if (updatePrompt == UpdatePrompt.RECOMMENDED) {
                     UpdateBanner(
@@ -408,44 +393,6 @@ fun CurrentWeatherRoute(onOpenSettings: () -> Unit = {}) {
                 weatherForecastViewModel.refreshCurrent(it)
                 weatherForecastViewModel.refreshForecast(it)
             }
-        }
-    }
-
-    if (showAddSheet) {
-        val sheetState = rememberModalBottomSheetState()
-        ModalBottomSheet(
-            onDismissRequest = {
-                geoViewModel.reset()
-                showAddSheet = false
-            },
-            sheetState = sheetState,
-        ) {
-            AddCitySheetContent(
-                savedLocations = locations,
-                cityInput = cityInput,
-                suggestions = suggestions,
-                suggestLoading = suggestLoading,
-                selectedSuggestion = selectedSuggestion,
-                onCityInputChange = geoViewModel::onCityInputChange,
-                onSuggestionChosen = geoViewModel::onCitySuggestionChosen,
-                onAddCity = {
-                    geoViewModel.locationToAdd()?.let(cityListViewModel::addLocation)
-                    geoViewModel.reset()
-                    showAddSheet = false
-                },
-                onRemoveSaved = cityListViewModel::removeLocation,
-                onAddMyLocation = addMyLocation?.let { add ->
-                    {
-                        add()
-                        geoViewModel.reset()
-                        showAddSheet = false
-                    }
-                },
-                onDismiss = {
-                    geoViewModel.reset()
-                    showAddSheet = false
-                },
-            )
         }
     }
 }
@@ -508,12 +455,8 @@ fun CurrentWeatherScreen(
                         )
                     },
                     actions = {
-                        IconButton(onClick = onAddCityClick) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = stringResource(R.string.cd_add_city),
-                            )
-                        }
+                        // Locations are added from Manage Locations in Settings, or the empty
+                        // screen's button when there are none.
                         IconButton(onClick = onOpenSettings) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
@@ -704,160 +647,6 @@ private fun EmptyLocationsState(
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.size(8.dp))
             Text(stringResource(R.string.action_add_city))
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AddCitySheetContent(
-    savedLocations: List<SavedLocation>,
-    cityInput: String,
-    suggestions: List<CitySuggestion>,
-    suggestLoading: Boolean,
-    selectedSuggestion: CitySuggestion?,
-    onCityInputChange: (String) -> Unit,
-    onSuggestionChosen: (CitySuggestion) -> Unit,
-    onAddCity: () -> Unit,
-    onRemoveSaved: (Int) -> Unit,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
-    // Shown when My Location isn't saved and location access is on.
-    onAddMyLocation: (() -> Unit)? = null,
-) {
-    val keyboardController = LocalSoftwareKeyboardController.current
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(
-            text = stringResource(R.string.add_city_sheet_title),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-
-        if (savedLocations.isNotEmpty()) {
-            Text(
-                text = stringResource(R.string.saved_cities_section),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            savedLocations.forEachIndexed { index, location ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (location.isCurrentLocation) {
-                        Icon(
-                            Icons.Default.LocationOn,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(16.dp)
-                                .padding(end = 0.dp),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                        Spacer(modifier = Modifier.size(4.dp))
-                    }
-                    Text(
-                        text = location.label,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    IconButton(onClick = { onRemoveSaved(index) }) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = stringResource(R.string.cd_remove_city),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-            HorizontalDivider()
-        }
-
-        if (onAddMyLocation != null) {
-            OutlinedButton(onClick = onAddMyLocation, modifier = Modifier.fillMaxWidth()) {
-                Icon(
-                    imageVector = Icons.Default.LocationOn,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(stringResource(R.string.add_my_location))
-            }
-        }
-
-        Text(
-            text = stringResource(R.string.search_city_section),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Column(modifier = Modifier.fillMaxWidth()) {
-            OutlinedTextField(
-                value = cityInput,
-                onValueChange = onCityInputChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.field_city_label)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
-            )
-            if (suggestLoading) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-            if (suggestions.isNotEmpty()) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 220.dp),
-                    ) {
-                        suggestions.forEach { suggestion ->
-                            TextButton(
-                                onClick = {
-                                    keyboardController?.hide()
-                                    onSuggestionChosen(suggestion)
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(
-                                    text = suggestion.label,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.Start,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Button(
-            onClick = {
-                keyboardController?.hide()
-                onAddCity()
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = cityInput.isNotBlank() || selectedSuggestion != null,
-        ) {
-            Text(stringResource(R.string.action_add_city))
-        }
-        OutlinedButton(
-            onClick = onDismiss,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.action_cancel))
         }
     }
 }
@@ -1711,31 +1500,6 @@ private fun CurrentWeatherSuccessPreview() {
             onTabSelected = {},
             onAddCityClick = {},
         ) {}
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun AddCitySheetPreview() {
-    CatsDogsTheme {
-        AddCitySheetContent(
-            savedLocations = listOf(
-                SavedLocation("My Location", 51.5, -0.1, isCurrentLocation = true),
-                SavedLocation("London, GB", 51.5074, -0.1278),
-            ),
-            cityInput = "New Y",
-            suggestions = listOf(
-                CitySuggestion("New York, US", 40.71, -74.0),
-                CitySuggestion("New Haven, US", 41.30, -72.92),
-            ),
-            suggestLoading = false,
-            selectedSuggestion = null,
-            onCityInputChange = {},
-            onSuggestionChosen = {},
-            onAddCity = {},
-            onRemoveSaved = {},
-            onDismiss = {},
-        )
     }
 }
 

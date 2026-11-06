@@ -22,6 +22,7 @@ import androidx.navigation.compose.rememberNavController
 import com.fangjet.weather.model.CityListViewModel
 import com.fangjet.weather.model.SettingsViewModel
 import com.fangjet.weather.model.WelcomeViewModel
+import com.fangjet.weather.ui.AddLocationRoute
 import com.fangjet.weather.ui.CurrentWeatherRoute
 import com.fangjet.weather.ui.LocationsRoute
 import com.fangjet.weather.ui.NotificationSettingsRoute
@@ -42,7 +43,11 @@ object WeatherDestinations {
     const val SETTINGS = "settings"
     const val NOTIFICATION_SETTINGS = "notification_settings"
     const val LOCATIONS = "locations"
+    const val ADD_LOCATION = "add_location"
 }
+
+/** The name of a location just added, handed back to Manage Locations to confirm. */
+private const val LOCATION_ADDED = "location_added"
 
 @Composable
 fun WeatherNavHost(
@@ -148,6 +153,9 @@ fun WeatherNavHost(
                 onOpenSettings = {
                     navController.navigate(WeatherDestinations.SETTINGS)
                 },
+                onAddLocation = {
+                    navController.navigate(WeatherDestinations.ADD_LOCATION) { launchSingleTop = true }
+                },
             )
         }
 
@@ -167,17 +175,44 @@ fun WeatherNavHost(
             NotificationSettingsRoute(onNavigateBack = { navController.popBackStack() })
         }
 
-        composable(WeatherDestinations.LOCATIONS) {
-            val geoViewModel = hiltViewModel<com.fangjet.weather.model.GeoLocationViewModel>(
-                viewModelStoreOwner = activity,
-            )
+        composable(WeatherDestinations.LOCATIONS) { entry ->
+            val locationAdded by entry.savedStateHandle
+                .getStateFlow<String?>(LOCATION_ADDED, null)
+                .collectAsStateWithLifecycle()
             LocationsRoute(
                 locations = cityListViewModel.locations.collectAsStateWithLifecycle().value,
                 onReorder = cityListViewModel::reorderLocations,
                 onRemove = cityListViewModel::removeLocation,
                 onNavigateBack = { navController.popBackStack() },
-                geoViewModel = geoViewModel,
-                cityListViewModel = cityListViewModel,
+                onAddLocation = {
+                    navController.navigate(WeatherDestinations.ADD_LOCATION) { launchSingleTop = true }
+                },
+                locationAdded = locationAdded,
+                onLocationAddedShown = { entry.savedStateHandle[LOCATION_ADDED] = null },
+            )
+        }
+
+        // A screen of its own, closed with its X. Adding goes back to where it was opened from;
+        // Go to (a place already saved) goes to the weather screen showing it.
+        composable(WeatherDestinations.ADD_LOCATION) {
+            // Only while it's the screen showing, so a second tap doesn't pop what's under it.
+            fun showing() = navController.currentDestination?.route == WeatherDestinations.ADD_LOCATION
+            AddLocationRoute(
+                locations = cityListViewModel.locations.collectAsStateWithLifecycle().value,
+                onAdd = { location, name ->
+                    if (showing()) {
+                        cityListViewModel.addLocation(location)
+                        navController.previousBackStackEntry?.savedStateHandle?.set(LOCATION_ADDED, name)
+                        navController.popBackStack()
+                    }
+                },
+                onGoTo = { index ->
+                    if (showing()) {
+                        cityListViewModel.setActiveIndex(index)
+                        navController.popBackStack(WeatherDestinations.CURRENT, inclusive = false)
+                    }
+                },
+                onClose = { if (showing()) navController.popBackStack() },
             )
         }
     }
