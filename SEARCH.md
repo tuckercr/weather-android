@@ -300,12 +300,14 @@ Considered and rejected: never passing a capital (fixes Paris and London, not Sy
 one); country-first only for unfinished names (nearest-first still does it to Paris); country-first
 off (loses Nashville for "Nas").
 
-Example, Open-Meteo (`count=20`, checked live), a US phone, "Nas": Nashville TN, Nash TX, Nash OK
-(the US rows among the 20, in provider order), then Nashik IN, Nassau BS, Nasiriyah IQ, Ahvāz IR,
-Grozny RU. Today the same phone gets Nasu JP, Nas CN, \`Anas YE, Nås SE, Nas FR. The 20 only hold
-three US rows (the tail is six villages called Näs in Sweden), so country-first works with what
-the provider ranks highly; it can't find a small local town the provider ranks low. A second
-request with `countryCode` would, at twice the calls; not proposed for now.
+Example, Open-Meteo (`count=20`, checked live), a US phone, "Nas": Nashville TN, Nashik IN,
+Nassau BS, Nasiriyah IQ, Ahvāz IR, Grozny RU, Nasimshahr IR, Nash TX. Nashville (689k) passes
+Nashik (2.2× bigger) to the top. Nash TX (3k) passes only Nås (205) and stops under Nasimshahr
+(64× bigger), and Nash OK (204) ends up ninth, below the eight shown. Today the same phone gets
+Nasu JP, Nas CN, \`Anas YE, Nås SE, Nas FR. The 20 only hold three US rows (the tail is villages
+called Näs in Sweden), so country-first works with what the provider ranks highly; it can't find a
+small local town the provider ranks low, and the guard keeps one below the big cities anyway. A
+second request with `countryCode` would, at twice the calls; not proposed for now.
 
 ### Filtering
 
@@ -347,7 +349,8 @@ places in Abu Dhabi, "SW1A" finds Westminster Abbey).
 ### Labels
 
 Open-Meteo labels are built the same way as today: `name, admin1, country_code` ("Nashville,
-Tennessee, US"), with `admin2` added only to tell two same-label places apart (above). 
+Tennessee, US"), with `admin2` added only to tell two same-label places apart (above).
+
 ### Already saved
 
 Decided 11-05. `addLocation` switches to a saved location instead of adding it again when the
@@ -438,8 +441,8 @@ Decided 11-05, the same in both apps:
   | `empty_cities_title` | No cities added yet | No locations added yet |
   | `empty_cities_body` | Tap the + button to add your first city and get started. | Tap the + button to add your first location and get started. |
   | `add_pick_from_list` (new) | | Pick a town or city from the list |
-| `location_already_saved` (new) | | Already in your locations |
-| `error_city_not_found` | We couldn't find that city. Try a different search. | We couldn't find that town or city. Try a different search. |
+  | `location_already_saved` (new) | | Already in your locations |
+  | `error_city_not_found` | We couldn't find that city. Try a different search. | We couldn't find that town or city. Try a different search. |
   | `location_skip_button` | Enter a city manually | Enter a town or city manually |
   | `add_my_location_failed` | Couldn't find your location. Try again, or add a city by name. | Couldn't find your location. Try again, or search for a town or city. |
   | `location_fetch_failed` | Could not determine your location. You can still add cities manually. | Could not determine your location. You can still add locations manually. |
