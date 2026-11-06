@@ -223,14 +223,16 @@ Reviewed and agreed 11-05; not built yet. The details are in the sections below.
    Paris, Texas. No sorting on the OpenWeather fallback.
 4. **Add with nothing tapped** takes the first row whose name matches what was typed, accents
    ignored, unless a row above it is `city_search_size_ratio` times bigger; otherwise it asks for
-   a pick. **Already saved** is a label match or within 2 km, My Location aside.
+   a pick. **Already saved** is a label match or within 2 km, My Location aside, and such a place
+   is marked and gone to rather than added again (11-06).
 5. **US ZIP codes** work; other postcodes search nothing, but town names with a number in them
    (100 Mile House) still search.
 6. **Copy:** "town or city" to search, "location" for what's saved; the strings are approved.
 7. **Analytics:** `source` and `provider` on `city_added`.
 8. **Remote Config keys** and their defaults, all approved.
 
-The suggestion list's layout is left to the full-screen Add location screen (NOTES.md).
+The list sits on a full-screen Add location screen, built 11-06 ahead of the search itself: see
+[The Add location screen](#the-add-location-screen).
 
 ## Remote Config design
 
@@ -363,16 +365,17 @@ Tennessee, US"), with `admin2` added only to tell two same-label places apart (a
 
 ### Already saved
 
-Decided 11-05. `addLocation` switches to a saved location instead of adding it again when the
-labels match (today's check) **or** the two are within 2 km. Labels alone miss the same place:
+Decided 11-05. A place already saved is gone to instead of added again when the labels match
+(today's check) **or** the two are within 2 km. Labels alone miss the same place:
 the providers spell some states differently ("Île-de-France Region" against "Ile-de-France"), and
 the county is now added to some labels. Within 2 km the forecasts are effectively the same anyway.
 
 - Name-only locations have no coordinates, so for them only the label counts.
 - My Location is left out of the check: it moves, and saving the town you're in as its own
   location is reasonable.
-- When it switches, the app says "Already in your locations" (new string, `location_already_saved`)
-  instead of switching silently.
+- Decided 11-06, in place of an "Already in your locations" message after the tap: a saved place
+  is marked *Saved* in the list and the button reads "Go to London, GB", so it's clear before the
+  tap. Going to it shows its weather.
 - Two places really within 2 km (Shoreditch and the City of London) can't both be saved; accepted.
 
 ### Add with nothing picked
@@ -408,8 +411,31 @@ puts Nashville first), so Add stops guessing from a fragment:
   filtering and sorting, and the phone's region. No matching row leaves the location name-only,
   on OpenWeather's forecast by name, as today.
 - A tapped suggestion is added as it is, as today.
-- How the screen shows which row Add would take (the button's label or a highlighted row) is left
-  to the full-screen Add location screen (NOTES.md).
+- The screen highlights the row Add would take and names it on the button ([The Add location
+  screen](#the-add-location-screen)).
+
+### The Add location screen
+
+Built 11-06 in both apps, on today's OpenWeather search, ahead of the provider, filtering and
+sorting above.
+
+- **Ways in.** Manage Locations has an Add location button under the list, and the empty weather
+  screen has its own. The weather screen's + is gone, and so is the sheet that held the saved list
+  above the search; reordering and removing stay in Manage Locations.
+- **The screen.** A full screen, closed with its X. The field is at the top with the keyboard up,
+  *Add My Location* under it while My Location isn't saved, and the results right under the field:
+  the name above its state and country, with the letters typed so far in bold. Tapping a row adds
+  it.
+- **The button above the keyboard** says what it will do, and the keyboard's Search key does the
+  same: "Add Malmö, SE" (that row is highlighted), "Go to London, GB" for a place already saved,
+  "Add “Paris”" when the search failed, or, in place of a button, "Pick a town or city from the
+  list" when [Add with nothing picked](#add-with-nothing-picked) finds no row. A search that finds
+  nothing says "We couldn't find that town or city. Try a different search."
+- **Already saved** rows say *Saved*; tapping one, or Go to, shows its weather.
+- **Afterwards** the app goes back to where Add location was opened from. Manage Locations
+  confirms with "Malmö added"; from the empty weather screen, the new location's weather does.
+- Until the new search lands, results carry no population, so the size check never stops Add:
+  "Nas" adds "Nas, CN", OpenWeather's exact match.
 
 ### Where the code goes
 
@@ -441,8 +467,8 @@ deploy, and is asked for first.
 
 Decided 11-05, the same in both apps:
 
-- **The search heading** in the add-city sheet changes from "ADD A NEW CITY" to "SEARCH FOR A
-  TOWN OR CITY" (Android `search_city_section`). One wording for every region: no "state" (wrong for
+- **The search field** says "Search for a town or city" (the sheet and its "ADD A NEW CITY"
+  heading went with the Add location screen, 11-06). One wording for every region: no "state" (wrong for
   British testers) or "county" (wrong for American ones), and no country (nobody adds France).
 - **No hint about narrowing with a comma.** People who type "Richmond, North Yorkshire" or "Paris,
   TX" still get it: the text after the comma is matched on the phone against the state, county
@@ -456,21 +482,31 @@ Decided 11-05, the same in both apps:
   someone types a name (the heading, the field, manual entry, not-found messages), "location" for
   the list and its entries (My Location isn't a town). It also keeps "location" from meaning both
   where the phone is and a saved place in one message. Every user-facing "city" changes; resource names, code and Remote Config keys (`city_search_*`) keep "city", since users
-  never see them. Android strings, approved 11-05 (iOS has the same text):
+  never see them. Android strings, approved 11-05 and updated 11-06 for the Add location screen
+  (iOS has the same text). All went in with that screen except `location_skip_button`,
+  `location_fetch_failed` and the two `notif_onboarding_body` strings, which come with the new
+  search:
 
   | String | Today | New |
   |---|---|---|
-  | `add_city_sheet_title` | Manage cities | Manage Locations (as in Settings) |
-  | `saved_cities_section` | SAVED CITIES | SAVED LOCATIONS |
-  | `search_city_section` | ADD A NEW CITY | SEARCH FOR A TOWN OR CITY |
-  | `field_city_label` | City | Town or city |
+  | `add_city_sheet_title` | Manage cities | Removed with the sheet |
+  | `saved_cities_section` | SAVED CITIES | Removed with the sheet |
+  | `search_city_section` | ADD A NEW CITY | Removed with the sheet |
+  | `field_city_label` | City | Removed: the field has `add_location_search_hint` |
+  | `add_location_title` (new) | | Add location |
+  | `add_location_search_hint` (new) | | Search for a town or city |
   | `action_add_city` | Add city | Add location |
-  | `cd_add_city` | Add a city | Add a location |
-  | `cd_remove_city` | Remove city | Remove location |
+  | `cd_add_city` | Add a city | Removed with the weather screen's + |
+  | `cd_remove_city` | Remove city | Removed with the sheet |
   | `empty_cities_title` | No cities added yet | No locations added yet |
-  | `empty_cities_body` | Tap the + button to add your first city and get started. | Tap the + button to add your first location and get started. |
+  | `empty_cities_body` | Tap the + button to add your first city and get started. | Add your first location to get started. (There's no + any more.) |
   | `add_pick_from_list` (new) | | Pick a town or city from the list |
-  | `location_already_saved` (new) | | Already in your locations |
+  | `location_saved` (new) | | Saved |
+  | `format_add_location` (new) | | Add %1$s ("Add Malmö, SE") |
+  | `format_go_to_location` (new) | | Go to %1$s ("Go to London, GB") |
+  | `format_add_typed_location` (new) | | Add “%1$s” (the search failed) |
+  | `format_location_added` (new) | | %1$s added ("Malmö added") |
+  | `cd_close`, `cd_clear_search` (new) | | Close, Clear search |
   | `error_city_not_found` | We couldn't find that city. Try a different search. | We couldn't find that town or city. Try a different search. |
   | `location_skip_button` | Enter a city manually | Enter a town or city manually |
   | `add_my_location_failed` | Couldn't find your location. Try again, or add a city by name. | Couldn't find your location. Try again, or search for a town or city. |

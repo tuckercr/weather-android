@@ -40,13 +40,10 @@ Finished items move to Done at the bottom.
       end in an empty band. With no rain at all it sizes correctly (checked 10-31). Better: the
       same height for every hour, with the chance under a slightly smaller icon in the icon's own
       space, so the card never changes height and never has a gap. Both apps. (10-31)
-- [ ] **Adding a city is a poor search experience.** The search results appear under the
-      keyboard, especially when more than one city is already saved (the saved list sits above
-      them in the sheet). Consider making Add City a full-screen screen of its own, with the
-      search field at the top and the results right under it. How search itself ranks results is
-      in SEARCH.md. When it's designed, show what Add will do before it's tapped: label the button
-      with the place it would add ("Add Malmö, SE") or highlight that row, and say when it would
-      ask for a pick instead. (11-05)
+- [ ] **Manage Locations polish.** Android's rows wrap a long name at half the row's width
+      ("Paris," above "Ile-de-France, FR"), because the name and the space after it share the row
+      equally. iOS's Settings row says "Manage locations" where Android's says "Manage Locations",
+      the screen's title on both. (11-06)
 - [ ] **Review analytics, and add parameters where they'd help.** Only four events today, three
       with no parameters. Worth knowing: which permissions are granted (notifications, location,
       "Allow all the time" for Follow my location) from onboarding and from Settings; how cities
@@ -301,6 +298,12 @@ noted. Checked against the code, not fixed yet.
 
 ## Done
 
+- [x] **Add location, a full screen of its own** (11-06): the search results sat under the
+      keyboard in a sheet below the saved list. Manage Locations' Add location button and the
+      empty weather screen now open a full screen with the results right under the field, the
+      weather screen's + and the sheet are gone, and the button above the keyboard names what it
+      does ("Add Malmö, SE", "Go to London, GB", or "Pick a town or city from the list"). Details
+      in SEARCH.md, "The Add location screen". The new search itself is still to come.
 - [x] **Paw Check tile design** (11-04): five paws from icy to dangerous under the number, the
       pavement's own full size and colour (blue, green, orange, red, maroon), and the icy and
       below freezing lines in blue. A badge with when it changes later today ("Cooler after
