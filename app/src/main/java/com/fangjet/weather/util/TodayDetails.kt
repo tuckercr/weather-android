@@ -268,6 +268,40 @@ fun windForce(
     return WindForce.entries[index]
 }
 
+/** The windsock's droop below the horizontal when it's calm. */
+const val WINDSOCK_LIMP_DEGREES = 75.0
+
+/** The wind at which the windsock flies straight out: a strong breeze (Beaufort 6), 24 mph. */
+private const val WINDSOCK_STRAIGHT_METERS_PER_SECOND = 10.8
+
+/** Gusts are mentioned when they're at least this much stronger than the wind (5 mph). */
+private const val GUST_GAP_METERS_PER_SECOND = 2.2
+
+/**
+ * The windsock's droop below the horizontal: limp when calm, lifting steadily until it flies
+ * straight out from a strong breeze. Same as iOS's `TodayDetails.windsockDroopDegrees`.
+ */
+fun windsockDroopDegrees(
+    speed: Double,
+    units: WeatherUnits,
+): Double {
+    val metersPerSecond = if (units == WeatherUnits.IMPERIAL) speed * METERS_PER_SECOND_PER_MPH else speed
+    return WINDSOCK_LIMP_DEGREES * (1 - (metersPerSecond / WINDSOCK_STRAIGHT_METERS_PER_SECOND).coerceIn(0.0, 1.0))
+}
+
+/**
+ * The gusts the Wind tile mentions ("From the SW, gusts 24"): null unless they stand out from the
+ * wind. Same rule as iOS's `TodayDetails.windNote`.
+ */
+fun gustWorthMentioning(
+    speed: Double,
+    gust: Double?,
+    units: WeatherUnits,
+): Double? {
+    val toMetersPerSecond = if (units == WeatherUnits.IMPERIAL) METERS_PER_SECOND_PER_MPH else 1.0
+    return gust?.takeIf { (it - speed) * toMetersPerSecond >= GUST_GAP_METERS_PER_SECOND }
+}
+
 /** Where the day is between sunrise and sunset, for the Daylight tile's arc. */
 sealed interface Daylight {
     data class BeforeSunrise(

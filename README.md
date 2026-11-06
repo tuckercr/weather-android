@@ -20,10 +20,13 @@ WorkManager, and CI on GitHub Actions.
 
 - **Current conditions** for any city: temperature, feels-like, today's high and low (from the
   day's forecast, over all of its hours), humidity, wind
-  speed and direction ("0 mph", with no direction, when calm), visibility ("Clear" from
+  speed, direction and gusts ("0 mph" and "Calm" when calm), visibility ("Clear" from
   10 km), cloud cover, UV index (daytime, from Open-Meteo), and sunrise/sunset.
 - **Pets that react to the weather**: Sunny the dog and Misty the cat, drawn in Compose, whose scene
-  and caption follow the conditions (sunny, cloudy, rain, storm, snow, hot, cold, night). Captions
+  and caption follow the conditions (fair, sunny, cloudy, rain, storm, snow, hot, cold, night). A
+  clear day follows the Feels Like tile's bands: fair (a pale yellow card and the sun) when it's
+  chilly or mild, sunny (amber, Sunny in sunglasses) when it's warm, above `walk_comfort_max_c`,
+  and hot from `pet_hot_threshold_c`. Captions
   name them ("Sunny wants puddles. Misty wants a towel."), and at night follow the city's time of
   night (evening, late night, before dawn). The night sky shows the moon's real phase, lit from the
   other side in the southern hemisphere.
@@ -72,6 +75,11 @@ WorkManager, and CI on GitHub Actions.
   or "Same as it is" within a degree). The bands come from the pets' thresholds in Remote Config:
   Cold and Hot at `pet_cold_threshold_c` and `pet_hot_threshold_c`, Mild across the walk comfort
   range, and Chilly and Warm between. The bar's end bands reach 10 °C past the pets' limits.
+- **Wind** tile: the speed beside a windsock drawn in Compose, which hangs limp when it's calm and
+  lifts steadily until it flies straight out from a strong breeze (24 mph, 10.8 m/s). Underneath,
+  where the wind comes from ("From the SW") and the gusts when they're at least 5 mph (2.2 m/s)
+  above the wind ("From the SW, gusts 24"); "Calm" when there's none. TalkBack also hears the
+  Beaufort name ("moderate breeze"). Gusts come with the current reading from both providers.
 - **Paw Check** tile (with a dog): the estimated temperature of dark pavement in direct sun ("About
   128 °F"), five paws from icy to dangerous with the pavement's own full size and colour (blue,
   green, orange, red and maroon), and a line about paws ("Too hot for paws"). Icy and below freezing

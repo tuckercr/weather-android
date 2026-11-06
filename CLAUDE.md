@@ -67,7 +67,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - **Time zones.** Everything shown for a city uses the city's UTC offset
   (`CurrentWeather.offsetSeconds`), including "today", night captions and seasonal themes. Only the
   8:30 briefing uses the device clock.
-- **Pets.** `petMoodFor` maps conditions to one of 8 moods, which choose the hero card's colour, ink
+- **Pets.** `petMoodFor` maps conditions to one of 9 moods, which choose the hero card's colour, ink
   and caption; `PetScene` draws the pets. A `SeasonalTheme` (built-in `res/raw/seasonal_themes.json`,
   replaceable from Remote Config `seasonal_themes`) can override the hero colours, caption and
   decorations on its dates. `WalkAdvisor` rates walks for the walk card, the briefing and the walk

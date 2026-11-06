@@ -26,9 +26,9 @@ class PetMoodTest {
     }
 
     @Test
-    fun `night icon means night, otherwise clear is sunny and anything else is cloudy`() {
+    fun `night icon means night, otherwise clear is fair or sunny and anything else is cloudy`() {
         assertEquals(PetMood.NIGHT, petMoodFor("Clear", "01n", 15.0))
-        assertEquals(PetMood.SUNNY, petMoodFor("Clear", "01d", 20.0))
+        assertEquals(PetMood.FAIR, petMoodFor("Clear", "01d", 20.0))
         assertEquals(PetMood.CLOUDY, petMoodFor("Clouds", "03d", 20.0))
         assertEquals(PetMood.CLOUDY, petMoodFor("Mist", "50d", 12.0))
     }
@@ -37,12 +37,29 @@ class PetMoodTest {
     fun `remote config thresholds move the hot and cold cut-offs`() {
         val warmer = PetWeatherThresholds.DEFAULT.copy(petHotC = 25.0, petColdC = 5.0)
 
-        // 26C clear is sunny with the defaults, hot with a 25C threshold.
-        assertEquals(PetMood.SUNNY, petMoodFor("Clear", "01d", 26.0))
+        // 26C clear is fair with the defaults, hot with a 25C threshold.
+        assertEquals(PetMood.FAIR, petMoodFor("Clear", "01d", 26.0))
         assertEquals(PetMood.HOT, petMoodFor("Clear", "01d", 26.0, warmer))
         // 4C cloudy is cloudy with the defaults, cold with a 5C threshold.
         assertEquals(PetMood.CLOUDY, petMoodFor("Clouds", "04d", 4.0))
         assertEquals(PetMood.COLD, petMoodFor("Clouds", "04d", 4.0, warmer))
+    }
+
+    @Test
+    fun `a clear day is sunny only when the Feels Like tile says warm`() {
+        // Chilly and mild: the sun, no sunglasses.
+        assertEquals(PetMood.FAIR, petMoodFor("Clear", "01d", 1.0))
+        assertEquals(PetMood.FAIR, petMoodFor("Clear", "01d", 20.0))
+        assertEquals(PetMood.FAIR, petMoodFor("Clear", "01d", 27.0))
+        // Warm, between the walk comfort range and hot: sunglasses on.
+        assertEquals(PetMood.SUNNY, petMoodFor("Clear", "01d", 27.5))
+        assertEquals(PetMood.SUNNY, petMoodFor("Clear", "01d", 29.9))
+        assertEquals(PetMood.HOT, petMoodFor("Clear", "01d", 30.0))
+        // A warm day that isn't clear stays cloudy.
+        assertEquals(PetMood.CLOUDY, petMoodFor("Clouds", "03d", 28.0))
+        // The comfort range comes from Remote Config too.
+        val cooler = PetWeatherThresholds.DEFAULT.copy(comfortMaxC = 22.0)
+        assertEquals(PetMood.SUNNY, petMoodFor("Clear", "01d", 23.0, cooler))
     }
 
     @Test

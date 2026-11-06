@@ -31,6 +31,7 @@ class OpenMeteoCurrentTest {
         assertEquals(1015, weather.pressureHpa)
         assertEquals(1.1, weather.windSpeed, 0.001)
         assertEquals(267, weather.windDeg)
+        assertEquals(9.8, weather.windGust ?: 0.0, 0.001)
         assertEquals(29_300, weather.visibilityMeters)
         assertEquals(5, weather.cloudPercent)
         assertEquals(WeatherUnits.IMPERIAL, weather.units)

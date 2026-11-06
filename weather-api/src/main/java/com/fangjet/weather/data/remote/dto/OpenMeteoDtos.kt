@@ -52,6 +52,7 @@ data class OpenMeteoCurrentDto(
     @SerialName("pressure_msl") val seaLevelPressure: Double? = null,
     @SerialName("wind_speed_10m") val windSpeed: Double? = null,
     @SerialName("wind_direction_10m") val windDirection: Int? = null,
+    @SerialName("wind_gusts_10m") val windGusts: Double? = null,
     @SerialName("visibility") val visibility: Double? = null,
     @SerialName("is_day") val isDay: Int? = null,
 )
