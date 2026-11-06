@@ -68,7 +68,7 @@ WorkManager, and CI on GitHub Actions.
   next-rain line, using its words as the headline. Rules in `util/RainOutlook.kt`;
   `rain_outlook_enabled`, `rain_outlook_hours` and `rain_outlook_min_chance` tune it remotely.
 - **Today tiles**: Feels Like, Wind, Fluff Factor, Paw Check (with a dog) and Air Quality in pairs, then
-  Daylight (with the UV index) and Sky across the full width. An odd tile out, usually Air Quality
+  Daylight (with the UV index) and Misty's View (the sky and how far she can see) across the full width. An odd tile out, usually Air Quality
   when Paw Check is showing, takes the full width rather than leaving a gap.
 - **Feels Like** tile: the feels-like temperature with its band beside it (Cold, Chilly, Mild, Warm
   or Hot), a five-colour bar and how far it is from the actual temperature ("8° warmer than it is",
@@ -141,7 +141,7 @@ WorkManager, and CI on GitHub Actions.
 
 | Pets, walk time & hourly | Today tiles & air quality | Radar & rest of week | Day detail | Settings |
 |---|---|---|---|---|
-| ![Sunny and Misty react to the weather, with best walk time and the hourly strip](./screenshots/current.png) | ![Today's tiles: feels like, wind, humidity and Paw check in pairs, then Air quality, daylight and sky across the full width](./screenshots/today.png) | ![Animated RainViewer radar and the rest of the week](./screenshots/forecast.png) | ![Hour-by-hour temperature and rain chance for a day](./screenshots/day.png) | ![Settings with units, I have a dog and notifications](./screenshots/settings.png) |
+| ![Sunny and Misty react to the weather, with best walk time and the hourly strip](./screenshots/current.png) | ![Today's tiles: feels like, wind, humidity and Paw check in pairs, then Air quality, daylight and Misty's View across the full width](./screenshots/today.png) | ![Animated RainViewer radar and the rest of the week](./screenshots/forecast.png) | ![Hour-by-hour temperature and rain chance for a day](./screenshots/day.png) | ![Settings with units, I have a dog and notifications](./screenshots/settings.png) |
 
 On tablets and in landscape, the pets sit beside today's details and the week splits into two columns:
 
@@ -401,7 +401,7 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `pet_cold_threshold_c` | number | `0` | At or below this °C (feels-like) the pets look cold and the walk rating is *Too cold*; valid -20–10, and below `pet_hot_threshold_c` |
 | `walk_bad_air_band` | number | `3` | Air quality band (0 good to 5 worst) from which hours aren't suggested for a walk and the walk rating is *Bad air*. 3 is US "Unhealthy" and Europe's "Poor"; valid 1–5 |
 | `analytics_enabled` | boolean | `true` | Analytics kill switch; see [Gates](#gates) |
-| `tile_feels_like_enabled`, `tile_wind_enabled`, `tile_humidity_enabled`, `tile_paw_check_enabled`, `tile_daylight_enabled`, `tile_sky_enabled` | boolean | `true` | One switch per Today tile; false hides that tile for everyone |
+| `tile_feels_like_enabled`, `tile_wind_enabled`, `tile_humidity_enabled`, `tile_paw_check_enabled`, `tile_daylight_enabled`, `tile_sky_enabled` | boolean | `true` | One switch per Today tile (`tile_sky_enabled` is Misty's View, the sky and visibility tile); false hides that tile for everyone |
 | `tile_uv_enabled` | boolean | `false` | The UV index tile; while off, UV stays in the Daylight tile's header (it still gets its own tile when there's no Daylight tile) |
 | `seasonal_themes_enabled` | boolean | `true` | Seasonal themes (Halloween and so on); false switches them all off |
 | `seasonal_themes` | string | the built-in list | The themes as a JSON list (format: `SeasonalTheme`), replacing the list built into the apps (`res/raw/seasonal_themes.json`) when valid; empty keeps it. A new theme for a fixed date, a date range or an nth weekday needs no app update |

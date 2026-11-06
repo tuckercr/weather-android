@@ -10,7 +10,7 @@ import kotlin.math.roundToInt
 // The rules behind the Today tiles, kept free of Compose so they can be tested. Same rules as
 // iOS's Utilities/TodayDetails.swift.
 
-/** How far you can see, in the bands the Sky tile names. */
+/** How far you can see, in the bands Misty's View names. */
 enum class VisibilityBand { EXCELLENT, GOOD, MODERATE, POOR }
 
 /** OpenWeather reports visibility up to 10 km and no further, so 10 km means "at least 10 km". */
@@ -51,7 +51,7 @@ fun visibilityDistance(
     }
 }
 
-/** The Sky tile's word for the sky. */
+/** Misty's View's word for the sky. */
 enum class SkyCondition { CLEAR, PARTLY_CLOUDY, MOSTLY_CLOUDY, OVERCAST, MIST, HAZE, FOG, SMOKE, DUST }
 
 /**

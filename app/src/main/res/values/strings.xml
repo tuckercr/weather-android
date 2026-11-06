@@ -361,7 +361,7 @@
     <!-- The pavement estimate, around a formatted temperature: "About 81 °F". -->
     <string name="format_about_temperature">About %1$s</string>
     <string name="label_daylight">Daylight</string>
-    <string name="label_sky">Sky</string>
+    <string name="label_sky">Misty\'s View</string>
     <string name="today_dew_point">Dew point %1$s</string>
     <string name="update_required_title">Time for an update</string>
     <string name="update_required_body">This version of Sunny &amp; Misty has stopped working. Sunny\'s packed, Misty\'s pretending not to notice. Update to keep the walks coming.</string>
