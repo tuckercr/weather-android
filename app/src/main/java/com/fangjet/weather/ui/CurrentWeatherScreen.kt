@@ -871,7 +871,6 @@ private fun CurrentWeatherContent(
                 if (walkCardEnabled) walkAdvice?.let { WalkCard(advice = it) }
             }
             val detailsSection: @Composable () -> Unit = {
-                SectionHeader(R.string.section_today)
                 // UV is always 0 after dark, so only show it in the daytime (OWM night icons end in "n").
                 val isNight = iconCodeNow.endsWith("n")
                 TodayTiles(
@@ -909,18 +908,17 @@ private fun CurrentWeatherContent(
                 }
                 // Hourly strip (next 24h), starting at the slot in progress — see currentSlots above.
                 val hourly = remember(currentSlots) { currentSlots.take(HOURLY_STRIP_COUNT) }
-                // hourly_forecast_enabled: Remote Config can hide the header and strip.
+                // hourly_forecast_enabled: Remote Config can hide the strip. No section headers:
+                // each card says what it is.
                 if (hourlyForecastEnabled && hourly.isNotEmpty()) {
-                    SectionHeader(R.string.section_hourly)
                     val strip = remember(hourly, forecastDays, weatherToday, nowEpochSeconds) {
                         hourlyStrip(hourly, sunEvents(forecastDays, weatherToday), nowEpochSeconds)
                     }
                     HourlyStrip(items = strip, utcOffsetSeconds = weather.offsetSeconds)
                 }
-                // Straight after the hourly strip, before TODAY (or the radar, when TODAY sits
+                // Straight after the hourly strip, before the tiles (or the radar, when the tiles sit
                 // beside the hero), in both layouts.
                 rainOutlook?.let {
-                    SectionHeader(R.string.section_rain_outlook)
                     RainOutlookCard(outlook = it, units = weather.units)
                 }
 
@@ -928,17 +926,15 @@ private fun CurrentWeatherContent(
                 // Weather radar (shared by the phone and wide layouts). Off via Remote Config
                 // radar_enabled: not composing RadarCard means no RainViewer or tile requests.
                 if (radarEnabled) {
-                    SectionHeader(R.string.section_radar)
                     RadarCard(location = location, utcOffsetSeconds = weather.offsetSeconds)
                 }
 
                 // Upcoming days section (excludes today). week_forecast_enabled: Remote Config can
-                // hide it, header and all.
+                // hide it.
                 val weekHasContent = upcomingDays.isNotEmpty() ||
                     forecastState is LoadingState.Loading ||
                     forecastState is LoadingState.Error
                 if (weekForecastEnabled && weekHasContent) {
-                    SectionHeader(R.string.section_upcoming)
                     when {
                         // Wide screens show the days in two columns rather than stretched rows.
                         upcomingDays.isNotEmpty() -> upcomingDays.chunked(if (wide) 2 else 1).forEach { row ->
@@ -1530,18 +1526,6 @@ private fun CurrentWeatherSuccessPreview() {
             onAddCityClick = {},
         ) {}
     }
-}
-
-@Composable
-private fun SectionHeader(
-    @androidx.annotation.StringRes text: Int,
-) {
-    Text(
-        text = stringResource(text),
-        style = MaterialTheme.typography.labelMedium,
-        color = seasonalSectionHeaderColor(),
-        modifier = Modifier.padding(top = 4.dp),
-    )
 }
 
 private val TEMP_TOP_TRIM = 18.dp

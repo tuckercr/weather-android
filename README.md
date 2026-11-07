@@ -49,8 +49,8 @@ WorkManager, and CI on GitHub Actions.
   OpenWeatherMap fallback): time, condition icon, temperature, and rain chance (hidden under 10%,
   otherwise to the nearest 10%, as everywhere in the app). Hours that have
   already passed are dropped at display time (`fromCurrentSlot`), so a cached forecast or an app
-  left open never shows or advises on past hours. `hourly_forecast_enabled` hides the section
-  (header and strip) remotely.
+  left open never shows or advises on past hours. `hourly_forecast_enabled` hides the strip
+  remotely.
   Each sunrise and sunset still to come sits between the hours it falls between, as a slim
   marker: the time ("6:50", the hours either side give AM or PM), a sun on the horizon with an
   arrow up or down, and a thin line. The times are Open-Meteo's daily sunrise and sunset, so the
@@ -104,7 +104,7 @@ WorkManager, and CI on GitHub Actions.
   from the date (no API).
 - **Multi-day forecast** shown inline, aggregated to the city's local-timezone days with tappable
   day details: each hour's temperature and rain chance. `week_forecast_enabled` hides the rest of
-  the week (header and day rows) remotely.
+  the week's day rows remotely.
 - **Rain probability** surfaced per hour and per day.
 - **Animated radar**: a RainViewer precipitation loop (recent past plus short-range nowcast) over
   an OpenStreetMap base, with a timeline scrubber, colour legend, play/pause, and an
@@ -370,11 +370,11 @@ validated: a missing or bad value falls back to the default rather than crashing
 |---|---|---|---|
 | `weather_refresh_interval_minutes` | number | `30` | Background weather refresh interval; values below the WorkManager minimum of 15 are raised to 15 |
 | `radar_frame_interval_ms` | number | `850` | Delay between radar animation frames; outside 100–5000 falls back to 850 |
-| `radar_enabled` | boolean | `true` | Radar kill switch: false hides the radar section (header and card, phone and tablet layouts) and skips the RainViewer timeline and tile requests, for when RainViewer or the OpenStreetMap tiles become unavailable |
+| `radar_enabled` | boolean | `true` | Radar kill switch: false hides the radar card (phone and tablet layouts) and skips the RainViewer timeline and tile requests, for when RainViewer or the OpenStreetMap tiles become unavailable |
 | `walk_card_enabled` | boolean | `true` | Shows the "Best Walk Time" card; false hides it for everyone (phone and tablet layouts). Users can also turn it off in Settings |
-| `hourly_forecast_enabled` | boolean | `true` | Shows the HOURLY section; false hides its header and strip for everyone (phone and tablet layouts) |
+| `hourly_forecast_enabled` | boolean | `true` | Shows the hourly strip; false hides it for everyone (phone and tablet layouts) |
 | `next_rain_enabled` | boolean | `true` | Shows the "Rain starting around 3:15 PM" line from the 15-minute forecast; false hides it for everyone |
-| `week_forecast_enabled` | boolean | `true` | Shows the rest-of-the-week section; false hides its header and day rows for everyone (phone and tablet layouts) |
+| `week_forecast_enabled` | boolean | `true` | Shows the rest of the week's day rows; false hides them for everyone (phone and tablet layouts) |
 | `rain_outlook_enabled` | boolean | `true` | Shows the rain outlook card; false hides it for everyone, and the next-rain line shows as before |
 | `rain_outlook_hours` | number | `10` | Hours the rain outlook charts, from the current one; whole number, valid 6–12 |
 | `rain_outlook_min_chance` | number | `20` | The rain outlook only shows when some hour reaches this rain chance (%), which is also the chance from which an hour counts as wet ("Drying out after …"); whole number, valid 1–100 |

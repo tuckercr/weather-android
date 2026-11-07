@@ -73,8 +73,9 @@ class SeasonalThemeTest {
         val theme = SeasonalThemes.parse(json)!!.single()
         assertEquals(setOf(SceneDecoration.BATS, SceneDecoration.WITCH_HAT), theme.decorations)
         assertEquals("Night", theme.caption(night = true, date = LocalDate.of(2026, 10, 31)))
-        // Without tile header colours, the tiles take the accent.
-        assertEquals(0xA34F0B, theme.colors.tileHeaderLight)
+        // Without tile header colours the tiles keep the brand colour; the old accent colours this
+        // theme still carries are ignored.
+        assertEquals(null, theme.colors.tileHeaderLight)
     }
 
     @Test
