@@ -41,6 +41,17 @@ Finished items move to Done at the bottom.
       ("Paris," above "Ile-de-France, FR"), because the name and the space after it share the row
       equally. iOS's Settings row says "Manage locations" where Android's says "Manage Locations",
       the screen's title on both. (11-06)
+- [ ] **Android: the city search in SEARCH.md**, assigned to a new developer. iOS has had it since
+      11-06, so until it lands the apps differ: Open-Meteo prefix search with the OpenWeather
+      fallback, filtering, county labels, sorting with the size guard, text after a comma, US ZIP
+      codes, the six `city_search_*` Remote Config keys, `city_added`'s `source` and `provider`,
+      the GeoNames credit, and the last "town or city" and "location" wording (onboarding and
+      notification onboarding). SEARCH.md marks the changes building it on iOS made (11-06).
+      When it's built, add the keys to `firebase/remoteconfig.template.json` with iOS's defaults;
+      iOS reads them with in-app defaults, so nothing needs deploying first. (11-06)
+- [ ] **Privacy policy: `city_added` now has `source` and `provider`** on iOS (anonymous
+      categories, never a place or what was typed). Update sunnyandmisty.com/privacy before the
+      release that ships it, and the App Store privacy answers if they list events. (11-06)
 - [ ] **Review analytics, and add parameters where they'd help.** Only four events today, three
       with no parameters. Worth knowing: which permissions are granted (notifications, location,
       "Allow all the time" for Follow my location) from onboarding and from Settings; how cities
@@ -180,9 +191,9 @@ noted. Checked against the code, not fixed yet.
       60% but says "maybe rain"). With `walk_bad_air_band` at 4 or 5 the walk card's "Air's not
       great" can disagree with the Air tile. Both apps.
 - [ ] **City search.** Two places with the same name, state and country (two "Richmond, England,
-      GB") show as one row, so the second can't be picked. Both apps. The search design in
-      SEARCH.md (agreed 11-05) fixes it: rows merge only within 2 km, and same-label places get
-      their county.
+      GB") show as one row, so the second can't be picked. The search design in SEARCH.md (agreed
+      11-05) fixes it: rows merge only within 2 km, and same-label places get their county. Fixed
+      on iOS 11-06; Android with its search.
 
 ## Location
 
@@ -213,6 +224,15 @@ noted. Checked against the code, not fixed yet.
 ## Walk planner and pet safety
 
 - [ ] Retune the pavement heat model after an outdoor check of your own. (10-27)
+- [ ] **The paw note beside a later walk time.** When the best walk time isn't now, the walk card
+      still adds the pavement note for now: Nairobi in drizzle on 11-07 read "Tomorrow around
+      7 AM" over "Paw check: about 116°. Getting hot.", as if 7 AM will be hot. Show the note only
+      for a walk now, word it as now ("Hot pavement right now"), or give the pavement at the
+      suggested time. Both apps (the walk card's caption, from `pavementNow`). (11-07)
+- [ ] **Hero captions don't know about the air.** New Delhi at night on 11-07, air Unhealthy: "Sunny
+      thinks there's time for one more lap of the block." above "Not a good day for walkies" and
+      "Bad air. Potty breaks only." From `walk_bad_air_band` up, captions that suggest a walk
+      could give way to a bad-air one. Both apps. (11-07)
 
 ## Store and release
 
@@ -275,7 +295,7 @@ noted. Checked against the code, not fixed yet.
       folder (`cats-dogs`) in their own PRs. (10-28)
 - [ ] Rename the "Furcast-Shots" and "Furcast-iPad-Shots" simulators. (10-28)
 - [ ] **Hardcoded numbers worth a Remote Config key.** Look for more like city search's 280 ms
-      wait (`GeoLocationViewModel`), which SEARCH.md proposes as `city_search_delay_ms`: values we
+      wait, now `city_search_delay_ms` (iOS 11-06; Android with its search): values we
       might want to tune after release without an update (timeouts, waits, limits, thresholds).
       List them first, then pick the few worth a key; each needs a default and validation in both
       apps. Both apps. (11-05)
