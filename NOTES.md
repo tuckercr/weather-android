@@ -302,6 +302,15 @@ noted. Checked against the code, not fixed yet.
       on the home screen never drops below the "active" standby bucket, so its background jobs
       aren't held back (see "late when the app counts as rarely used"). (11-03)
 - [ ] Kotlin Multiplatform, as a learning project. Low priority. (09-24)
+- [ ] **Translate the apps?** Both are English only. Android's copy is already in `strings.xml`
+      (lint expects it), so translating there is mostly adding a `values-xx` file per language.
+      iOS writes every string in the code, with no String Catalog, and SwiftUI's `Text` only
+      translates literals and `LocalizedStringKey`, not strings passed in as `String`: tile labels
+      (`Tile(label:)`), `windNote`, `fluffLine`, the pets' captions and the notification text.
+      iOS would need a String Catalog, those parameters changed to `LocalizedStringKey` (or
+      `String(localized:)`), and the strings built in code moved: hundreds of strings. Also the
+      pets' voice in each language, the App Store and Play listings, the website and the privacy
+      policy. Decide whether, and which languages, first. (11-06)
 - [x] Pollen: free from Open-Meteo for Europe only. The US needs a paid provider (Google Pollen,
       Tomorrow.io, Ambee). Moved to version 2. (10-30, decided 10-31)
 - [x] Per-pet thresholds: small, short-haired and flat-faced dogs struggle sooner. Moved to
