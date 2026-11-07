@@ -213,6 +213,15 @@ noted. Checked against the code, not fixed yet.
 ## Walk planner and pet safety
 
 - [ ] Retune the pavement heat model after an outdoor check of your own. (10-27)
+- [ ] **The paw note beside a later walk time.** When the best walk time isn't now, the walk card
+      still adds the pavement note for now: Nairobi in drizzle on 11-07 read "Tomorrow around
+      7 AM" over "Paw check: about 116°. Getting hot.", as if 7 AM will be hot. Show the note only
+      for a walk now, word it as now ("Hot pavement right now"), or give the pavement at the
+      suggested time. Both apps (the walk card's caption, from `pavementNow`). (11-07)
+- [ ] **Hero captions don't know about the air.** New Delhi at night on 11-07, air Unhealthy: "Sunny
+      thinks there's time for one more lap of the block." above "Not a good day for walkies" and
+      "Bad air. Potty breaks only." From `walk_bad_air_band` up, captions that suggest a walk
+      could give way to a bad-air one. Both apps. (11-07)
 
 ## Store and release
 
