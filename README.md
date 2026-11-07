@@ -66,7 +66,8 @@ WorkManager, and CI on GitHub Actions.
   heat, the air, cold and the dark. A walk now is fine or better; the hour under way is judged by
   the current reading's feels-like, condition, wind and gusts (with the worse of rain now and the
   hour's storms), the rest by the forecast. With `air_quality_enabled` off the air is left out, even
-  from a forecast cached before it went off.
+  from a forecast cached before it went off, and without a dog (*I have a dog* off) so is the
+  pavement.
 - **Next rain** line under the top card, only when rain or snow is due in the next 2 hours: "Rain
   starting around 3:15 PM", "Rain stopping around 4:30 PM" or "Rain for the next 2 hours", from
   Open-Meteo's 15-minute forecast (0.1 mm in 15 minutes counts; it stops after 30 dry minutes).

@@ -160,7 +160,8 @@ data class WalkCheck private constructor(
  * forecast: [feelsLikeC] is its feels-like (what the dog feels now), [conditionNow] its condition
  * group ("Rain", "Thunderstorm"), since the hour's forecast can say dry while it's raining,
  * [windForceNow] and [gustForceNow] its wind and gusts, as the Wind tile shows them, and [darkNow]
- * the clock's word on darkness, since the hour the sun sets in keeps its daytime icon.
+ * the clock's word on darkness, since the hour the sun sets in keeps its daytime icon. Without a
+ * dog ([hasDog] false) the pavement isn't weighed at all: it's only paws it burns.
  */
 fun walkCheckFor(
     slot: HourlySlot,
@@ -170,7 +171,8 @@ fun walkCheckFor(
     windForceNow: WindForce? = null,
     gustForceNow: WindForce? = null,
     darkNow: Boolean = false,
-): WalkCheck = WalkCheck(walkFactors(slot, thresholds, feelsLikeC, conditionNow, windForceNow, gustForceNow, darkNow))
+    hasDog: Boolean = true,
+): WalkCheck = WalkCheck(walkFactors(slot, thresholds, feelsLikeC, conditionNow, windForceNow, gustForceNow, darkNow, hasDog))
 
 /** Fine or better, without sorting the factors: the look-ahead and the notifications ask this of every hour. */
 fun isWalkableHour(
@@ -190,6 +192,7 @@ private fun walkFactors(
     windForceNow: WindForce? = null,
     gustForceNow: WindForce? = null,
     darkNow: Boolean = false,
+    hasDog: Boolean = true,
 ): List<WalkFactor> {
     val feels = feelsLikeC ?: slot.units.toCelsius(slot.feelsLike)
     val factors = mutableListOf<WalkFactor>()
@@ -210,7 +213,7 @@ private fun walkFactors(
     if (thresholds.airQualityEnabled) {
         slot.airQuality?.let { add(WalkReason.Air(it.band, it.mainPollutant), airWalkLevel(it.band, thresholds)) }
     }
-    slot.pavementTemperature?.let { pavement ->
+    slot.pavementTemperature?.takeIf { hasDog }?.let { pavement ->
         val band = pavementBand(slot.units.toCelsius(pavement), slot.groundWet, feels, thresholds)
         add(WalkReason.Pavement(band), pavementWalkLevel(band))
     }

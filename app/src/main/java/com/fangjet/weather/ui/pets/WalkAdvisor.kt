@@ -105,7 +105,7 @@ fun isPrecipitating(conditionMain: String): Boolean = conditionMain.lowercase() 
  * forecast can say the hour in progress is dry while it is raining, so when it's raining now, now
  * is never the walk time. [windForceNow] and [gustForceNow] are the current reading's wind and
  * gusts, as the Wind tile shows them. Hurricane force wind forecast in the next few hours counts as
- * now.
+ * now. Without a dog ([hasDog] false) the verdict on now leaves the pavement out.
  * [sunsetEpochSeconds] is today's sunset, for the "gets dark" line. [darkNow] is the clock's word
  * on darkness: the hour in progress keeps its daytime icon for the whole hour the sun sets in, so
  * without it now could be "a great time" for up to an hour after dark.
@@ -122,12 +122,13 @@ fun walkAdviceFor(
     gustForceNow: WindForce? = null,
     sunsetEpochSeconds: Long? = null,
     darkNow: Boolean = false,
+    hasDog: Boolean = true,
 ): WalkAdvice? {
     val slots = upcoming
         .take(LOOKAHEAD_SLOTS)
         .filter { slot -> slot.epochSeconds.let { it == null || it < nowEpochSeconds + LOOKAHEAD_SECONDS } }
     if (slots.isEmpty()) return null
-    var check = walkCheckFor(slots.first(), thresholds, currentFeelsLikeC, conditionNow, windForceNow, gustForceNow, darkNow)
+    var check = walkCheckFor(slots.first(), thresholds, currentFeelsLikeC, conditionNow, windForceNow, gustForceNow, darkNow, hasDog)
     val hurricaneSoon = slots.any { slot ->
         (slot.epochSeconds ?: 0L) <= nowEpochSeconds + DANGER_AHEAD_SECONDS &&
             windForce(slot.windSpeed, slot.units) == WindForce.HURRICANE

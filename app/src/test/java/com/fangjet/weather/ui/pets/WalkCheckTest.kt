@@ -28,6 +28,7 @@ class WalkCheckTest {
         thresholds: PetWeatherThresholds = default,
         windForceNow: WindForce? = null,
         gustForceNow: WindForce? = null,
+        hasDog: Boolean = true,
     ) = walkCheckFor(
         slot,
         thresholds,
@@ -36,6 +37,7 @@ class WalkCheckTest {
         windForceNow = windForceNow,
         gustForceNow = gustForceNow,
         darkNow = darkNow,
+        hasDog = hasDog,
     )
 
     // --- the verdict ---
@@ -210,7 +212,7 @@ class WalkCheckTest {
         assertEquals(listOf(WalkText(R.string.hero_hurricane)), heroWalkCaptions(check(slot(wind = 35.0)), hasDog = false))
         assertNotNull(heroWalkCaptions(check(slot(wind = 19.0)), hasDog = true))
         assertNotNull(heroWalkCaptions(check(slot(pavement = 54.0)), hasDog = true))
-        assertNull(heroWalkCaptions(check(slot(pavement = 54.0)), hasDog = false))
+        assertNull(heroWalkCaptions(check(slot(pavement = 54.0), hasDog = false), hasDog = false))
         assertNull(heroWalkCaptions(check(slot(wind = 15.0)), hasDog = true))
         assertNull(heroWalkCaptions(check(slot(airBand = 2)), hasDog = true))
         // Heat is the scene's to show: the hot mood's captions already say so.
@@ -281,14 +283,21 @@ class WalkCheckTest {
     }
 
     @Test
-    fun `without a dog the pavement does not hide the air`() {
-        val smokyAndHot = check(slot(pavement = 60.0, airBand = 3, pollutant = AirQuality.Pollutant.FINE_PARTICLES))
-        assertEquals(WalkReason.Pavement(PavementBand.DANGEROUS), smokyAndHot.reason)
+    fun `without a dog the pavement is not weighed`() {
+        // Dangerously hot pavement under smoky air: it leads with a dog, and isn't there without one.
+        val hot = slot(pavement = 60.0, airBand = 3, pollutant = AirQuality.Pollutant.FINE_PARTICLES)
+        assertEquals(WalkReason.Pavement(PavementBand.DANGEROUS), check(hot).reason)
+        assertNull(check(hot, hasDog = false).pavement)
+        assertEquals(WalkReason.Air(3, AirQuality.Pollutant.FINE_PARTICLES), check(hot, hasDog = false).reason)
         assertEquals(
             WalkText(R.string.hero_air_no_dog_1, listOf(WalkText(R.string.walk_air_smoky))),
-            heroWalkCaptions(smokyAndHot, hasDog = false)?.first(),
+            heroWalkCaptions(check(hot, hasDog = false), hasDog = false)?.first(),
         )
-        assertEquals(WalkText(R.string.hero_pavement_1), heroWalkCaptions(smokyAndHot, hasDog = true)?.first())
+        assertEquals(WalkText(R.string.hero_pavement_1), heroWalkCaptions(check(hot), hasDog = true)?.first())
+        // The advice for now leaves it out too.
+        val advice = walkAdviceFor(18.0, listOf(slot(pavement = 60.0)), hasDog = false)
+        assertNull(advice?.now?.pavement)
+        assertEquals(WalkRating.GREAT, advice?.rating)
     }
 
     @Test

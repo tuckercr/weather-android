@@ -205,7 +205,8 @@ internal fun rulesOutWalkNow(walk: WalkCheck): Boolean = walk.factors.any { it.r
 /**
  * When [walk] rules out more than a wait for a reason the scene can't show (the air, the pavement,
  * a gale or worse), the hero's caption gives the reason instead of the weather: "Smoky air today.
- * Quick potty breaks, then back on the sofa." Null otherwise, and for the pavement without a dog.
+ * Quick potty breaks, then back on the sofa." Null otherwise. Without a dog the check has no
+ * pavement in it.
  * It takes the place of a seasonal theme's caption too. Same captions as iOS's
  * `PetMood.walkCaptions`.
  */
@@ -213,9 +214,7 @@ internal fun heroWalkCaptions(
     walk: WalkCheck,
     hasDog: Boolean,
 ): List<WalkText>? {
-    // Without a dog the pavement is nobody's concern, so the next reason (bad air, a gale) stands.
-    val factors = if (hasDog) walk.factors else walk.factors.filterNot { it.reason is WalkReason.Pavement }
-    val worst = factors.firstOrNull()?.takeIf { it.level >= WalkLevel.POTTY_ONLY } ?: return null
+    val worst = walk.factors.firstOrNull()?.takeIf { it.level >= WalkLevel.POTTY_ONLY } ?: return null
     return when (val reason = worst.reason) {
         is WalkReason.Wind -> when {
             reason.force >= WindForce.HURRICANE -> listOf(WalkText(R.string.hero_hurricane))

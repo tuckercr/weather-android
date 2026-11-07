@@ -770,6 +770,7 @@ private fun CurrentWeatherContent(
             weatherToday,
             nowEpochSeconds,
             petWeatherThresholds,
+            dogWalking,
         ) {
             walkAdviceFor(
                 feelsLikeC,
@@ -782,6 +783,8 @@ private fun CurrentWeatherContent(
                 nowEpochSeconds = nowEpochSeconds,
                 sunsetEpochSeconds = weatherToday.sunsetEpoch,
                 darkNow = weatherToday.isDarkAt(nowEpochSeconds),
+                // Without a dog the pavement isn't weighed: the hero and a danger warning still read it.
+                hasDog = dogWalking,
             )
         }
     // The walk's reason when it's one the scene can't show (bad air, hot pavement, a gale), then the
