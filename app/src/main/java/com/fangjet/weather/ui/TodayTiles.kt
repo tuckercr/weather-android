@@ -62,6 +62,8 @@ import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.WeatherUnits
+import com.fangjet.weather.ui.pets.WalkLevel
+import com.fangjet.weather.ui.pets.airWalkLevel
 import com.fangjet.weather.ui.theme.PetSun
 import com.fangjet.weather.ui.theme.WalkColdBg
 import com.fangjet.weather.ui.theme.WalkColdText
@@ -144,7 +146,7 @@ internal fun TodayTiles(
             add { PavementTile(pavementNow, groundWet, weather.feelsLike, units, thresholds, it) }
         }
         if (showsUvTile && uvIndex != null) add { UvTile(uvIndex, uvLine(uvPeak, nowEpochSeconds, hasDog), it) }
-        if (airQuality != null) add { AirQualityTile(airQuality, hasDog, it) }
+        if (airQuality != null) add { AirQualityTile(airQuality, hasDog, thresholds, it) }
     }
     // Two tiles side by side leave too little room for large text, so it gets one per row.
     val perRow = if (LocalDensity.current.fontScale >= LARGE_FONT_SCALE) 1 else 2
@@ -653,12 +655,17 @@ private fun petLineTint(): Color = if (MaterialTheme.colorScheme.surface.luminan
 private fun AirQualityTile(
     air: AirQuality,
     hasDog: Boolean,
+    thresholds: PetWeatherThresholds,
     modifier: Modifier,
 ) {
     val bandName = stringArrayResource(
         if (air.scale == AirQuality.Scale.EUROPEAN) R.array.air_quality_bands_european else R.array.air_quality_bands_us,
     )[air.band]
-    val line = stringArrayResource(if (hasDog) R.array.air_quality_lines_dog else R.array.air_quality_lines)[air.band]
+    val line = if (hasDog) {
+        stringArrayResource(R.array.air_quality_lines_dog)[airQualityDogLine(air.band, thresholds)]
+    } else {
+        stringArrayResource(R.array.air_quality_lines)[air.band]
+    }
     val pollutant = air.mainPollutant?.let {
         stringResource(
             R.string.air_quality_mostly,
@@ -686,7 +693,7 @@ private fun AirQualityTile(
         )
         // The pollutant behind it is for TalkBack only: another line would stretch every tile in
         // the grid, which all take the tallest one's height.
-        TileNote(line, color = airTint(air.band), spoken = listOfNotNull(pollutant, line).joinToString(". "))
+        TileNote(line, color = airTint(air.band, thresholds), spoken = listOfNotNull(pollutant, line).joinToString(". "))
     }
 }
 
@@ -745,14 +752,33 @@ private val AIR_QUALITY_BANDS = listOf(
 
 /** The walk card's shades again: green for good air, amber for so-so, red from unhealthy up. */
 @Composable
-private fun airTint(band: Int): Color {
+private fun airTint(
+    band: Int,
+    thresholds: PetWeatherThresholds,
+): Color {
     val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    return when (band) {
-        0 -> if (dark) WalkGreatBg else WalkGreatText
-        1, 2 -> if (dark) WalkOkayBg else WalkOkayText
-        else -> if (dark) WalkHotBg else WalkHotText
+    return when {
+        airWalkLevel(band, thresholds) >= WalkLevel.POTTY_ONLY -> if (dark) WalkHotBg else WalkHotText
+        band == 0 -> if (dark) WalkGreatBg else WalkGreatText
+        else -> if (dark) WalkOkayBg else WalkOkayText
     }
 }
+
+/**
+ * Which of `air_quality_lines_dog` the Air Quality tile shows: it follows the walk rules
+ * ([airWalkLevel]), so it moves with Remote Config's `walk_bad_air_band` and never contradicts the
+ * walk card. Same as iOS's `AirQuality.line(hasDog:thresholds:)`.
+ */
+internal fun airQualityDogLine(
+    band: Int,
+    thresholds: PetWeatherThresholds,
+): Int =
+    when (airWalkLevel(band, thresholds)) {
+        WalkLevel.STAY_IN, WalkLevel.DANGER -> 5
+        WalkLevel.POTTY_ONLY -> 3
+        WalkLevel.FINE, WalkLevel.WAIT -> 2
+        WalkLevel.GREAT -> if (band == 0) 0 else 1
+    }
 
 @Composable
 private fun UvTile(

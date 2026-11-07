@@ -6,8 +6,10 @@ import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.util.PavementBand
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WalkAdvisorTest {
@@ -15,19 +17,19 @@ class WalkAdvisorTest {
     @Test
     fun `great when the next slot is dry and comfortable`() {
         val advice = walkAdviceFor(18.0, listOf(slot("3 PM", 18.0, 10), slot("6 PM", 16.0, 80)))
-        assertEquals(WalkAdvice(WalkRating.GREAT, null), advice)
+        assertEquals(WalkAdvice(WalkRating.GREAT, null), advice.withoutCheck())
     }
 
     @Test
     fun `okay with the first good window when it is wet now`() {
         val advice = walkAdviceFor(12.0, listOf(slot("3 PM", 12.0, 90), slot("6 PM", 13.0, 10)))
-        assertEquals(WalkAdvice(WalkRating.OKAY, "6 PM"), advice)
+        assertEquals(WalkAdvice(WalkRating.OKAY, "6 PM"), advice.withoutCheck())
     }
 
     @Test
     fun `poor when there is no good window in the lookahead`() {
         val advice = walkAdviceFor(12.0, List(8) { slot("${it}h", 12.0, 90) })
-        assertEquals(WalkAdvice(WalkRating.POOR, null), advice)
+        assertEquals(WalkAdvice(WalkRating.POOR, null), advice.withoutCheck())
     }
 
     @Test
@@ -36,7 +38,7 @@ class WalkAdvisorTest {
             18.0,
             listOf(slot("3 PM", 18.0, 0, airBand = 3), slot("4 PM", 18.0, 0, airBand = 4), slot("6 PM", 18.0, 0, airBand = 2)),
         )
-        assertEquals(WalkAdvice(WalkRating.BAD_AIR, "6 PM"), advice)
+        assertEquals(WalkAdvice(WalkRating.BAD_AIR, "6 PM"), advice.withoutCheck())
     }
 
     @Test
@@ -58,14 +60,16 @@ class WalkAdvisorTest {
     }
 
     @Test
-    fun `heat outranks bad air`() {
-        assertEquals(WalkRating.PAWS_HOT, walkAdviceFor(33.0, listOf(slot("3 PM", 33.0, 0, airBand = 5)))?.rating)
+    fun `heat outranks bad air at the same level, but hazardous air outranks heat`() {
+        assertEquals(WalkRating.PAWS_HOT, walkAdviceFor(33.0, listOf(slot("3 PM", 33.0, 0, airBand = 4)))?.rating)
+        // The worst band keeps pets inside, which is worse than potty breaks in the heat.
+        assertEquals(WalkRating.BAD_AIR, walkAdviceFor(33.0, listOf(slot("3 PM", 33.0, 0, airBand = 5)))?.rating)
     }
 
     @Test
     fun `paws hot above the heat threshold, pointing at the first cooler slot`() {
         val advice = walkAdviceFor(33.0, listOf(slot("3 PM", 33.0, 0), slot("7 PM", 24.0, 0)))
-        assertEquals(WalkAdvice(WalkRating.PAWS_HOT, "7 PM"), advice)
+        assertEquals(WalkAdvice(WalkRating.PAWS_HOT, "7 PM"), advice.withoutCheck())
     }
 
     @Test
@@ -83,7 +87,7 @@ class WalkAdvisorTest {
     @Test
     fun `night slots are skipped in favour of the first daytime window`() {
         val advice = walkAdviceFor(18.0, listOf(slot("2 AM", 18.0, 0), slot("5 AM", 17.0, 0), slot("8 AM", 16.0, 0)))
-        assertEquals(WalkAdvice(WalkRating.OKAY, "8 AM"), advice)
+        assertEquals(WalkAdvice(WalkRating.OKAY, "8 AM"), advice.withoutCheck())
     }
 
     @Test
@@ -104,7 +108,9 @@ class WalkAdvisorTest {
             24.0,
             listOf(slot("1 PM", 24.0, 0, pavement = 58.0), slot("6 PM", 22.0, 0, pavement = 30.0)),
         )
-        assertEquals(WalkAdvice(WalkRating.PAWS_HOT, "6 PM", 58.0, pavementBand = PavementBand.DANGEROUS), advice)
+        assertEquals(WalkAdvice(WalkRating.PAWS_HOT, "6 PM", 58.0), advice.withoutCheck())
+        assertEquals(WalkReason.Pavement(PavementBand.DANGEROUS), advice?.now?.reason)
+        assertEquals(WalkLevel.STAY_IN, advice?.now?.level)
     }
 
     @Test
@@ -121,25 +127,34 @@ class WalkAdvisorTest {
             24.0,
             listOf(slot("2 PM", 24.0, 0, pavement = 49.0), slot("6 PM", 22.0, 0, pavement = 35.0)),
         )
-        assertEquals(WalkAdvice(WalkRating.OKAY, "6 PM", 49.0, pavementBand = PavementBand.WARM), advice)
+        assertEquals(WalkAdvice(WalkRating.OKAY, "6 PM", 49.0), advice.withoutCheck())
+        assertEquals(WalkReason.Pavement(PavementBand.WARM), advice?.now?.reason)
     }
 
     @Test
-    fun `too hot air on mild pavement is paws hot, but the pavement band says the pavement is fine`() {
+    fun `too hot air on mild pavement is paws hot for the heat, not the pavement`() {
         // A muggy evening: 31C feels-like, pavement no hotter than the air.
         val advice = walkAdviceFor(31.0, listOf(slot("7 PM", 29.0, 0, pavement = 29.0)))
         assertEquals(WalkRating.PAWS_HOT, advice?.rating)
-        assertEquals(PavementBand.PAVEMENT_OK, advice?.pavementBand)
+        assertEquals(WalkReason.Heat, advice?.now?.reason)
+        assertNull(advice?.now?.pavement)
     }
 
     @Test
     fun `hours are judged by how warm they feel`() {
         // 25C air, but 31C in the humidity: past the 27C comfort limit.
-        val humid = slot("2 PM", 25.0, 0).copy(feelsLike = 31.0)
-        assertEquals(WalkRating.POOR, walkAdviceFor(25.0, listOf(humid))?.rating)
+        assertFalse(slot("2 PM", 25.0, 0).copy(feelsLike = 31.0).isWalkable(default))
         // 5C air, but 1C in the wind: under the 3C comfort limit.
-        val windy = slot("2 PM", 5.0, 0).copy(feelsLike = 1.0)
-        assertEquals(WalkRating.POOR, walkAdviceFor(5.0, listOf(windy))?.rating)
+        assertFalse(slot("2 PM", 5.0, 0).copy(feelsLike = 1.0).isWalkable(default))
+        assertTrue(slot("2 PM", 25.0, 0).isWalkable(default))
+    }
+
+    @Test
+    fun `now is judged by the current feels-like rather than the forecast hour`() {
+        // The forecast hour said 25C; the current reading feels warmer.
+        assertEquals(WalkRating.POOR, walkAdviceFor(28.0, listOf(slot("2 PM", 25.0, 0)))?.rating)
+        assertEquals(WalkRating.PAWS_HOT, walkAdviceFor(31.0, listOf(slot("2 PM", 25.0, 0)))?.rating)
+        assertEquals(WalkRating.GREAT, walkAdviceFor(25.0, listOf(slot("2 PM", 25.0, 0)))?.rating)
     }
 
     // --- Remote Config thresholds ---
@@ -174,10 +189,10 @@ class WalkAdvisorTest {
     fun `later walking hours skip an early slot`() {
         val slots = listOf(slot("7 AM", 15.0, 0), slot("10 AM", 16.0, 0))
 
-        assertEquals(WalkAdvice(WalkRating.GREAT, null), walkAdviceFor(15.0, slots))
+        assertEquals(WalkAdvice(WalkRating.GREAT, null), walkAdviceFor(15.0, slots).withoutCheck())
         assertEquals(
             WalkAdvice(WalkRating.OKAY, "10 AM"),
-            walkAdviceFor(15.0, slots, default.copy(walkHoursStart = 9)),
+            walkAdviceFor(15.0, slots, default.copy(walkHoursStart = 9)).withoutCheck(),
         )
     }
 
@@ -220,7 +235,7 @@ class WalkAdvisorTest {
         // The best slot's start comes along too, for the walk-time notification.
         assertEquals(
             WalkAdvice(WalkRating.OKAY, "6 PM", bestTimeIsTomorrow = false, bestTimeEpochSeconds = noonUtc + 6 * hourSec),
-            advice,
+            advice.withoutCheck(),
         )
     }
 
@@ -231,7 +246,7 @@ class WalkAdvisorTest {
 
         assertEquals(
             WalkAdvice(WalkRating.OKAY, "7 AM", bestTimeIsTomorrow = true, bestTimeEpochSeconds = noonUtc + 19 * hourSec),
-            advice,
+            advice.withoutCheck(),
         )
     }
 
@@ -252,7 +267,7 @@ class WalkAdvisorTest {
     fun `a best slot without a timestamp is never tomorrow`() {
         val advice = adviceWithBestAt(bestEpoch = null, utcOffsetSeconds = 0)
 
-        assertEquals(WalkAdvice(WalkRating.OKAY, "7 AM", bestTimeIsTomorrow = false), advice)
+        assertEquals(WalkAdvice(WalkRating.OKAY, "7 AM", bestTimeIsTomorrow = false), advice.withoutCheck())
     }
 
     @Test
@@ -260,27 +275,27 @@ class WalkAdvisorTest {
         // 3-hourly slots reach three days out; a dry slot 30 hours away is not "soon".
         val advice = adviceWithBestAt(noonUtc + 30 * hourSec, utcOffsetSeconds = 0)
 
-        assertEquals(WalkAdvice(WalkRating.POOR, null), advice)
+        assertEquals(WalkAdvice(WalkRating.POOR, null), advice.withoutCheck())
     }
 
     @Test
     fun `a slot before sunrise is not a walk time, even inside the walking hours`() {
         // 7 AM is within 7 AM..8 PM, but on a winter morning it can still be dark (a night icon).
         val advice = walkAdviceFor(12.0, listOf(slot("7 AM", 12.0, 5, icon = "03n"), slot("8 AM", 12.0, 5, icon = "03d")))
-        assertEquals(WalkAdvice(WalkRating.OKAY, "8 AM"), advice)
+        assertEquals(WalkAdvice(WalkRating.OKAY, "8 AM"), advice.withoutCheck())
     }
 
     @Test
     fun `raining now means now is not the walk time, even if the forecast hour looks dry`() {
         val slots = listOf(slot("3 PM", 18.0, 10), slot("4 PM", 18.0, 10))
-        assertEquals(WalkAdvice(WalkRating.GREAT, null), walkAdviceFor(18.0, slots))
-        assertEquals(WalkAdvice(WalkRating.OKAY, "4 PM"), walkAdviceFor(18.0, slots, precipitatingNow = true))
+        assertEquals(WalkAdvice(WalkRating.GREAT, null), walkAdviceFor(18.0, slots).withoutCheck())
+        assertEquals(WalkAdvice(WalkRating.OKAY, "4 PM"), walkAdviceFor(18.0, slots, conditionNow = "Rain").withoutCheck())
     }
 
     @Test
     fun `raining now with no dry window later is poor`() {
-        val advice = walkAdviceFor(18.0, listOf(slot("3 PM", 18.0, 10), slot("4 PM", 18.0, 90)), precipitatingNow = true)
-        assertEquals(WalkAdvice(WalkRating.POOR, null), advice)
+        val advice = walkAdviceFor(18.0, listOf(slot("3 PM", 18.0, 10), slot("4 PM", 18.0, 90)), conditionNow = "Drizzle")
+        assertEquals(WalkAdvice(WalkRating.POOR, null), advice.withoutCheck())
     }
 
     @Test
@@ -328,7 +343,7 @@ class WalkAdvisorTest {
         val gale = slot("4 PM", 20.0, 0, epoch = t0 + 3600, wind = 15.0) // force 7, about 34 mph
         assertEquals(WalkOutlook.Until("4 PM", WalkChange.WIND), outlook(listOf(calm, gale)))
         val windyNow = listOf(slot("3 PM", 20.0, 0, wind = 15.0), slot("4 PM", 20.0, 0))
-        assertEquals(WalkAdvice(WalkRating.OKAY, "4 PM"), walkAdviceFor(20.0, windyNow))
+        assertEquals(WalkAdvice(WalkRating.OKAY, "4 PM"), walkAdviceFor(20.0, windyNow).withoutCheck())
     }
 
     @Test
@@ -444,3 +459,6 @@ class WalkAdvisorTest {
         return if (m.groupValues[2] == "P") h + 12 else h
     }
 }
+
+/** The advice without the verdict behind it, to compare with an expected rating and time. */
+private fun WalkAdvice?.withoutCheck(): WalkAdvice? = this?.copy(now = WalkCheck.CLEAR)

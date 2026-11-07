@@ -218,7 +218,7 @@ private fun walkAdviceNow(
         thresholds,
         utcOffsetSeconds = weather.offsetSeconds,
         nowEpochSeconds = now,
-        precipitatingNow = isPrecipitating(weather.conditionMain),
+        conditionNow = weather.conditionMain,
     )
 
 private fun moodFor(
@@ -231,8 +231,9 @@ private const val BRIEFING_RAIN_CHANCE = 40
 
 /**
  * "Smoky air today" when bad air rules out walking hours from the one under way to the end of the
- * city's day, named by the worst hour's main pollutant: particles read as smoke, ozone by name,
- * anything else as poor air. Null on a clean day.
+ * city's day, named by the worst hour's main pollutant as the hero's caption names it
+ * ([airNameRes]): fine particles read as smoke, coarse ones as dust, ozone by name, anything else
+ * as poor air. Null on a clean day.
  */
 internal fun badAirPhrase(
     forecast: List<DayForecast>,
@@ -248,7 +249,8 @@ internal fun badAirPhrase(
             start + 3600 > nowEpochSeconds && localDay(start) == localDay(nowEpochSeconds) && slot.hasBadAirForWalking(thresholds)
         }.maxByOrNull { it.airQuality?.index ?: 0 } ?: return null
     return when (worst.airQuality?.mainPollutant) {
-        AirQuality.Pollutant.FINE_PARTICLES, AirQuality.Pollutant.COARSE_PARTICLES -> "Smoky air today"
+        AirQuality.Pollutant.FINE_PARTICLES -> "Smoky air today"
+        AirQuality.Pollutant.COARSE_PARTICLES -> "Dusty air today"
         AirQuality.Pollutant.OZONE -> "High ozone today"
         else -> "Poor air today"
     }

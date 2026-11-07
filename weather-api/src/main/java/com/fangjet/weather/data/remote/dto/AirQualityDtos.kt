@@ -30,11 +30,14 @@ data class AirQualityHourlyDto(
     @SerialName("european_aqi_ozone") val europeanAqiOzone: List<Int?> = emptyList(),
     @SerialName("european_aqi_nitrogen_dioxide") val europeanAqiNitrogenDioxide: List<Int?> = emptyList(),
     @SerialName("european_aqi_sulphur_dioxide") val europeanAqiSulphurDioxide: List<Int?> = emptyList(),
+    // Particle masses (µg/m³), which tell dust from smoke.
+    @SerialName("pm2_5") val pm25: List<Double?> = emptyList(),
+    @SerialName("pm10") val pm10: List<Double?> = emptyList(),
 ) {
     companion object {
         const val FIELDS =
             "us_aqi,us_aqi_pm2_5,us_aqi_pm10,us_aqi_ozone,us_aqi_nitrogen_dioxide,us_aqi_sulphur_dioxide," +
                 "us_aqi_carbon_monoxide,european_aqi,european_aqi_pm2_5,european_aqi_pm10,european_aqi_ozone," +
-                "european_aqi_nitrogen_dioxide,european_aqi_sulphur_dioxide"
+                "european_aqi_nitrogen_dioxide,european_aqi_sulphur_dioxide,pm2_5,pm10"
     }
 }

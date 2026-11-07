@@ -344,6 +344,7 @@ class NotificationWorkerLogicTest {
         fun phrase(vararg slots: HourlySlot) = badAirPhrase(listOf(forecast(slots = slots.toList())), 0, NOW, PetWeatherThresholds.DEFAULT)
 
         assertEquals("Smoky air today", phrase(slot(9, rain = 0, air = AirQuality.Pollutant.FINE_PARTICLES)))
+        assertEquals("Dusty air today", phrase(slot(9, rain = 0, air = AirQuality.Pollutant.COARSE_PARTICLES)))
         assertEquals(
             "High ozone today",
             phrase(

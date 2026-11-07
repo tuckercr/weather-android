@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -37,12 +38,15 @@ import com.fangjet.weather.ui.theme.WalkOkayText
 import com.fangjet.weather.ui.theme.WalkPoorBg
 import com.fangjet.weather.ui.theme.WalkPoorText
 import com.fangjet.weather.util.PavementBand
+import com.fangjet.weather.util.WindForce
 import kotlin.math.roundToInt
 
 /**
  * "Best walk time" card: when to take the dog out. The sentence carries the advice; the paw icon is
  * tinted by the rating as a glance cue (deliberately not a chip, which read as a button), and a
- * short caption says why when it's too hot or too cold, naming the pavement only when that's the reason.
+ * short caption gives [WalkCheck]'s reason when it's more than a wait: the pavement, heat or cold,
+ * the air (by its pollutant), a gale or storms. Hurricane force wind turns it into a warning, which
+ * shows even without a dog.
  */
 @Composable
 fun WalkCard(
@@ -52,6 +56,7 @@ fun WalkCard(
     val detail = walkDetail(advice).resolve()
     val caption = walkCaption(advice)?.resolve()
     val tint = ratingTint(advice.rating)
+    val danger = advice.rating == WalkRating.DANGER
     // Baloo 2 leaves more room under its baseline than the small title leaves above its capitals,
     // so when the headline is the last line the text sits high beside the paw. Lowered to match.
     val headlineLastOffset = with(LocalDensity.current) { 3.sp.toDp() }
@@ -65,14 +70,14 @@ fun WalkCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Icon(
-                imageVector = Icons.Default.Pets,
+                imageVector = if (danger) Icons.Default.Warning else Icons.Default.Pets,
                 contentDescription = null,
                 tint = tint,
                 modifier = Modifier.size(24.dp),
             )
             Column(modifier = Modifier.weight(1f).offset(y = if (caption == null) headlineLastOffset else 0.dp)) {
                 Text(
-                    text = stringResource(R.string.walk_title),
+                    text = stringResource(if (danger) R.string.walk_danger_title else R.string.walk_title),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -98,12 +103,14 @@ internal data class WalkText(
     val args: List<Any> = emptyList(),
 )
 
+/** An argument that is itself a [WalkText] (an air's name) is resolved first. */
 @Composable
-private fun WalkText.resolve(): String = stringResource(resId, *args.toTypedArray())
+internal fun WalkText.resolve(): String = stringResource(resId, *args.map { if (it is WalkText) it.resolve() else it }.toTypedArray())
 
 /** The card's sentence: walk now, around a time (today or tomorrow), or no good time soon. */
 internal fun walkDetail(advice: WalkAdvice): WalkText =
     when {
+        advice.rating == WalkRating.DANGER -> WalkText(R.string.walk_danger_hurricane)
         advice.rating == WalkRating.GREAT -> WalkText(R.string.walk_now)
         advice.bestTimeLabel != null && advice.bestTimeIsTomorrow ->
             WalkText(R.string.walk_around_tomorrow, listOf(advice.bestTimeLabel))
@@ -112,26 +119,37 @@ internal fun walkDetail(advice: WalkAdvice): WalkText =
     }
 
 /**
- * Why it's not a good time, when that's heat or cold: the pavement temperature when the pavement is
- * the reason, otherwise the air. Null for the other ratings.
+ * The outlook after a walk now; otherwise the reason now isn't the time, when it's worth more than a
+ * wait (or it's the pavement, which says how hot it is now).
  */
 internal fun walkCaption(advice: WalkAdvice): WalkText? {
     if (advice.rating == WalkRating.GREAT) return advice.outlook?.let(::outlookText)
-    val pavement = advice.pavementNow?.roundToInt()
+    val reason = advice.now.reason ?: return null
+    val severe = advice.now.level >= WalkLevel.POTTY_ONLY
     return when {
-        pavement == null -> null
-        advice.rating == WalkRating.PAWS_HOT && advice.pavementBand == PavementBand.DANGEROUS ->
-            WalkText(R.string.walk_pavement_dangerous, listOf(pavement))
-        advice.rating == WalkRating.PAWS_HOT && advice.pavementBand == PavementBand.TOO_HOT ->
-            WalkText(R.string.walk_pavement, listOf(pavement))
-        advice.rating == WalkRating.OKAY && advice.pavementBand == PavementBand.WARM ->
-            WalkText(R.string.walk_pavement_warm, listOf(pavement))
-        else -> null
-    } ?: when (advice.rating) {
-        // Hot or cold air, not the pavement.
-        WalkRating.PAWS_HOT -> WalkText(R.string.walk_too_hot)
-        WalkRating.TOO_COLD -> WalkText(R.string.walk_too_cold)
-        WalkRating.BAD_AIR -> WalkText(R.string.walk_bad_air)
+        reason is WalkReason.Pavement -> {
+            val pavement = advice.pavementNow?.roundToInt() ?: return null
+            when (reason.band) {
+                PavementBand.DANGEROUS -> WalkText(R.string.walk_pavement_dangerous, listOf(pavement))
+                PavementBand.TOO_HOT -> WalkText(R.string.walk_pavement, listOf(pavement))
+                PavementBand.WARM -> WalkText(R.string.walk_pavement_warm, listOf(pavement))
+                else -> null
+            }
+        }
+        !severe -> null
+        reason == WalkReason.Heat -> WalkText(R.string.walk_too_hot)
+        reason == WalkReason.Cold -> WalkText(R.string.walk_too_cold)
+        reason is WalkReason.Air -> {
+            val air = WalkText(airNameRes(reason.pollutant) ?: R.string.walk_air_bad)
+            val res = if (advice.now.level >= WalkLevel.STAY_IN) R.string.walk_air_stay_in else R.string.walk_air_potty
+            WalkText(res, listOf(air))
+        }
+        reason is WalkReason.Wind -> when {
+            reason.force >= WindForce.HURRICANE -> WalkText(R.string.walk_danger_stay_inside)
+            reason.force >= WindForce.STORM -> WalkText(R.string.walk_storm_wind)
+            else -> WalkText(R.string.walk_gale)
+        }
+        reason is WalkReason.Storms && advice.now.level >= WalkLevel.STAY_IN -> WalkText(R.string.walk_storms)
         else -> null
     }
 }
@@ -176,7 +194,8 @@ private fun ratingTint(rating: WalkRating): Color {
         WalkRating.GREAT -> if (dark) WalkGreatBg else WalkGreatText
         WalkRating.OKAY -> if (dark) WalkOkayBg else WalkOkayText
         WalkRating.POOR -> if (dark) WalkPoorBg else WalkPoorText
-        WalkRating.PAWS_HOT, WalkRating.BAD_AIR -> if (dark) WalkHotBg else WalkHotText
+        WalkRating.PAWS_HOT, WalkRating.BAD_AIR, WalkRating.WINDY, WalkRating.STORMY, WalkRating.DANGER ->
+            if (dark) WalkHotBg else WalkHotText
         WalkRating.TOO_COLD -> if (dark) WalkColdBg else WalkColdText
     }
 }

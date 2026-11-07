@@ -158,6 +158,11 @@ Finished items move to Done at the bottom.
       day plans nothing until the next morning. (11-02)
 - Won't do: let people choose the morning briefing time; it stays at 8:30. (10-26, decided 10-31)
 
+- [ ] **Danger in the notifications.** At hurricane force the app shows a Danger warning, but the
+      8:30 briefing and the walk nudges only find no walking hours ("Not a good day for
+      walkies."). A forecast of it could be said in the briefing, or get a warning of its own.
+      Both apps. (11-07)
+
 ## From the 11-02 code review
 
 Found reviewing the iOS changes since TestFlight build 1; where Android works the same way it's
@@ -186,10 +191,9 @@ noted. Checked against the code, not fixed yet.
 - [ ] **Theme captions and the no-dog rule.** A theme's captions show whether or not there's a dog,
       so a future one about walks would reach people with Dog walking off (none mention walks yet).
       Both apps.
-- [ ] **Wording.** Bad air led by coarse particles (dust) is called "Smoky air today". "Then rain"
-      or "then maybe rain" goes by the raw rain chance while the hourly strip rounds it (55% shows
-      60% but says "maybe rain"). With `walk_bad_air_band` at 4 or 5 the walk card's "Air's not
-      great" can disagree with the Air tile. Both apps.
+- [ ] **Wording.** "Then rain" or "then maybe rain" goes by the raw rain chance while the hourly
+      strip rounds it (55% shows 60% but says "maybe rain"). Both apps. (Since 11-07 dust is
+      "Dusty air today", and the walk card and the Air tile follow `walk_bad_air_band` together.)
 - [ ] **City search.** Two places with the same name, state and country (two "Richmond, England,
       GB") show as one row, so the second can't be picked. The search design in SEARCH.md (agreed
       11-05) fixes it: rows merge only within 2 km, and same-label places get their county. Fixed
@@ -224,15 +228,6 @@ noted. Checked against the code, not fixed yet.
 ## Walk planner and pet safety
 
 - [ ] Retune the pavement heat model after an outdoor check of your own. (10-27)
-- [ ] **The paw note beside a later walk time.** When the best walk time isn't now, the walk card
-      still adds the pavement note for now: Nairobi in drizzle on 11-07 read "Tomorrow around
-      7 AM" over "Paw check: about 116°. Getting hot.", as if 7 AM will be hot. Show the note only
-      for a walk now, word it as now ("Hot pavement right now"), or give the pavement at the
-      suggested time. Both apps (the walk card's caption, from `pavementNow`). (11-07)
-- [ ] **Hero captions don't know about the air.** New Delhi at night on 11-07, air Unhealthy: "Sunny
-      thinks there's time for one more lap of the block." above "Not a good day for walkies" and
-      "Bad air. Potty breaks only." From `walk_bad_air_band` up, captions that suggest a walk
-      could give way to a bad-air one. Both apps. (11-07)
 
 ## Store and release
 
@@ -312,6 +307,12 @@ noted. Checked against the code, not fixed yet.
       JSON; new props (a turkey, a scarf with lights) need drawing in both apps' `PetScene` and a
       name in `SceneDecoration`. (10-31)
 
+- [ ] **Sunny and Misty in a gale.** A hero scene for extreme wind (ears and fur blown back, Misty
+      holding on), for a gale and worse, now that the walk verdict knows about them. (11-07)
+- [ ] **A winter look for the hero in snow or extreme cold.** Like a seasonal theme, but set by the
+      weather rather than the date: scarves and hats, frosty colours, Sunny's breath showing.
+      (11-07)
+
 ## Version 2
 
 - [ ] Home screen widget: the pets reacting to the weather, plus the next walk time. (10-26) On
@@ -346,6 +347,15 @@ noted. Checked against the code, not fixed yet.
 
 ## Done
 
+- [x] **One walk verdict** (11-07): `WalkConditions.check` judges an hour once, and the hero's
+      caption, the walk card, the Air Quality tile and the notifications all read it, on a scale
+      from Great through Fine, Wait, Potty breaks only and Stay in to Danger, with the reason's
+      detail (the pollutant, the wind's force, the pavement). It settles two items from the 11-07
+      screenshots: the hero no longer says something cheery about walks when now isn't the time
+      (bad air gets "Smoky air today. Quick potty breaks, then back on the sofa."), and the paw
+      note says it's about now ("Paw check: about 49° now. Getting hot.") and never stands in for
+      rain. A gale is potty breaks only, storm force keeps pets inside, and hurricane force shows a
+      Danger warning even without a dog.
 - [x] **Temperatures without the unit ("89°")** (11-06): `temperature_units_shown` is off in
       Remote Config (version 13) and by default in both apps, so every temperature reads "89°", as
       Apple and Google Weather show them. Turning it on brings the unit back without an update.

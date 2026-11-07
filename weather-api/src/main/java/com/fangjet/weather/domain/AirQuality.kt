@@ -45,19 +45,56 @@ data class AirQuality(
     companion object {
         const val BANDS = 6
 
-        /** Picks the pollutant with the highest sub-index on [scale]. Null without an index. */
+        /**
+         * Fine particles are under this share of PM10 in dust (Riyadh's dust storm on 11-07 was
+         * 0.16), against 0.5 to 0.7 in city air and 0.8 or more in smoke.
+         */
+        const val DUSTY_FINE_SHARE = 0.35
+
+        /** Below this much PM10 (µg/m³) the mix isn't worth naming as dust. */
+        const val DUSTY_PM10 = 50.0
+
+        /**
+         * Picks the pollutant with the highest sub-index on [scale]. Null without an index. [pm25]
+         * and [pm10] are the particle masses (µg/m³), which tell dust from smoke.
+         */
         fun from(
             scale: Scale,
+            pm25: Double? = null,
+            pm10: Double? = null,
             subIndices: (Scale) -> Pair<Int?, List<Pair<Pollutant, Int?>>>,
         ): AirQuality? {
             val (index, pollutants) = subIndices(scale)
             if (index == null) return null
-            // The first listed wins a tie.
+            // The first listed wins a tie. AirQualitySource lists coarse particles before fine ones:
+            // when PM10 is as bad as PM2.5 the air is dusty, whereas smoke shows up far more in PM2.5.
             var main: Pair<Pollutant, Int>? = null
             for ((pollutant, value) in pollutants) {
                 if (value != null && value > (main?.second ?: Int.MIN_VALUE)) main = pollutant to value
             }
-            return AirQuality(index, scale, main?.first)
+            val pollutant = main?.first?.let {
+                if (it == Pollutant.FINE_PARTICLES &&
+                    isDusty(pm25, pm10)
+                ) {
+                    Pollutant.COARSE_PARTICLES
+                } else {
+                    it
+                }
+            }
+            return AirQuality(index, scale, pollutant)
+        }
+
+        /**
+         * Particles that are mostly coarse, by mass. A dust storm can push PM2.5's index off the top
+         * of the scale while PM10's has none at all (Open-Meteo gives no US PM10 index above about
+         * 600 µg/m³), so the indices alone would call it smoke. Same as iOS's `AirQuality.isDusty`.
+         */
+        fun isDusty(
+            pm25: Double?,
+            pm10: Double?,
+        ): Boolean {
+            if (pm25 == null || pm10 == null || pm10 < DUSTY_PM10) return false
+            return pm25 < DUSTY_FINE_SHARE * pm10
         }
     }
 }
