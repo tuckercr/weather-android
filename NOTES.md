@@ -98,12 +98,13 @@ Finished items move to Done at the bottom.
 - [ ] **Tile design looks too much like other weather apps.** Review the Today tiles as a whole:
       shape, layout, icons and type, and what would make them ours (the pets' voice, the brand
       font, the colour scale above, the tile sizes above).
-- [ ] **A bar for dew point.** The Humidity tile has a bar for the humidity; dew point could have
-      one too (how muggy it feels), on a scale that makes sense in both units.
-- [ ] **Temperatures without the unit ("89°").** People know what they're looking at, and it would
-      set the app apart. Built behind Remote Config `temperature_units_shown` (11-03), on by
-      default, so turning it off shows "89°" instead of "89 °F" everywhere. Decide whether to make
-      that the look, and whether Settings should offer it.
+- [ ] **Tile notes that don't fit on one line.** iOS shrinks them to fit (to 80% of the size at
+      most); Android wraps them onto a second line, which makes that row of tiles taller: Wind's
+      "From the NW, gusts 23" and Fluff Factor's "Misty's fur is behaving" on a Pixel 8a (11-06).
+      Shrinking keeps the grid tidy but risks text too small to read, most of all for people who
+      have already turned the text size up. Options: let both apps wrap to two lines; shorten the
+      lines that run long; or shrink only a little, with a floor. Decide, then make both apps the
+      same. (11-06)
 
 ## More tiles to consider (10-30)
 
@@ -301,6 +302,15 @@ noted. Checked against the code, not fixed yet.
       on the home screen never drops below the "active" standby bucket, so its background jobs
       aren't held back (see "late when the app counts as rarely used"). (11-03)
 - [ ] Kotlin Multiplatform, as a learning project. Low priority. (09-24)
+- [ ] **Translate the apps?** Both are English only. Android's copy is already in `strings.xml`
+      (lint expects it), so translating there is mostly adding a `values-xx` file per language.
+      iOS writes every string in the code, with no String Catalog, and SwiftUI's `Text` only
+      translates literals and `LocalizedStringKey`, not strings passed in as `String`: tile labels
+      (`Tile(label:)`), `windNote`, `fluffLine`, the pets' captions and the notification text.
+      iOS would need a String Catalog, those parameters changed to `LocalizedStringKey` (or
+      `String(localized:)`), and the strings built in code moved: hundreds of strings. Also the
+      pets' voice in each language, the App Store and Play listings, the website and the privacy
+      policy. Decide whether, and which languages, first. (11-06)
 - [x] Pollen: free from Open-Meteo for Europe only. The US needs a paid provider (Google Pollen,
       Tomorrow.io, Ambee). Moved to version 2. (10-30, decided 10-31)
 - [x] Per-pet thresholds: small, short-haired and flat-faced dogs struggle sooner. Moved to
@@ -316,6 +326,11 @@ noted. Checked against the code, not fixed yet.
 
 ## Done
 
+- [x] **Temperatures without the unit ("89°")** (11-06): `temperature_units_shown` is off in
+      Remote Config (version 13) and by default in both apps, so every temperature reads "89°", as
+      Apple and Google Weather show them. Turning it on brings the unit back without an update.
+- [x] **A bar for dew point** (11-06): Fluff Factor shows the dew point instead, with Misty's fur
+      going from sleek to full floof as it gets muggy.
 - [x] **The hero's reading from Open-Meteo** (11-06): in Knoxville the hero said 70°F and the
       hourly strip 62 to 64°F. Both were working as built: the hero was OpenWeather's reading,
       which leans on the nearest weather station (the airport, 12 km away, had 69.8°F), and the
