@@ -666,13 +666,14 @@ private fun AirQualityTile(
         )
     }
     Tile(Icons.Default.Grain, stringResource(R.string.label_air_quality), modifier) {
-        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            TileValue(air.index.toString())
+        // On one baseline, as Feels Like's "49 °F Mild": the index and its band are different sizes.
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            TileValue(air.index.toString(), Modifier.alignByBaseline())
             Text(
                 bandName,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 3.dp),
+                modifier = Modifier.alignByBaseline(),
             )
         }
         BandBar(
