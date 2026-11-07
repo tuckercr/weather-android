@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -135,7 +136,9 @@ class CurrentWeatherScreenTest {
                 "Showing the forecast from yesterday at ${utcTime(observedAt)}. " + string(R.string.error_offline) + " " +
                     string(R.string.error_pull_to_retry),
             ).assertIsDisplayed()
-        composeRule.onNodeWithText("21 °C").assertIsDisplayed()
+        // Just the degree sign, by default (Remote Config temperature_units_shown), so the hourly
+        // strip's hour reads the same: the hero's comes first.
+        composeRule.onAllNodesWithText("21°").onFirst().assertIsDisplayed()
     }
 
     @Test

@@ -336,7 +336,7 @@ class RemoteConfigRepository @Inject constructor(
         private val RAIN_OUTLOOK_MIN_CHANCE_RANGE = 1..100
 
         const val KEY_TEMPERATURE_UNITS_SHOWN = "temperature_units_shown"
-        const val DEFAULT_TEMPERATURE_UNITS_SHOWN = true
+        const val DEFAULT_TEMPERATURE_UNITS_SHOWN = false
 
         const val KEY_OPEN_METEO_ENABLED = "open_meteo_enabled"
 
