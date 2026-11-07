@@ -20,16 +20,12 @@ fun seasonalCardColor(): Color =
     LocalSeasonalTheme.current?.let { rgb(if (isDark()) it.colors.cardDark else it.colors.cardLight) }
         ?: MaterialTheme.colorScheme.surfaceVariant
 
-/** Section headers ("HOURLY", "TODAY"). */
-@Composable
-fun seasonalSectionHeaderColor(): Color =
-    LocalSeasonalTheme.current?.let { rgb(if (isDark()) it.colors.accentDark else it.colors.accentLight) }
-        ?: MaterialTheme.colorScheme.onSurfaceVariant
-
-/** Each tile's icon and label ("Feels like"). */
+/** Each tile's icon and label ("Feels like"): the brand colour unless today's theme sets its own. */
 @Composable
 fun seasonalTileHeaderColor(): Color =
-    LocalSeasonalTheme.current?.let { rgb(if (isDark()) it.colors.tileHeaderDark else it.colors.tileHeaderLight) }
+    LocalSeasonalTheme.current
+        ?.let { if (isDark()) it.colors.tileHeaderDark else it.colors.tileHeaderLight }
+        ?.let(::rgb)
         ?: MaterialTheme.colorScheme.primary
 
 @Composable

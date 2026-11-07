@@ -35,12 +35,10 @@ data class SeasonalTheme(
         // The cards below the hero, in light and dark mode.
         val cardLight: Int,
         val cardDark: Int,
-        // Section headers ("HOURLY", "TODAY").
-        val accentLight: Int,
-        val accentDark: Int,
-        // Each tile's icon and label ("Feels like"); the accent when a theme leaves them out.
-        val tileHeaderLight: Int,
-        val tileHeaderDark: Int,
+        // Each tile's icon and label ("Feels like"); null keeps the brand colour. accentLight and
+        // accentDark, which coloured the old section headers, are ignored if a theme still has them.
+        val tileHeaderLight: Int?,
+        val tileHeaderDark: Int?,
     )
 
     data class Captions(
@@ -197,8 +195,6 @@ object SeasonalThemes {
         val inkNight: String,
         val cardLight: String,
         val cardDark: String,
-        val accentLight: String,
-        val accentDark: String,
         val tileHeaderLight: String? = null,
         val tileHeaderDark: String? = null,
     ) {
@@ -210,10 +206,8 @@ object SeasonalThemes {
                 inkNight = rgb(inkNight),
                 cardLight = rgb(cardLight),
                 cardDark = rgb(cardDark),
-                accentLight = rgb(accentLight),
-                accentDark = rgb(accentDark),
-                tileHeaderLight = rgb(tileHeaderLight ?: accentLight),
-                tileHeaderDark = rgb(tileHeaderDark ?: accentDark),
+                tileHeaderLight = tileHeaderLight?.let(::rgb),
+                tileHeaderDark = tileHeaderDark?.let(::rgb),
             )
     }
 

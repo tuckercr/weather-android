@@ -21,7 +21,7 @@
         <key>walk_card_enabled</key>
         <value>true</value>
     </entry>
-    <!-- The HOURLY section (header and strip); false hides it. -->
+    <!-- The hourly strip; false hides it. -->
     <entry>
         <key>hourly_forecast_enabled</key>
         <value>true</value>
@@ -31,7 +31,7 @@
         <key>next_rain_enabled</key>
         <value>true</value>
     </entry>
-    <!-- The rest-of-the-week section (header and day rows); false hides it. -->
+    <!-- The rest of the week's day rows; false hides them. -->
     <entry>
         <key>week_forecast_enabled</key>
         <value>true</value>

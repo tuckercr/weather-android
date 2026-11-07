@@ -201,7 +201,6 @@ class CurrentWeatherScreenTest {
             }
         }
 
-        composeRule.onNodeWithText(string(R.string.section_upcoming)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(string(R.string.action_retry)).performScrollTo().performClick()
 
         assertEquals(1, retries)
@@ -223,7 +222,6 @@ class CurrentWeatherScreenTest {
             }
         }
 
-        composeRule.onNodeWithText(string(R.string.section_upcoming)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Mon, Jan 1").performScrollTo().assertIsDisplayed()
     }
 
@@ -250,7 +248,6 @@ class CurrentWeatherScreenTest {
             }
         }
 
-        composeRule.onNodeWithText(string(R.string.section_hourly)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("9 AM").performScrollTo().assertIsDisplayed()
     }
 
@@ -286,7 +283,6 @@ class CurrentWeatherScreenTest {
     fun rainOutlookShowsWhenAnHourReachesTheChance() {
         setRainOutlookContent(RainOutlookSettings())
 
-        composeRule.onNodeWithText(string(R.string.section_rain_outlook)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(string(R.string.rain_outlook_likely_now)).performScrollTo().assertIsDisplayed()
     }
 
@@ -294,7 +290,6 @@ class CurrentWeatherScreenTest {
     fun rainOutlookIsHiddenWhenSwitchedOff() {
         setRainOutlookContent(RainOutlookSettings(enabled = false))
 
-        composeRule.onAllNodesWithText(string(R.string.section_rain_outlook)).assertCountEquals(0)
         composeRule.onAllNodesWithText(string(R.string.rain_outlook_likely_now)).assertCountEquals(0)
     }
 
@@ -327,18 +322,18 @@ class CurrentWeatherScreenTest {
     fun radarSectionIsShownByDefault() {
         setRadarContent(radarEnabled = true)
 
-        composeRule.onNodeWithText(radarHeader()).performScrollTo().assertIsDisplayed()
+        // Null coordinates: the card's own message stands for it.
+        composeRule.onNodeWithText(radarUnavailable()).performScrollTo().assertIsDisplayed()
     }
 
     @Test
     fun radarSectionIsHiddenWhenRadarIsDisabled() {
         setRadarContent(radarEnabled = false)
 
-        composeRule.onAllNodesWithText(radarHeader()).assertCountEquals(0)
-        composeRule.onAllNodesWithText(composeRule.activity.getString(R.string.radar_unavailable_coords)).assertCountEquals(0)
+        composeRule.onAllNodesWithText(radarUnavailable()).assertCountEquals(0)
     }
 
-    private fun radarHeader() = composeRule.activity.getString(R.string.section_radar)
+    private fun radarUnavailable() = composeRule.activity.getString(R.string.radar_unavailable_coords)
 
     private fun setRadarContent(radarEnabled: Boolean) {
         composeRule.setContent {
