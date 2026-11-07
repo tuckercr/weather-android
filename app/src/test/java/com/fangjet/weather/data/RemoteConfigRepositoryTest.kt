@@ -215,18 +215,18 @@ class RemoteConfigRepositoryTest {
     }
 
     @Test
-    fun `temperatures keep their unit unless Remote Config says false`() {
+    fun `temperatures leave out the unit unless Remote Config says true`() {
         firebaseInitialised(true)
         val repo = RemoteConfigRepository(context)
 
-        assertTrue(RemoteConfigRepository.DEFAULT_TEMPERATURE_UNITS_SHOWN)
-        assertTrue(repo.temperatureUnitsShown())
-        set(RemoteConfigRepository.KEY_TEMPERATURE_UNITS_SHOWN, "false")
+        assertFalse(RemoteConfigRepository.DEFAULT_TEMPERATURE_UNITS_SHOWN)
         assertFalse(repo.temperatureUnitsShown())
         set(RemoteConfigRepository.KEY_TEMPERATURE_UNITS_SHOWN, "true")
         assertTrue(repo.temperatureUnitsShown())
+        set(RemoteConfigRepository.KEY_TEMPERATURE_UNITS_SHOWN, "false")
+        assertFalse(repo.temperatureUnitsShown())
         set(RemoteConfigRepository.KEY_TEMPERATURE_UNITS_SHOWN, "no unit")
-        assertTrue(repo.temperatureUnitsShown())
+        assertFalse(repo.temperatureUnitsShown())
     }
 
     @Test
