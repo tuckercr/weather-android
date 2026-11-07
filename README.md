@@ -59,12 +59,14 @@ WorkManager, and CI on GitHub Actions.
   | Wait | Rain or snow, a near gale (Beaufort 7), pavement getting hot, feels-like outside the comfort range, dark or outside the walking hours |
   | Potty breaks only | Pavement too hot, too hot or too cold for pets, bad air (`walk_bad_air_band`), a gale (Beaufort 8) |
   | Stay in | Dangerously hot pavement, the worst air band, thunderstorms, storm force wind (Beaufort 10) |
-  | Danger | Hurricane force wind (Beaufort 12) |
+  | Danger | Hurricane force wind (Beaufort 12) or gusts, or hurricane force wind forecast in the next 6 hours |
 
   The reason carries its detail (the pollutant, the wind's force, the pavement's band) for each
   screen to word. At the same level storms come first, then rain and snow, wind, the pavement,
   heat, the air, cold and the dark. A walk now is fine or better; the hour under way is judged by
-  the current feels-like and condition, the rest by the forecast.
+  the current reading's feels-like, condition, wind and gusts (with the worse of rain now and the
+  hour's storms), the rest by the forecast. With `air_quality_enabled` off the air is left out, even
+  from a forecast cached before it went off.
 - **Next rain** line under the top card, only when rain or snow is due in the next 2 hours: "Rain
   starting around 3:15 PM", "Rain stopping around 4:30 PM" or "Rain for the next 2 hours", from
   Open-Meteo's 15-minute forecast (0.1 mm in 15 minutes counts; it stops after 30 dry minutes).

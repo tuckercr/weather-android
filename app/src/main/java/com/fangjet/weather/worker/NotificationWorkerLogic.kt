@@ -23,6 +23,7 @@ import com.fangjet.weather.util.SkyCondition
 import com.fangjet.weather.util.fromCurrentSlot
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.skyCondition
+import com.fangjet.weather.util.windForce
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -219,6 +220,8 @@ private fun walkAdviceNow(
         utcOffsetSeconds = weather.offsetSeconds,
         nowEpochSeconds = now,
         conditionNow = weather.conditionMain,
+        windForceNow = windForce(weather.windSpeed, weather.units),
+        gustForceNow = weather.windGust?.let { windForce(it, weather.units) },
     )
 
 private fun moodFor(

@@ -172,9 +172,6 @@ noted. Checked against the code, not fixed yet.
       sunny sky (#FAC775), and the walk nudge's picture is always the sunny scene. It was lightened
       for the old Halloween card, which has since changed. Try a couple of coat colours side by
       side. Both apps.
-- [ ] **Air quality switched off still reaches the walk.** With `air_quality_enabled` off the Air
-      tile goes, but the walk card and the briefing keep using the air data in the cached forecast
-      until it's fetched again. Both apps.
 - [ ] **Seasonal theme at night.** The night look (colours, caption, costumes off, lit pumpkin)
       follows the night mood, so on a rainy or freezing Halloween evening the day look shows; go by
       the clock instead. The night caption also shows from midnight on the 31st ("Too many
@@ -354,8 +351,11 @@ noted. Checked against the code, not fixed yet.
       screenshots: the hero no longer says something cheery about walks when now isn't the time
       (bad air gets "Smoky air today. Quick potty breaks, then back on the sofa."), and the paw
       note says it's about now ("Paw check: about 49° now. Getting hot.") and never stands in for
-      rain. A gale is potty breaks only, storm force keeps pets inside, and hurricane force shows a
-      Danger warning even without a dog.
+      rain. A gale is potty breaks only, storm force keeps pets inside, and hurricane force (or
+      hurricane force gusts, or hurricane force wind forecast in the next 6 hours) shows a Danger
+      warning even without a dog. With `air_quality_enabled` off the walk now leaves the air out,
+      even from a cached forecast, which settles "Air quality switched off still reaches the walk"
+      from the 11-02 code review.
 - [x] **Temperatures without the unit ("89°")** (11-06): `temperature_units_shown` is off in
       Remote Config (version 13) and by default in both apps, so every temperature reads "89°", as
       Apple and Google Weather show them. Turning it on brings the unit back without an update.

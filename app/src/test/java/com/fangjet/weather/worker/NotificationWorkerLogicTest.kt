@@ -340,6 +340,22 @@ class NotificationWorkerLogicTest {
     }
 
     @Test
+    fun `bad air in notifications uses the hero's names for it`() {
+        // The notifications are worded in code; the hero and walk card read strings.xml. This keeps
+        // the two in step.
+        val strings = java.io.File("src/main/res/values/strings.xml").readText()
+
+        fun string(name: String) = Regex("<string name=\"$name\">([^<]*)</string>").find(strings)!!.groupValues[1]
+
+        fun phrase(air: AirQuality.Pollutant) =
+            badAirPhrase(listOf(forecast(slots = listOf(slot(9, rain = 0, air = air)))), 0, NOW, PetWeatherThresholds.DEFAULT)
+        assertEquals("${string("walk_air_smoky")} today", phrase(AirQuality.Pollutant.FINE_PARTICLES))
+        assertEquals("${string("walk_air_dusty")} today", phrase(AirQuality.Pollutant.COARSE_PARTICLES))
+        assertEquals("${string("walk_air_ozone")} today", phrase(AirQuality.Pollutant.OZONE))
+        assertEquals("${string("walk_air_poor")} today", phrase(AirQuality.Pollutant.NITROGEN_DIOXIDE))
+    }
+
+    @Test
     fun `bad air is named by the worst walking hour left today`() {
         fun phrase(vararg slots: HourlySlot) = badAirPhrase(listOf(forecast(slots = slots.toList())), 0, NOW, PetWeatherThresholds.DEFAULT)
 

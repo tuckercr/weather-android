@@ -10,6 +10,7 @@ import com.fangjet.weather.util.PavementBand
 import com.fangjet.weather.util.WindForce
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -25,7 +26,17 @@ class WalkCheckTest {
         conditionNow: String? = null,
         darkNow: Boolean = false,
         thresholds: PetWeatherThresholds = default,
-    ) = walkCheckFor(slot, thresholds, feelsLikeC, conditionNow, darkNow)
+        windForceNow: WindForce? = null,
+        gustForceNow: WindForce? = null,
+    ) = walkCheckFor(
+        slot,
+        thresholds,
+        feelsLikeC = feelsLikeC,
+        conditionNow = conditionNow,
+        windForceNow = windForceNow,
+        gustForceNow = gustForceNow,
+        darkNow = darkNow,
+    )
 
     // --- the verdict ---
 
@@ -224,6 +235,105 @@ class WalkCheckTest {
         assertEquals(1, airQualityDogLine(1, default))
     }
 
+    // --- fixes from the 11-07 review ---
+
+    @Test
+    fun `now's wind comes from the current reading, not the forecast hour`() {
+        // The Wind tile shows the reading: a hurricane under a calmer hour, and calm under a gale.
+        assertEquals(WalkLevel.DANGER, check(slot(wind = 26.0), windForceNow = WindForce.HURRICANE).level)
+        assertEquals(WalkLevel.GREAT, check(slot(wind = 19.0), windForceNow = WindForce.GENTLE_BREEZE).level)
+        assertEquals(
+            WalkRating.DANGER,
+            walkAdviceFor(18.0, listOf(slot(wind = 26.0)), windForceNow = WindForce.HURRICANE)?.rating,
+        )
+    }
+
+    @Test
+    fun `hurricane force gusts are a danger`() {
+        assertEquals(WalkLevel.DANGER, check(slot(wind = 19.0), gustForceNow = WindForce.HURRICANE).level)
+        assertEquals(WalkReason.Wind(WindForce.HURRICANE), check(slot(wind = 19.0), gustForceNow = WindForce.HURRICANE).reason)
+        // Lesser gusts are left to the Wind tile.
+        assertEquals(WalkLevel.POTTY_ONLY, check(slot(wind = 19.0), gustForceNow = WindForce.STORM).level)
+    }
+
+    @Test
+    fun `hurricane force wind in the next few hours is a danger now`() {
+        val start = 1_762_516_800L
+
+        fun advice(hours: Int) =
+            walkAdviceFor(
+                18.0,
+                listOf(slot(epoch = start), slot("4 PM", wind = 35.0, epoch = start + hours * 3600L)),
+                nowEpochSeconds = start,
+            )
+        assertEquals(WalkRating.DANGER, advice(3)?.rating)
+        assertEquals(WalkReason.Wind(WindForce.HURRICANE), advice(3)?.now?.reason)
+        assertNotEquals(WalkRating.DANGER, advice(9)?.rating)
+    }
+
+    @Test
+    fun `drizzle now under an hour of likely thunderstorms is storms`() {
+        val result = check(slot(rain = 80, icon = "11d"), conditionNow = "Drizzle")
+        assertEquals(WalkReason.Storms(likely = true), result.reason)
+        assertEquals(WalkLevel.STAY_IN, result.level)
+        // A wetter forecast that's no worse leaves what's happening now.
+        assertEquals(WalkReason.Rain(likely = true), check(slot(rain = 80, icon = "10d"), conditionNow = "Drizzle").reason)
+    }
+
+    @Test
+    fun `without a dog the pavement does not hide the air`() {
+        val smokyAndHot = check(slot(pavement = 60.0, airBand = 3, pollutant = AirQuality.Pollutant.FINE_PARTICLES))
+        assertEquals(WalkReason.Pavement(PavementBand.DANGEROUS), smokyAndHot.reason)
+        assertEquals(
+            WalkText(R.string.hero_air_no_dog_1, listOf(WalkText(R.string.walk_air_smoky))),
+            heroWalkCaptions(smokyAndHot, hasDog = false)?.first(),
+        )
+        assertEquals(WalkText(R.string.hero_pavement_1), heroWalkCaptions(smokyAndHot, hasDog = true)?.first())
+    }
+
+    @Test
+    fun `air quality switched off leaves the air out`() {
+        val off = default.copy(airQualityEnabled = false)
+        val smoky = slot(airBand = 4, pollutant = AirQuality.Pollutant.FINE_PARTICLES)
+        assertNull(check(smoky, thresholds = off).air)
+        assertEquals(WalkLevel.GREAT, check(smoky, thresholds = off).level)
+        assertFalse(smoky.hasBadAirForWalking(off))
+        assertTrue(smoky.hasBadAirForWalking(default))
+    }
+
+    @Test
+    fun `isWalkable agrees with the check`() {
+        listOf(slot(), slot(airBand = 2), slot(pavement = 49.0), slot(wind = 15.0), slot(rain = 40), slot(icon = "01n")).forEach {
+            assertEquals(check(it).isWalkable, isWalkableHour(it, default))
+        }
+    }
+
+    @Test
+    fun `the walk card shows with a dog, and a danger warning for everyone`() {
+        assertTrue(walkCardShown(WalkAdvice(WalkRating.OKAY, "4 PM"), walkCardEnabled = true))
+        assertFalse(walkCardShown(WalkAdvice(WalkRating.OKAY, "4 PM"), walkCardEnabled = false))
+        assertTrue(walkCardShown(WalkAdvice(WalkRating.DANGER, null), walkCardEnabled = false))
+    }
+
+    @Test
+    fun `the walk's reason comes before a seasonal theme's caption`() {
+        assertEquals("Smoky air today.", pickHeroCaption("Smoky air today.", "Happy Halloween!", "Nap weather."))
+        assertEquals("Happy Halloween!", pickHeroCaption(null, "Happy Halloween!", "Nap weather."))
+        assertEquals("Nap weather.", pickHeroCaption(null, null, "Nap weather."))
+    }
+
+    @Test
+    fun `walk captions give way, and the no-dog ones stand in when none are left`() {
+        val evening = listOf("Quiet night. Time for one last stroll?", "One more lap?")
+        val noDog = listOf("Evening zoomies, courtesy of Misty.")
+        val suggestions = evening.toSet()
+        val rainy = check(slot(icon = "10n"), conditionNow = "Rain")
+        assertEquals(noDog, captionOptions(evening, noDog, suggestions, rainy))
+        // The dark alone keeps the evening's walk.
+        assertEquals(evening, captionOptions(evening, noDog, suggestions, check(slot(icon = "01n"))))
+        assertEquals(listOf("Nap weather."), captionOptions(listOf("One more lap?", "Nap weather."), noDog, suggestions, rainy))
+    }
+
     // --- helpers ---
 
     /** A metric hour at 3 PM, 18C, clear and calm unless told otherwise. */
@@ -235,6 +345,7 @@ class WalkCheckTest {
         airBand: Int? = null,
         pollutant: AirQuality.Pollutant? = null,
         wind: Double = 1.0,
+        epoch: Long? = null,
     ) = HourlySlot(
         timeLabel = label,
         iconCode = icon,
@@ -249,6 +360,7 @@ class WalkCheckTest {
         precipitationChance = rain,
         pavementTemperature = pavement,
         localHour = if (label == "3 PM") 15 else 16,
+        epochSeconds = epoch,
         // The lowest US index in the band.
         airQuality = airBand?.let {
             AirQuality(

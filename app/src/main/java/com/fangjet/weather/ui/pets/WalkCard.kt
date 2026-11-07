@@ -97,6 +97,12 @@ fun WalkCard(
     }
 }
 
+/** With a dog, when Remote Config allows the card ([walkCardEnabled] covers both); a danger warning shows for everyone. */
+internal fun walkCardShown(
+    advice: WalkAdvice,
+    walkCardEnabled: Boolean,
+): Boolean = walkCardEnabled || advice.rating == WalkRating.DANGER
+
 /** A string resource and its format arguments, chosen without Compose so the choice is unit-testable. */
 internal data class WalkText(
     @param:StringRes val resId: Int,

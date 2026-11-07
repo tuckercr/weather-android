@@ -693,7 +693,7 @@ private fun AirQualityTile(
         )
         // The pollutant behind it is for TalkBack only: another line would stretch every tile in
         // the grid, which all take the tallest one's height.
-        TileNote(line, color = airTint(air.band, thresholds), spoken = listOfNotNull(pollutant, line).joinToString(". "))
+        TileNote(line, color = airTint(air.band, thresholds, hasDog), spoken = listOfNotNull(pollutant, line).joinToString(". "))
     }
 }
 
@@ -755,10 +755,13 @@ private val AIR_QUALITY_BANDS = listOf(
 private fun airTint(
     band: Int,
     thresholds: PetWeatherThresholds,
+    hasDog: Boolean,
 ): Color {
     val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    // Without a dog the line goes by band, so the colour does too: red from Unhealthy up.
+    val bad = if (hasDog) airWalkLevel(band, thresholds) >= WalkLevel.POTTY_ONLY else band >= 3
     return when {
-        airWalkLevel(band, thresholds) >= WalkLevel.POTTY_ONLY -> if (dark) WalkHotBg else WalkHotText
+        bad -> if (dark) WalkHotBg else WalkHotText
         band == 0 -> if (dark) WalkGreatBg else WalkGreatText
         else -> if (dark) WalkOkayBg else WalkOkayText
     }

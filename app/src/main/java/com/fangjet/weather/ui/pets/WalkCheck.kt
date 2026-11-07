@@ -118,11 +118,15 @@ data class WalkFactor(
     val level: WalkLevel,
 )
 
-/** The verdict on one hour: each thing that keeps a walk from great, worst first. */
-class WalkCheck(
-    factors: List<WalkFactor>,
+/**
+ * The verdict on one hour: each thing that keeps a walk from great, worst first. Built with
+ * `WalkCheck(factors)`, which sorts them; `copy` is private like the constructor, so a check is
+ * always sorted.
+ */
+@ConsistentCopyVisibility
+data class WalkCheck private constructor(
+    val factors: List<WalkFactor>,
 ) {
-    val factors: List<WalkFactor> = factors.sortedWith(compareByDescending<WalkFactor> { it.level }.thenBy { it.reason.order })
 
     /** Great when nothing's in the way, otherwise the worst factor's level. */
     val level: WalkLevel get() = factors.firstOrNull()?.level ?: WalkLevel.GREAT
@@ -139,14 +143,12 @@ class WalkCheck(
     /** The pavement factor, when the pavement keeps the walk from great. */
     val pavement: WalkFactor? get() = factors.firstOrNull { it.reason is WalkReason.Pavement }
 
-    override fun equals(other: Any?): Boolean = other is WalkCheck && other.factors == factors
-
-    override fun hashCode(): Int = factors.hashCode()
-
-    override fun toString(): String = "WalkCheck($factors)"
-
     companion object {
         val CLEAR = WalkCheck(emptyList())
+
+        /** Sorts [factors] worst first, and reasons at the same level by [WalkReason.order]. */
+        operator fun invoke(factors: List<WalkFactor>): WalkCheck =
+            WalkCheck(factors = factors.sortedWith(compareByDescending<WalkFactor> { it.level }.thenBy { it.reason.order }))
     }
 }
 
@@ -154,18 +156,41 @@ class WalkCheck(
  * The walk rules: one small rule per factor, and the check that puts them together. The hourly
  * look-ahead ([walkAdviceFor]), the notifications and the tiles all use these.
  *
- * The verdict on [slot]. For the hour under way, [feelsLikeC] is the current reading's feels-like
- * (what the dog feels now, rather than the hour's forecast), [conditionNow] the current condition
- * group ("Rain", "Thunderstorm"), since the hour's forecast can say dry while it's raining, and
- * [darkNow] the clock's word on darkness, since the hour the sun sets in keeps its daytime icon.
+ * The verdict on [slot]. For the hour under way, the current reading stands in for the hour's
+ * forecast: [feelsLikeC] is its feels-like (what the dog feels now), [conditionNow] its condition
+ * group ("Rain", "Thunderstorm"), since the hour's forecast can say dry while it's raining,
+ * [windForceNow] and [gustForceNow] its wind and gusts, as the Wind tile shows them, and [darkNow]
+ * the clock's word on darkness, since the hour the sun sets in keeps its daytime icon.
  */
 fun walkCheckFor(
     slot: HourlySlot,
     thresholds: PetWeatherThresholds,
     feelsLikeC: Double? = null,
     conditionNow: String? = null,
+    windForceNow: WindForce? = null,
+    gustForceNow: WindForce? = null,
     darkNow: Boolean = false,
-): WalkCheck {
+): WalkCheck = WalkCheck(walkFactors(slot, thresholds, feelsLikeC, conditionNow, windForceNow, gustForceNow, darkNow))
+
+/** Fine or better, without sorting the factors: the look-ahead and the notifications ask this of every hour. */
+fun isWalkableHour(
+    slot: HourlySlot,
+    thresholds: PetWeatherThresholds,
+): Boolean = walkFactors(slot, thresholds).all { it.level <= WalkLevel.FINE }
+
+/**
+ * The factors [walkCheckFor] sorts. Hurricane force gusts count as hurricane force wind, since
+ * they're what makes a storm dangerous; otherwise gusts are left to the Wind tile.
+ */
+private fun walkFactors(
+    slot: HourlySlot,
+    thresholds: PetWeatherThresholds,
+    feelsLikeC: Double? = null,
+    conditionNow: String? = null,
+    windForceNow: WindForce? = null,
+    gustForceNow: WindForce? = null,
+    darkNow: Boolean = false,
+): List<WalkFactor> {
     val feels = feelsLikeC ?: slot.units.toCelsius(slot.feelsLike)
     val factors = mutableListOf<WalkFactor>()
 
@@ -177,9 +202,14 @@ fun walkCheckFor(
     }
     if (darkNow || !slot.isWalkingTime(thresholds)) add(WalkReason.Dark, WalkLevel.WAIT)
     precipitation(slot, conditionNow, thresholds)?.let { (reason, level) -> add(reason, level) }
-    val force = windForce(slot.windSpeed, slot.units)
+    var force = windForceNow ?: windForce(slot.windSpeed, slot.units)
+    if (gustForceNow == WindForce.HURRICANE) force = WindForce.HURRICANE
     add(WalkReason.Wind(force), windWalkLevel(force, thresholds))
-    slot.airQuality?.let { add(WalkReason.Air(it.band, it.mainPollutant), airWalkLevel(it.band, thresholds)) }
+    // Air quality switched off in Remote Config leaves the air out, even from a forecast cached
+    // before it went off.
+    if (thresholds.airQualityEnabled) {
+        slot.airQuality?.let { add(WalkReason.Air(it.band, it.mainPollutant), airWalkLevel(it.band, thresholds)) }
+    }
     slot.pavementTemperature?.let { pavement ->
         val band = pavementBand(slot.units.toCelsius(pavement), slot.groundWet, feels, thresholds)
         add(WalkReason.Pavement(band), pavementWalkLevel(band))
@@ -190,7 +220,7 @@ fun walkCheckFor(
         feels <= thresholds.petColdC -> add(WalkReason.Cold, WalkLevel.POTTY_ONLY)
         feels < thresholds.comfortMinC -> add(WalkReason.Cold, WalkLevel.WAIT)
     }
-    return WalkCheck(factors)
+    return factors
 }
 
 /**
@@ -231,26 +261,32 @@ fun pavementWalkLevel(band: PavementBand): WalkLevel =
     }
 
 /**
- * Rain, snow or storms now ([conditionNow]), or a chance of them at or above the walk limit. Storms
- * that are happening or likely keep pets inside; the rest is a wait for a dry spell.
+ * Rain, snow or storms now ([conditionNow]), or a chance of them at or above the walk limit,
+ * whichever is worse: drizzle now under an hour of likely thunderstorms is storms. Storms that are
+ * happening or likely keep pets inside; the rest is a wait for a dry spell.
  */
 private fun precipitation(
     slot: HourlySlot,
     conditionNow: String?,
     t: PetWeatherThresholds,
 ): Pair<WalkReason, WalkLevel>? {
-    when (conditionNow?.lowercase()) {
-        "thunderstorm" -> return WalkReason.Storms(likely = true) to WalkLevel.STAY_IN
-        "snow" -> return WalkReason.Snow(likely = true) to WalkLevel.WAIT
-        "rain", "drizzle" -> return WalkReason.Rain(likely = true) to WalkLevel.WAIT
+    val now = when (conditionNow?.lowercase()) {
+        "thunderstorm" -> WalkReason.Storms(likely = true) to WalkLevel.STAY_IN
+        "snow" -> WalkReason.Snow(likely = true) to WalkLevel.WAIT
+        "rain", "drizzle" -> WalkReason.Rain(likely = true) to WalkLevel.WAIT
+        else -> null
     }
-    if (slot.precipitationChance < t.maxRainChancePercent) return null
     val likely = slot.precipitationChance >= LIKELY_RAIN_CHANCE
-    return when (slot.iconCode.take(2)) {
-        "11" -> WalkReason.Storms(likely) to if (likely) WalkLevel.STAY_IN else WalkLevel.WAIT
-        "13" -> WalkReason.Snow(likely) to WalkLevel.WAIT
-        else -> WalkReason.Rain(likely) to WalkLevel.WAIT
+    val forecast = if (slot.precipitationChance < t.maxRainChancePercent) {
+        null
+    } else {
+        when (slot.iconCode.take(2)) {
+            "11" -> WalkReason.Storms(likely) to if (likely) WalkLevel.STAY_IN else WalkLevel.WAIT
+            "13" -> WalkReason.Snow(likely) to WalkLevel.WAIT
+            else -> WalkReason.Rain(likely) to WalkLevel.WAIT
+        }
     }
+    return if (now != null && (forecast == null || forecast.second <= now.second)) now else forecast
 }
 
 /**

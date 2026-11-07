@@ -2,6 +2,8 @@ package com.fangjet.weather.ui.pets
 
 import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
+import com.fangjet.weather.util.WindForce
+import com.fangjet.weather.util.windForce
 import java.time.Instant
 import java.time.ZoneOffset
 import kotlin.math.roundToInt
@@ -64,6 +66,9 @@ private const val OUTLOOK_SECONDS = 6 * 60 * 60L
 /** Sunset this close is worth a mention. */
 private const val DARK_SOON_SECONDS = 3 * 60 * 60L
 
+/** Hurricane force wind forecast this soon is a danger now: time to get everyone inside. */
+private const val DANGER_AHEAD_SECONDS = 6 * 60 * 60L
+
 /** A chance of rain at or above this is "rain"; from the walk limit up to it, "maybe rain". */
 internal const val LIKELY_RAIN_CHANCE = 60
 
@@ -76,13 +81,14 @@ internal const val LIKELY_RAIN_CHANCE = 60
  * humid heat and wind chill are what the dog feels, and pavement that's only getting hot already
  * rules an hour out, so the suggested hour is a cooler one.
  */
-internal fun HourlySlot.isWalkable(t: PetWeatherThresholds): Boolean = walkCheckFor(this, t).isWalkable
+internal fun HourlySlot.isWalkable(t: PetWeatherThresholds): Boolean = isWalkableHour(this, t)
 
 /**
  * Bad air (potty breaks only or worse, by default from Unhealthy) in a walking hour: an hour the
  * walk advice would otherwise have weighed up. Unknown air counts as clean.
  */
 internal fun HourlySlot.hasBadAirForWalking(t: PetWeatherThresholds): Boolean {
+    if (!t.airQualityEnabled) return false
     val band = airQuality?.band ?: return false
     return isWalkingTime(t) && airWalkLevel(band, t) >= WalkLevel.POTTY_ONLY
 }
@@ -97,7 +103,9 @@ fun isPrecipitating(conditionMain: String): Boolean = conditionMain.lowercase() 
  *
  * [conditionNow] is the current observation's condition group ("Rain", "Thunderstorm"). The hourly
  * forecast can say the hour in progress is dry while it is raining, so when it's raining now, now
- * is never the walk time.
+ * is never the walk time. [windForceNow] and [gustForceNow] are the current reading's wind and
+ * gusts, as the Wind tile shows them. Hurricane force wind forecast in the next few hours counts as
+ * now.
  * [sunsetEpochSeconds] is today's sunset, for the "gets dark" line. [darkNow] is the clock's word
  * on darkness: the hour in progress keeps its daytime icon for the whole hour the sun sets in, so
  * without it now could be "a great time" for up to an hour after dark.
@@ -110,6 +118,8 @@ fun walkAdviceFor(
     utcOffsetSeconds: Int = 0,
     nowEpochSeconds: Long = Instant.now().epochSecond,
     conditionNow: String? = null,
+    windForceNow: WindForce? = null,
+    gustForceNow: WindForce? = null,
     sunsetEpochSeconds: Long? = null,
     darkNow: Boolean = false,
 ): WalkAdvice? {
@@ -117,7 +127,15 @@ fun walkAdviceFor(
         .take(LOOKAHEAD_SLOTS)
         .filter { slot -> slot.epochSeconds.let { it == null || it < nowEpochSeconds + LOOKAHEAD_SECONDS } }
     if (slots.isEmpty()) return null
-    val check = walkCheckFor(slots.first(), thresholds, currentFeelsLikeC, conditionNow, darkNow)
+    var check = walkCheckFor(slots.first(), thresholds, currentFeelsLikeC, conditionNow, windForceNow, gustForceNow, darkNow)
+    val hurricaneSoon = slots.any { slot ->
+        (slot.epochSeconds ?: 0L) <= nowEpochSeconds + DANGER_AHEAD_SECONDS &&
+            windForce(slot.windSpeed, slot.units) == WindForce.HURRICANE
+    }
+    if (check.level < WalkLevel.DANGER && hurricaneSoon) {
+        val hurricane = WalkFactor(WalkReason.Wind(WindForce.HURRICANE), WalkLevel.DANGER)
+        check = WalkCheck(check.factors.filterNot { it.reason is WalkReason.Wind } + hurricane)
+    }
     val firstGood = slots.drop(1).firstOrNull { it.isWalkable(thresholds) }
     val rating = walkRating(check, hasBetterTime = firstGood != null)
     val bestSlot = if (rating == WalkRating.GREAT) null else firstGood

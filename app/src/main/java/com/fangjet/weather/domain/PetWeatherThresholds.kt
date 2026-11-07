@@ -35,6 +35,8 @@ data class PetWeatherThresholds(
     val badAirBand: Int = 3,
     /** Wind at this Beaufort force or more (7, a near gale: about 31 mph or 50 km/h) isn't suggested for a walk. */
     val windyForce: Int = 7,
+    // Remote Config's air_quality_enabled: off, the walk rules leave the air out.
+    val airQualityEnabled: Boolean = true,
 ) {
     companion object {
         /** The compiled-in values; also the fallback for anything invalid. */

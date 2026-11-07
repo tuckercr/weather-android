@@ -159,14 +159,36 @@ fun petCaption(
 ): String {
     val local = OffsetDateTime.now(ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
     val nightPart = nightPartAt(local.hour)
-    var options = stringArrayResource(mood.captionsRes(nightPart, hasDog)).toList()
-    if (walk != null && rulesOutWalkNow(walk)) {
-        val suggestions = WALK_SUGGESTIONS.map { stringResource(it) }.toSet()
-        val quiet = options.filterNot { it in suggestions }
-        options = quiet.ifEmpty { stringArrayResource(mood.captionsRes(nightPart, hasDog = false)).toList() }
-    }
+    val suggestions = WALK_SUGGESTIONS.map { stringResource(it) }.toSet()
+    val options = captionOptions(
+        stringArrayResource(mood.captionsRes(nightPart, hasDog)).toList(),
+        stringArrayResource(mood.captionsRes(nightPart, hasDog = false)).toList(),
+        suggestions,
+        walk,
+    )
     return options[local.dayOfYear % options.size]
 }
+
+/**
+ * [options] without the captions that suggest a walk when [walk] says now isn't the time, or
+ * [noDog] if that leaves none.
+ */
+internal fun captionOptions(
+    options: List<String>,
+    noDog: List<String>,
+    suggestions: Set<String>,
+    walk: WalkCheck?,
+): List<String> {
+    if (walk == null || !rulesOutWalkNow(walk)) return options
+    return options.filterNot { it in suggestions }.ifEmpty { noDog }
+}
+
+/** The hero's caption: the walk's [reason] when there is one, then a seasonal [theme]'s, then the [weather]'s. */
+internal fun pickHeroCaption(
+    reason: String?,
+    theme: String?,
+    weather: String,
+): String = reason ?: theme ?: weather
 
 /** The captions that suggest a walk now, which [petCaption] leaves out when now isn't the time. */
 internal val WALK_SUGGESTIONS = listOf(
@@ -191,7 +213,9 @@ internal fun heroWalkCaptions(
     walk: WalkCheck,
     hasDog: Boolean,
 ): List<WalkText>? {
-    val worst = walk.factors.firstOrNull()?.takeIf { it.level >= WalkLevel.POTTY_ONLY } ?: return null
+    // Without a dog the pavement is nobody's concern, so the next reason (bad air, a gale) stands.
+    val factors = if (hasDog) walk.factors else walk.factors.filterNot { it.reason is WalkReason.Pavement }
+    val worst = factors.firstOrNull()?.takeIf { it.level >= WalkLevel.POTTY_ONLY } ?: return null
     return when (val reason = worst.reason) {
         is WalkReason.Wind -> when {
             reason.force >= WindForce.HURRICANE -> listOf(WalkText(R.string.hero_hurricane))
@@ -207,8 +231,7 @@ internal fun heroWalkCaptions(
                 listOf(WalkText(R.string.hero_air_no_dog_1, listOf(air)), WalkText(R.string.hero_air_no_dog_2))
             }
         }
-        is WalkReason.Pavement ->
-            if (hasDog) listOf(WalkText(R.string.hero_pavement_1), WalkText(R.string.hero_pavement_2)) else null
+        is WalkReason.Pavement -> listOf(WalkText(R.string.hero_pavement_1), WalkText(R.string.hero_pavement_2))
         else -> null
     }
 }

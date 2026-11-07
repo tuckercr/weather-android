@@ -122,14 +122,15 @@ import com.fangjet.weather.model.WeatherForecastViewModel
 import com.fangjet.weather.ui.pets.PetMood
 import com.fangjet.weather.ui.pets.PetScene
 import com.fangjet.weather.ui.pets.WalkCard
-import com.fangjet.weather.ui.pets.WalkRating
 import com.fangjet.weather.ui.pets.heroWalkCaption
 import com.fangjet.weather.ui.pets.inkColor
 import com.fangjet.weather.ui.pets.isPrecipitating
 import com.fangjet.weather.ui.pets.petCaption
 import com.fangjet.weather.ui.pets.petMoodFor
+import com.fangjet.weather.ui.pets.pickHeroCaption
 import com.fangjet.weather.ui.pets.skyColor
 import com.fangjet.weather.ui.pets.walkAdviceFor
+import com.fangjet.weather.ui.pets.walkCardShown
 import com.fangjet.weather.ui.theme.CatsDogsTheme
 import com.fangjet.weather.ui.theme.StaleBannerBg
 import com.fangjet.weather.ui.theme.StaleBannerText
@@ -152,6 +153,7 @@ import com.fangjet.weather.util.rainOutlook
 import com.fangjet.weather.util.readingDay
 import com.fangjet.weather.util.sunEvents
 import com.fangjet.weather.util.usesMilesForDistance
+import com.fangjet.weather.util.windForce
 import com.fangjet.weather.util.withSunTimesToday
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -773,6 +775,8 @@ private fun CurrentWeatherContent(
                 feelsLikeC,
                 currentSlots,
                 conditionNow = weather.conditionMain,
+                windForceNow = windForce(weather.windSpeed, weather.units),
+                gustForceNow = weather.windGust?.let { windForce(it, weather.units) },
                 thresholds = petWeatherThresholds,
                 utcOffsetSeconds = weather.offsetSeconds,
                 nowEpochSeconds = nowEpochSeconds,
@@ -783,15 +787,17 @@ private fun CurrentWeatherContent(
     // The walk's reason when it's one the scene can't show (bad air, hot pavement, a gale), then the
     // theme's caption on its day, otherwise the weather's, leaving out walks when now isn't the time.
     val walkNow = walkAdvice?.now
-    val heroCaption = walkNow?.let { heroWalkCaption(it, weather.offsetSeconds, hasDog = dogWalking) }
-        ?: seasonalTheme?.caption(
+    val heroCaption = pickHeroCaption(
+        reason = walkNow?.let { heroWalkCaption(it, weather.offsetSeconds, hasDog = dogWalking) },
+        theme = seasonalTheme?.caption(
             night,
             java.time.Instant
                 .ofEpochSecond(nowEpochSeconds)
                 .atOffset(java.time.ZoneOffset.ofTotalSeconds(weather.offsetSeconds))
                 .toLocalDate(),
-        )
-        ?: petCaption(mood, weather.offsetSeconds, hasDog = dogWalking, walk = walkNow)
+        ),
+        weather = petCaption(mood, weather.offsetSeconds, hasDog = dogWalking, walk = walkNow),
+    )
 
     // Landscape phones and tablets put the hero beside today's details instead of stacking
     // everything in one stretched column.
@@ -900,7 +906,7 @@ private fun CurrentWeatherContent(
             val walkSection: @Composable () -> Unit = {
                 // walk_card_enabled: Remote Config can hide the card. A danger warning shows for
                 // everyone, dog or not.
-                walkAdvice?.takeIf { walkCardEnabled || it.rating == WalkRating.DANGER }?.let { WalkCard(advice = it) }
+                walkAdvice?.takeIf { walkCardShown(it, walkCardEnabled) }?.let { WalkCard(advice = it) }
             }
             val detailsSection: @Composable () -> Unit = {
                 // UV is always 0 after dark, so only show it in the daytime (OWM night icons end in "n").
