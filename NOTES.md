@@ -98,12 +98,13 @@ Finished items move to Done at the bottom.
 - [ ] **Tile design looks too much like other weather apps.** Review the Today tiles as a whole:
       shape, layout, icons and type, and what would make them ours (the pets' voice, the brand
       font, the colour scale above, the tile sizes above).
-- [ ] **A bar for dew point.** The Humidity tile has a bar for the humidity; dew point could have
-      one too (how muggy it feels), on a scale that makes sense in both units.
-- [ ] **Temperatures without the unit ("89°").** People know what they're looking at, and it would
-      set the app apart. Built behind Remote Config `temperature_units_shown` (11-03), on by
-      default, so turning it off shows "89°" instead of "89 °F" everywhere. Decide whether to make
-      that the look, and whether Settings should offer it.
+- [ ] **Tile notes that don't fit on one line.** iOS shrinks them to fit (to 80% of the size at
+      most); Android wraps them onto a second line, which makes that row of tiles taller: Wind's
+      "From the NW, gusts 23" and Fluff Factor's "Misty's fur is behaving" on a Pixel 8a (11-06).
+      Shrinking keeps the grid tidy but risks text too small to read, most of all for people who
+      have already turned the text size up. Options: let both apps wrap to two lines; shorten the
+      lines that run long; or shrink only a little, with a floor. Decide, then make both apps the
+      same. (11-06)
 
 ## More tiles to consider (10-30)
 
@@ -316,6 +317,11 @@ noted. Checked against the code, not fixed yet.
 
 ## Done
 
+- [x] **Temperatures without the unit ("89°")** (11-06): `temperature_units_shown` is off in
+      Remote Config (version 13) and by default in both apps, so every temperature reads "89°", as
+      Apple and Google Weather show them. Turning it on brings the unit back without an update.
+- [x] **A bar for dew point** (11-06): Fluff Factor shows the dew point instead, with Misty's fur
+      going from sleek to full floof as it gets muggy.
 - [x] **The hero's reading from Open-Meteo** (11-06): in Knoxville the hero said 70°F and the
       hourly strip 62 to 64°F. Both were working as built: the hero was OpenWeather's reading,
       which leans on the nearest weather station (the airport, 12 km away, had 69.8°F), and the
