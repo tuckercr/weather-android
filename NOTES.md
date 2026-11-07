@@ -185,6 +185,11 @@ noted. Checked against the code, not fixed yet.
 
 ## Location
 
+- [ ] **Re-check My Location on the half-hourly refresh too, while it's on screen.** A drive with
+      the app open never returns to it, so without Follow my location My Location stays put until
+      a pull to refresh (which reads the position since 11-06). Doing it on the 30-minute tick as
+      well would catch up without a pull, at the cost of a location fix every half hour while the
+      app is open. Both apps. (11-06)
 - [ ] Android Settings: the location row could ask once more in the app before sending people to
       system settings (Android allows two prompts). (10-28)
 - [ ] **My Location in the background, opt-in.** Built for the first release as the Follow my

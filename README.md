@@ -223,7 +223,10 @@ emulator with a clean status bar:
    permission. Existing installs are migrated so they are never re-prompted.
 3. **Current Weather**: shows the active city's conditions, an hourly strip, an animated
    precipitation radar, the pets and best walk time, and the upcoming days inline. Switch between
-   saved cities with the tabs or pull to refresh. With no locations yet, it offers *Add location*.
+   saved cities with the tabs or pull to refresh. On My Location, pull to refresh reads the phone's
+   position first, whatever the 15-minute limit, so My Location moves (by the usual 1 km rule)
+   before its weather is fetched; otherwise My Location re-reads the position at launch and on each
+   return to the app, at most every 15 minutes. With no locations yet, it offers *Add location*.
    For cities with coordinates the conditions are Open-Meteo's current reading for the spot, so
    they agree with the hourly strip; OpenWeatherMap's `data/2.5/weather` reading is the backup
    when Open-Meteo fails or `open_meteo_enabled` is off, and serves cities saved by name only. My
@@ -268,7 +271,8 @@ emulator with a clean status bar:
      dog, and a kind switched off in Remote Config is hidden. A hidden switch keeps its value.
      With a My Location saved, *Follow my location* (off) lets the background refresh and the
      8:30 run move My Location to where the phone is first, so notifications follow you even when
-     the app is closed. Otherwise My Location only moves while the app is open. Turning it on
+     the app is closed; a move made while the app is open shows at once. Otherwise My Location only
+     moves while the app is open. Turning it on
      explains why (Play's required disclosure), then asks for "Allow all the time", which opens
      the app's location page in system settings; with that already granted it just turns on. It
      shows on only while that's granted. Off, the background runs don't read the location at all.

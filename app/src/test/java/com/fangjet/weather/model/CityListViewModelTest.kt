@@ -11,6 +11,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
@@ -201,6 +203,46 @@ class CityListViewModelTest {
             val moved = myLocation.copy(latitude = 40.1)
             assertEquals(listOf(austin, moved), viewModel.locations.value)
             assertEquals(listOf(listOf(austin, moved)), persisted)
+        }
+
+    @Test
+    fun `updateCurrentLocation says whether My Location moved`() =
+        runTest {
+            val viewModel = viewModel(savedLocations = listOf(myLocation))
+            mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+
+            assertFalse(viewModel.updateCurrentLocation(myLocation.copy(latitude = 40.001)))
+            assertTrue(viewModel.updateCurrentLocation(myLocation.copy(latitude = 40.1)))
+        }
+
+    // --- following a move made in storage ---
+
+    @Test
+    fun `a move made in storage while open is taken up`() =
+        runTest {
+            val stored = MutableStateFlow(listOf(austin, myLocation))
+            val viewModel = viewModel(savedLocationsFlow = stored)
+            mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+
+            // Follow my location, while the screen is open.
+            stored.value = listOf(austin, myLocation.copy(latitude = 40.1))
+            mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+
+            assertEquals(listOf(austin, myLocation.copy(latitude = 40.1)), viewModel.locations.value)
+        }
+
+    @Test
+    fun `following the stored list changes nothing when My Location hasn't moved`() =
+        runTest {
+            val stored = MutableStateFlow(listOf(austin, myLocation))
+            val viewModel = viewModel(savedLocationsFlow = stored)
+            mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+
+            // Another change in storage, not to My Location, is left to whoever made it.
+            stored.value = listOf(myLocation, austin)
+            mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+
+            assertEquals(listOf(austin, myLocation), viewModel.locations.value)
         }
 
     @Test
@@ -445,6 +487,8 @@ class CityListViewModelTest {
 
     private fun viewModel(
         savedLocations: List<SavedLocation> = emptyList(),
+        // A live store, for moves made while the screen is open; otherwise [savedLocations] once.
+        savedLocationsFlow: Flow<List<SavedLocation>>? = null,
         activeIndex: Int = 0,
         lastCity: String? = null,
         onSetSavedLocations: (List<SavedLocation>) -> Unit = {},
@@ -455,7 +499,7 @@ class CityListViewModelTest {
         },
     ): CityListViewModel {
         val repo = mockk<PreferencesRepository>(relaxed = true)
-        every { repo.savedLocations } returns flowOf(savedLocations)
+        every { repo.savedLocations } returns (savedLocationsFlow ?: flowOf(savedLocations))
         every { repo.activeLocationIndex } returns flowOf(activeIndex)
         every { repo.lastCity } returns flowOf(lastCity)
         coEvery { repo.setSavedLocations(any()) } answers {
@@ -489,5 +533,17 @@ class CityListViewModelTest {
             assertFalse(viewModel.claimMyLocationCheck(start + 60_000))
             assertFalse(viewModel.claimMyLocationCheck(start + MY_LOCATION_CHECK_INTERVAL_MS - 1))
             assertTrue(viewModel.claimMyLocationCheck(start + MY_LOCATION_CHECK_INTERVAL_MS))
+        }
+
+    @Test
+    fun `a check made by pull to refresh holds off the next on resume`() =
+        runTest {
+            val viewModel = viewModel()
+            val pulled = 1_000_000L
+
+            viewModel.noteMyLocationChecked(pulled)
+
+            assertFalse(viewModel.claimMyLocationCheck(pulled + 60_000))
+            assertTrue(viewModel.claimMyLocationCheck(pulled + MY_LOCATION_CHECK_INTERVAL_MS))
         }
 }

@@ -62,6 +62,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -151,6 +152,7 @@ import com.fangjet.weather.util.sunEvents
 import com.fangjet.weather.util.usesMilesForDistance
 import com.fangjet.weather.util.withSunTimesToday
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.minutes
@@ -298,6 +300,11 @@ fun CurrentWeatherRoute(
     val forecastState by weatherForecastViewModel.forecast.collectAsStateWithLifecycle()
     val isRefreshing by weatherForecastViewModel.isRefreshing.collectAsStateWithLifecycle()
     val staleErrorKey by weatherForecastViewModel.staleErrorKey.collectAsStateWithLifecycle()
+    // The same instance rememberAddMyLocation uses.
+    val locationPermissionViewModel = hiltViewModel<LocationPermissionViewModel>()
+    val scope = rememberCoroutineScope()
+    // A pull on My Location waits for the device's position before fetching; the spinner stays up.
+    var pullLocating by remember { mutableStateOf(false) }
 
     // Full refresh whenever the active location changes
     LaunchedEffect(activeLocation) {
@@ -346,8 +353,9 @@ fun CurrentWeatherRoute(
         onLocated = cityListViewModel::addLocation,
         autoAdd = true,
         locationsLoaded = locationsLoaded,
-        onRefreshed = cityListViewModel::updateCurrentLocation,
+        onRefreshed = { cityListViewModel.updateCurrentLocation(it) },
         claimRefresh = { cityListViewModel.claimMyLocationCheck() },
+        viewModel = locationPermissionViewModel,
     )
 
     CompositionLocalProvider(
@@ -359,7 +367,7 @@ fun CurrentWeatherRoute(
             activeIndex = activeIndex,
             weatherState = weatherState,
             forecastState = forecastState,
-            isRefreshing = isRefreshing,
+            isRefreshing = isRefreshing || pullLocating,
             staleErrorKey = staleErrorKey,
             radarEnabled = radarEnabled,
             walkCardEnabled = weatherForecastViewModel.walkCardEnabled && showWalkCard,
@@ -387,9 +395,25 @@ fun CurrentWeatherRoute(
                 }
             },
             onRefresh = {
-                activeLocation?.let {
-                    weatherForecastViewModel.refreshCurrent(it)
-                    weatherForecastViewModel.refreshForecast(it)
+                // On My Location, read the device's position first, whatever the 15-minute limit, so
+                // My Location moves (by the usual 1 km rule) before its weather is fetched. A drive
+                // with the screen on never resumes the app, so this is how to catch up by hand.
+                scope.launch {
+                    val pulled = activeLocation
+                    if (pulled?.isCurrentLocation == true) {
+                        pullLocating = true
+                        val here = locationPermissionViewModel.currentPosition()
+                        pullLocating = false
+                        if (here != null) {
+                            cityListViewModel.noteMyLocationChecked()
+                            // A move changes the active location, which fetches its weather.
+                            if (cityListViewModel.updateCurrentLocation(here)) return@launch
+                        }
+                    }
+                    pulled?.let {
+                        weatherForecastViewModel.refreshCurrent(it)
+                        weatherForecastViewModel.refreshForecast(it)
+                    }
                 }
             },
         ) {

@@ -68,6 +68,9 @@ class CityListViewModel internal constructor(
             _activeIndex.value = idx.coerceIn(0, (locs.size - 1).coerceAtLeast(0))
             _locationsLoaded.value = true
             fillInMissingCoordinates()
+            // Follow my location (and the background workers) move My Location in storage, even
+            // while the app is open: take the move up, so the screen follows.
+            preferencesRepository.savedLocations.collect(::followStoredMyLocation)
         }
     }
 
@@ -140,13 +143,25 @@ class CityListViewModel internal constructor(
         }
     }
 
-    /** Moves My Location to where the device is now, after a real move ([withMyLocationAt]). */
-    fun updateCurrentLocation(location: SavedLocation) {
-        val latitude = location.latitude ?: return
-        val longitude = location.longitude ?: return
-        val updated = _locations.value.withMyLocationAt(latitude, longitude) ?: return
+    /** Moves My Location to where the device is now, after a real move ([withMyLocationAt]). True when it moved. */
+    fun updateCurrentLocation(location: SavedLocation): Boolean {
+        val latitude = location.latitude ?: return false
+        val longitude = location.longitude ?: return false
+        val updated = _locations.value.withMyLocationAt(latitude, longitude) ?: return false
         _locations.value = updated
         viewModelScope.launch { preferencesRepository.setSavedLocations(updated) }
+        return true
+    }
+
+    /**
+     * Takes up My Location's position as stored, where Follow my location moves it, so a move made
+     * while the app is open shows at once. Same as iOS's `followStoredMyLocation`.
+     */
+    internal fun followStoredMyLocation(stored: List<SavedLocation>) {
+        val storedMine = stored.firstOrNull { it.isCurrentLocation } ?: return
+        val index = _locations.value.indexOfFirst { it.isCurrentLocation }
+        if (index < 0 || _locations.value[index] == storedMine) return
+        _locations.value = _locations.value.toMutableList().apply { set(index, storedMine) }
     }
 
     private var myLocationCheckedAt: Long? = null
@@ -161,6 +176,14 @@ class CityListViewModel internal constructor(
         if (last != null && nowMillis - last < MY_LOCATION_CHECK_INTERVAL_MS) return false
         myLocationCheckedAt = nowMillis
         return true
+    }
+
+    /**
+     * A check made anyway (pull to refresh asks whatever the interval), so returning to the app
+     * straight after doesn't make another.
+     */
+    fun noteMyLocationChecked(nowMillis: Long = System.currentTimeMillis()) {
+        myLocationCheckedAt = nowMillis
     }
 
     fun removeLocation(index: Int) {
