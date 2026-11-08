@@ -338,14 +338,9 @@ noted. Checked against the code, not fixed yet.
 ## Architecture (MVVM review, 11-07)
 
 Since 11-07 the weather view model in both apps holds the screen's clock and builds what the
-weather screen shows, and the notifications share the screen's data layer and rules (see Done).
-Still to do:
+weather screen shows, the notifications share the screen's data layer and rules, and a screen
+view model runs the refresh and My Location steps (see Done). Still to do:
 
-- [ ] **Refresh and location steps live in the view.** Refreshing on a city change, on resume and
-      every half hour, pull to refresh reading My Location first, adding My Location after
-      permission is given, and replanning when the notification city changes, are all in the screen (iOS's
-      `CurrentWeatherView`, Android's `CurrentWeatherRoute` and `rememberAddMyLocation`). They
-      belong in a view model as actions the screen calls. Both apps. Large. (11-07)
 - [ ] **Two Android workers have no wiring tests.** `WalkTimeWorker` and
       `WeatherUpdateWorker` are wired by hand like `WeatherNotificationWorker`, which has a
       wiring test; they don't. (11-07)
@@ -414,6 +409,13 @@ Still to do:
 
 ## Done
 
+- [x] **Refresh and location steps in a view model** (11-07): `CurrentWeatherViewModel` in both
+      apps refreshes the city on screen when it changes, on returning to the app and every half
+      hour, reads My Location first on pull to refresh, moves My Location at most every 15 minutes
+      or adds it once location access turns up (not back after it was removed on purpose), and on
+      iOS refreshes the notification city when that changes. The screens only say what happened.
+      The phone's position comes through `DevicePositioning`, so the rules are unit tested with a
+      fake. Android's `rememberAddMyLocation` is back to the Add location screen's button.
 - [x] **The notifications share the screen's data and rules** (11-07): `LocationWeatherRepository`
       in both apps is the one way to a saved location's weather, its cache and refreshes that
       fetch in the user's units and cache what comes back. The weather view model, the background

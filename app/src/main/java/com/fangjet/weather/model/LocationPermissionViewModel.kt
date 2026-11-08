@@ -44,7 +44,8 @@ class LocationPermissionViewModel internal constructor(
     private val hasLocationPermissionProvider: () -> Boolean,
     private val locationFetcher: LocationFetcher,
     private val denials: LocationDenialStore,
-) : AndroidViewModel(application) {
+) : AndroidViewModel(application),
+    DevicePositioning {
 
     @Inject
     constructor(application: Application) : this(
@@ -57,7 +58,7 @@ class LocationPermissionViewModel internal constructor(
     private val _state = MutableStateFlow<LocationFetchState>(LocationFetchState.Idle)
     val state: StateFlow<LocationFetchState> = _state.asStateFlow()
 
-    fun hasLocationPermission(): Boolean = hasLocationPermissionProvider()
+    override fun hasLocationPermission(): Boolean = hasLocationPermissionProvider()
 
     /** Back to idle once a [LocationFetchState.Located] has been acted on, so it isn't acted on twice. */
     fun consumeLocated() {
@@ -103,7 +104,7 @@ class LocationPermissionViewModel internal constructor(
      * 30 seconds old), not the last known one, which can be from anywhere. Null without permission
      * or a fix. Leaves [state] alone. Same as iOS's `currentPosition`.
      */
-    suspend fun currentPosition(): SavedLocation? {
+    override suspend fun currentPosition(): SavedLocation? {
         if (!hasLocationPermission()) return null
         val location = runCatching { locationFetcher.tryCurrentLocation() }.getOrNull() ?: return null
         return SavedLocation(
@@ -114,17 +115,38 @@ class LocationPermissionViewModel internal constructor(
         )
     }
 
+    /**
+     * The last position the phone has, or a fresh fix without one, for My Location's checks on
+     * returning to the app. Null without permission or a fix. Leaves [state] alone.
+     */
+    override suspend fun knownPosition(): SavedLocation? {
+        if (!hasLocationPermission()) return null
+        forgetRefusals()
+        val location = runCatching { locationFetcher.tryLastLocation() ?: locationFetcher.tryCurrentLocation() }.getOrNull()
+            ?: return null
+        return SavedLocation(
+            label = PlaceNaming.MY_LOCATION_LABEL,
+            latitude = location.latitude,
+            longitude = location.longitude,
+            isCurrentLocation = true,
+        )
+    }
+
+    /** Granted after all, in system settings say: any earlier refusal no longer counts. */
+    private fun forgetRefusals() {
+        if (denials.deniedBefore || denials.permanentlyDenied) {
+            denials.permanentlyDenied = false
+            denials.deniedBefore = false
+        }
+    }
+
     fun fetchLocation() {
         if (!hasLocationPermission()) {
             Timber.w("fetchLocation called but permission not granted")
             _state.value = LocationFetchState.PermissionDenied
             return
         }
-        // Granted after all, in system settings say: any earlier refusal no longer counts.
-        if (denials.deniedBefore || denials.permanentlyDenied) {
-            denials.permanentlyDenied = false
-            denials.deniedBefore = false
-        }
+        forgetRefusals()
         Timber.d("fetchLocation: starting")
         _state.value = LocationFetchState.Locating
         viewModelScope.launch {

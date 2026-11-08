@@ -58,10 +58,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -98,6 +96,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
@@ -105,6 +104,7 @@ import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.model.CityListViewModel
+import com.fangjet.weather.model.CurrentWeatherViewModel
 import com.fangjet.weather.model.LoadingState
 import com.fangjet.weather.model.LocationFetchState
 import com.fangjet.weather.model.LocationPermissionViewModel
@@ -140,54 +140,28 @@ import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.rainOutlook
 import com.fangjet.weather.util.readingDay
 import com.fangjet.weather.util.usesMilesForDistance
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.math.roundToInt
-import kotlin.time.Duration.Companion.minutes
-
-/** How often an open screen re-reads the clock and quietly refreshes the weather. */
-private val AUTO_REFRESH_INTERVAL = 30.minutes
-
-/** How often old weather is re-checked against the cutoff while a refresh keeps failing. */
-private val STALE_RECHECK_INTERVAL = 5.minutes
 
 /**
  * "My Location" for screens that can add it. Returns the Add location screen's "Add My Location"
  * action, or null when it's already in the list or the system won't ask for location any more. Without
  * access it asks first, so "Only this time" / "Ask every time" users can still add it. Access is
  * re-read on every resume, so changing it in system settings shows or hides the action on return.
- *
- * With [autoAdd] (the main screen) it also:
- * - adds it unprompted once access turns up after onboarding went without it: granted later in
- *   Settings, say. Only when there are no cities yet, or access has just changed to granted, so
- *   someone who removed My Location on purpose doesn't get it back on every resume. That check
- *   waits for [locationsLoaded]: before the saved cities have loaded, the empty list would read
- *   as "no cities yet".
- * - re-reads the device's position on every resume while My Location is saved and access is on,
- *   passing it to [onRefreshed], so My Location follows the device rather than staying where it
- *   was added.
+ * The weather screen adds and moves My Location by itself: see [CurrentWeatherViewModel].
  */
 @Composable
 internal fun rememberAddMyLocation(
     locations: List<SavedLocation>,
     onLocated: (SavedLocation) -> Unit,
-    autoAdd: Boolean = false,
-    locationsLoaded: Boolean = true,
-    onRefreshed: (SavedLocation) -> Unit = {},
-    // Whether a saved My Location is due a move check (at most every 15 minutes).
-    claimRefresh: () -> Boolean = { true },
     viewModel: LocationPermissionViewModel = hiltViewModel(),
 ): (() -> Unit)? {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val hasCurrentLocation = locations.any { it.isCurrentLocation }
     var granted by remember { mutableStateOf(viewModel.hasLocationPermission()) }
-    var wasGranted by rememberSaveable { mutableStateOf(granted) }
-    // Whether the fetch under way is to add My Location, rather than to move a saved one.
+    // Whether the fetch under way is to add My Location.
     var fetchingToAdd by rememberSaveable { mutableStateOf(false) }
-    var resumeCount by remember { mutableIntStateOf(0) }
     val currentHasCurrentLocation by rememberUpdatedState(hasCurrentLocation)
-    val currentHasAnyLocation by rememberUpdatedState(locations.isNotEmpty())
     val requestPermission = rememberLocationPermissionRequest(viewModel)
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -195,31 +169,9 @@ internal fun rememberAddMyLocation(
         val observer = LifecycleEventObserver { _, event ->
             if (event != Lifecycle.Event.ON_RESUME) return@LifecycleEventObserver
             granted = viewModel.hasLocationPermission()
-            resumeCount++
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    if (autoAdd) {
-        LaunchedEffect(resumeCount, locationsLoaded) {
-            if (resumeCount == 0 || !locationsLoaded) return@LaunchedEffect
-            val newlyGranted = granted && !wasGranted
-            wasGranted = granted
-            when {
-                !granted -> Unit
-                currentHasCurrentLocation -> {
-                    if (claimRefresh()) {
-                        fetchingToAdd = false
-                        viewModel.fetchLocation()
-                    }
-                }
-                newlyGranted || !currentHasAnyLocation -> {
-                    fetchingToAdd = true
-                    viewModel.fetchLocation()
-                }
-            }
-        }
     }
 
     val context = LocalContext.current
@@ -233,11 +185,8 @@ internal fun rememberAddMyLocation(
         // Handled once: a Located still held when this screen comes back (from another screen,
         // or after rotation) must not re-add a My Location the user has since removed.
         viewModel.consumeLocated()
-        when {
-            currentHasCurrentLocation -> onRefreshed(located.location)
-            // A position read only to move My Location, arriving after it was removed, adds nothing.
-            fetchingToAdd -> onLocated(located.location)
-        }
+        // Not when My Location turned up meanwhile, from the weather screen say.
+        if (fetchingToAdd && !currentHasCurrentLocation) onLocated(located.location)
         fetchingToAdd = false
     }
 
@@ -284,79 +233,37 @@ fun CurrentWeatherRoute(
     val activeIndex by cityListViewModel.activeIndex.collectAsStateWithLifecycle()
     val activeLocation by cityListViewModel.activeLocation.collectAsStateWithLifecycle()
     val screen by weatherForecastViewModel.screen.collectAsStateWithLifecycle()
-    val isRefreshing by weatherForecastViewModel.isRefreshing.collectAsStateWithLifecycle()
     val staleErrorKey by weatherForecastViewModel.staleErrorKey.collectAsStateWithLifecycle()
-    // The same instance rememberAddMyLocation uses.
     val locationPermissionViewModel = hiltViewModel<LocationPermissionViewModel>()
-    val scope = rememberCoroutineScope()
-    // A pull on My Location waits for the device's position before fetching; the spinner stays up.
-    var pullLocating by remember { mutableStateOf(false) }
-
-    // Full refresh whenever the active location changes
-    LaunchedEffect(activeLocation) {
-        activeLocation?.let {
-            weatherForecastViewModel.refreshCurrent(it)
-            weatherForecastViewModel.refreshForecast(it)
-        }
+    // What the screen does when: refreshes and My Location. It only gets told what happened.
+    val viewModel = viewModel {
+        CurrentWeatherViewModel(cityListViewModel, weatherForecastViewModel, locationPermissionViewModel)
     }
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
 
-    // Silent background refresh on every foreground resume (picks up new units or stale data)
-    val currentActiveLocation by rememberUpdatedState(activeLocation)
+    LaunchedEffect(activeLocation) { viewModel.activeCityChanged() }
+
     val lifecycleOwner = LocalLifecycleOwner.current
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                weatherForecastViewModel.tick()
-                currentActiveLocation?.let {
-                    weatherForecastViewModel.backgroundRefreshCurrent(it)
-                    weatherForecastViewModel.backgroundRefreshForecast(it)
-                }
-                cityListViewModel.fillInMissingCoordinates()
-            }
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.becameActive()
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-
-    // And the same quiet refresh every half hour while the screen stays open (left on a stand
-    // overnight, say), which also moves the hourly strip and captions on.
     LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            while (true) {
-                delay(AUTO_REFRESH_INTERVAL)
-                weatherForecastViewModel.tick()
-                currentActiveLocation?.let {
-                    weatherForecastViewModel.backgroundRefreshCurrent(it)
-                    weatherForecastViewModel.backgroundRefreshForecast(it)
-                }
-            }
-        }
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) { viewModel.refreshWhileActive() }
     }
-
-    // While refreshes keep failing, re-read the clock every few minutes so old weather gives way to
-    // the forecast once it passes the cutoff.
     LaunchedEffect(lifecycleOwner, staleErrorKey) {
-        if (staleErrorKey == null) return@LaunchedEffect
-        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            while (true) {
-                delay(STALE_RECHECK_INTERVAL)
-                weatherForecastViewModel.tick()
-            }
-        }
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) { viewModel.recheckWhileStale() }
     }
 
-    val locationsLoaded by cityListViewModel.locationsLoaded.collectAsStateWithLifecycle()
-    // Adds My Location unprompted and keeps it where the device is; adding it by hand is on the
-    // Add location screen.
-    rememberAddMyLocation(
-        locations = locations,
-        onLocated = cityListViewModel::addLocation,
-        autoAdd = true,
-        locationsLoaded = locationsLoaded,
-        onRefreshed = { cityListViewModel.updateCurrentLocation(it) },
-        claimRefresh = { cityListViewModel.claimMyLocationCheck() },
-        viewModel = locationPermissionViewModel,
-    )
+    val context = LocalContext.current
+    LaunchedEffect(viewModel) {
+        viewModel.addMyLocationFailed.collect {
+            Toast.makeText(context, R.string.add_my_location_failed, Toast.LENGTH_LONG).show()
+        }
+    }
 
     CompositionLocalProvider(
         LocalDistanceInMiles provides distanceInMiles,
@@ -366,7 +273,7 @@ fun CurrentWeatherRoute(
             locations = locations,
             activeIndex = activeIndex,
             screen = screen,
-            isRefreshing = isRefreshing || pullLocating,
+            isRefreshing = isRefreshing,
             onTabSelected = cityListViewModel::setActiveIndex,
             onOpenSettings = {
                 weatherForecastViewModel.logSettingsOpened()
@@ -381,34 +288,9 @@ fun CurrentWeatherRoute(
                     )
                 }
             },
-            onRefresh = {
-                // On My Location, read the device's position first, whatever the 15-minute limit, so
-                // My Location moves (by the usual 1 km rule) before its weather is fetched. A drive
-                // with the screen on never resumes the app, so this is how to catch up by hand.
-                scope.launch {
-                    val pulled = activeLocation
-                    if (pulled?.isCurrentLocation == true) {
-                        pullLocating = true
-                        val here = locationPermissionViewModel.currentPosition()
-                        pullLocating = false
-                        if (here != null) {
-                            cityListViewModel.noteMyLocationChecked()
-                            // A move changes the active location, which fetches its weather.
-                            if (cityListViewModel.updateCurrentLocation(here)) return@launch
-                        }
-                    }
-                    pulled?.let {
-                        weatherForecastViewModel.refreshCurrent(it)
-                        weatherForecastViewModel.refreshForecast(it)
-                    }
-                }
-            },
-        ) {
-            activeLocation?.let {
-                weatherForecastViewModel.refreshCurrent(it)
-                weatherForecastViewModel.refreshForecast(it)
-            }
-        }
+            onRefresh = viewModel::pulledToRefresh,
+            onRetry = viewModel::retry,
+        )
     }
 }
 

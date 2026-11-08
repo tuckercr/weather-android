@@ -54,7 +54,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - **`:app` layout.** `data/` (`PreferencesRepository` on DataStore: cities, settings and the
   per-city cache; `RemoteConfigRepository`), `domain/` (`PetWeatherThresholds`, `SeasonalTheme`),
   `model/` (the ViewModels, exposing `StateFlow`; `WeatherForecastViewModel` holds the screen's
-  clock, moved on by `tick()`, and builds the `WeatherScreen` the weather screen draws), `ui/`
+  clock, moved on by `tick()`, and builds the `WeatherScreen` the weather screen draws;
+  `CurrentWeatherViewModel` runs the screen's refresh and My Location steps), `ui/`
   (Compose screens; `navigation/WeatherNavHost`
   routes onboarding and screens; `ui/pets/` has the moods, the scene and `WalkAdvisor`), `util/`
   (`StaleWeather`, `NextRain`, `TodayDetails` and other pure rules), `worker/`, `analytics/`, `di/`

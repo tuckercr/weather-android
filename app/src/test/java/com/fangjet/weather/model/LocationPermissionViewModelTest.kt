@@ -45,6 +45,30 @@ class LocationPermissionViewModelTest {
         }
 
     @Test
+    fun `the known position is the last one, or a fresh fix without one, and forgets earlier refusals`() =
+        runTest {
+            val denials = FakeDenialStore(deniedBefore = true, permanentlyDenied = true)
+            val last = viewModel(
+                locationFetcher = FakeLocationFetcher(
+                    lastLocation = DeviceLocation(latitude = 30.2672, longitude = -97.7431),
+                    currentLocation = DeviceLocation(latitude = 39.7392, longitude = -104.9903),
+                ),
+                denials = denials,
+            )
+            val fresh =
+                viewModel(
+                    locationFetcher = FakeLocationFetcher(currentLocation = DeviceLocation(latitude = 39.7392, longitude = -104.9903)),
+                )
+
+            assertEquals(30.2672, last.knownPosition()?.latitude)
+            assertEquals(39.7392, fresh.knownPosition()?.latitude)
+            assertEquals(null, viewModel(hasLocationPermission = false).knownPosition())
+            assertEquals(false, denials.deniedBefore || denials.permanentlyDenied)
+            // It leaves the state for the Add location screen alone.
+            assertEquals(LocationFetchState.Idle, last.state.value)
+        }
+
+    @Test
     fun `fetchLocation uses cached last location when available`() =
         runTest {
             val fetcher = FakeLocationFetcher(
