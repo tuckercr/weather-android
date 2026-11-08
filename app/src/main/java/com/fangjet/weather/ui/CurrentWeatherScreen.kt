@@ -121,6 +121,7 @@ import com.fangjet.weather.model.UpdatePromptViewModel
 import com.fangjet.weather.model.WeatherForecastViewModel
 import com.fangjet.weather.ui.pets.PetMood
 import com.fangjet.weather.ui.pets.PetScene
+import com.fangjet.weather.ui.pets.WalkAdvice
 import com.fangjet.weather.ui.pets.WalkCard
 import com.fangjet.weather.ui.pets.heroWalkCaption
 import com.fangjet.weather.ui.pets.inkColor
@@ -129,7 +130,6 @@ import com.fangjet.weather.ui.pets.petCaption
 import com.fangjet.weather.ui.pets.petMoodFor
 import com.fangjet.weather.ui.pets.pickHeroCaption
 import com.fangjet.weather.ui.pets.skyColor
-import com.fangjet.weather.ui.pets.walkAdviceFor
 import com.fangjet.weather.ui.pets.walkCardShown
 import com.fangjet.weather.ui.theme.CatsDogsTheme
 import com.fangjet.weather.ui.theme.StaleBannerBg
@@ -146,14 +146,12 @@ import com.fangjet.weather.util.forecastAsCurrent
 import com.fangjet.weather.util.fromCurrentSlot
 import com.fangjet.weather.util.hourlyStrip
 import com.fangjet.weather.util.iconCodeAt
-import com.fangjet.weather.util.isDarkAt
 import com.fangjet.weather.util.isTooOldToShowAsNow
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.rainOutlook
 import com.fangjet.weather.util.readingDay
 import com.fangjet.weather.util.sunEvents
 import com.fangjet.weather.util.usesMilesForDistance
-import com.fangjet.weather.util.windForce
 import com.fangjet.weather.util.withSunTimesToday
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -384,6 +382,7 @@ fun CurrentWeatherRoute(
             todayTiles = weatherForecastViewModel.todayTiles,
             seasonalThemes = weatherForecastViewModel.seasonalThemes,
             petWeatherThresholds = weatherForecastViewModel.petWeatherThresholds,
+            walkAdviceAt = { weather, now -> weatherForecastViewModel.walkAdvice(weather, now, hasDog = showWalkCard) },
             onTabSelected = cityListViewModel::setActiveIndex,
             onOpenSettings = {
                 weatherForecastViewModel.logSettingsOpened()
@@ -458,6 +457,8 @@ fun CurrentWeatherScreen(
     // Remote Config seasonal_themes (or the shipped list).
     seasonalThemes: List<SeasonalTheme> = emptyList(),
     petWeatherThresholds: PetWeatherThresholds = PetWeatherThresholds.DEFAULT,
+    // The weather view model's walk verdict for the reading on screen at a time; none in previews.
+    walkAdviceAt: (weather: CurrentWeather, nowEpochSeconds: Long) -> WalkAdvice? = { _, _ -> null },
     onTabSelected: (Int) -> Unit,
     onOpenSettings: () -> Unit = {},
     onAddCityClick: () -> Unit,
@@ -635,6 +636,7 @@ fun CurrentWeatherScreen(
                                         todayTiles = todayTiles,
                                         seasonalThemes = seasonalThemes,
                                         petWeatherThresholds = petWeatherThresholds,
+                                        walkAdviceAt = walkAdviceAt,
                                         refreshCount = pullCount,
                                         onForecastRetry = onRetry,
                                     )
@@ -705,6 +707,8 @@ private fun CurrentWeatherContent(
     todayTiles: TodayTileSwitches = TodayTileSwitches(),
     seasonalThemes: List<SeasonalTheme> = emptyList(),
     petWeatherThresholds: PetWeatherThresholds = PetWeatherThresholds.DEFAULT,
+    // The weather view model's walk verdict for the reading on screen at a time; none in previews.
+    walkAdviceAt: (weather: CurrentWeather, nowEpochSeconds: Long) -> WalkAdvice? = { _, _ -> null },
     refreshCount: Int = 0,
     onForecastRetry: () -> Unit = {},
 ) {
@@ -761,32 +765,7 @@ private fun CurrentWeatherContent(
     // The reading with today's sunrise and sunset, for one cached on an earlier day, so the Daylight
     // tile and the walk card follow the clock as the hero does.
     val weatherToday = remember(weather, nowEpochSeconds) { weather.withSunTimesToday(nowEpochSeconds) }
-    val walkAdvice =
-        remember(
-            currentSlots,
-            feelsLikeC,
-            weather.conditionMain,
-            weather.offsetSeconds,
-            weatherToday,
-            nowEpochSeconds,
-            petWeatherThresholds,
-            dogWalking,
-        ) {
-            walkAdviceFor(
-                feelsLikeC,
-                currentSlots,
-                conditionNow = weather.conditionMain,
-                windForceNow = windForce(weather.windSpeed, weather.units),
-                gustForceNow = weather.windGust?.let { windForce(it, weather.units) },
-                thresholds = petWeatherThresholds,
-                utcOffsetSeconds = weather.offsetSeconds,
-                nowEpochSeconds = nowEpochSeconds,
-                sunsetEpochSeconds = weatherToday.sunsetEpoch,
-                darkNow = weatherToday.isDarkAt(nowEpochSeconds),
-                // Without a dog the pavement isn't weighed: the hero and a danger warning still read it.
-                hasDog = dogWalking,
-            )
-        }
+    val walkAdvice = remember(weather, forecastDays, nowEpochSeconds, walkAdviceAt) { walkAdviceAt(weather, nowEpochSeconds) }
     // The walk's reason when it's one the scene can't show (bad air, hot pavement, a gale), then the
     // theme's caption on its day, otherwise the weather's, leaving out walks when now isn't the time.
     val walkNow = walkAdvice?.now

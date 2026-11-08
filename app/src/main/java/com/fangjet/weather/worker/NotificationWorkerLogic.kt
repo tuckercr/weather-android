@@ -17,13 +17,11 @@ import com.fangjet.weather.ui.pets.WalkRating
 import com.fangjet.weather.ui.pets.hasBadAirForWalking
 import com.fangjet.weather.ui.pets.isPrecipitating
 import com.fangjet.weather.ui.pets.petMoodFor
-import com.fangjet.weather.ui.pets.walkAdviceFor
+import com.fangjet.weather.ui.pets.walkAdviceForReading
 import com.fangjet.weather.util.NextRain
 import com.fangjet.weather.util.SkyCondition
-import com.fangjet.weather.util.fromCurrentSlot
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.skyCondition
-import com.fangjet.weather.util.windForce
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -112,7 +110,7 @@ internal class NotificationWorkerLogic(
         val todayForecast = forecast?.firstOrNull { it.dateLabel == todayLabel(weather.offsetSeconds) }
         val thresholds = runCatching { petWeatherThresholds() }.getOrDefault(PetWeatherThresholds.DEFAULT)
         val now = nowEpochSeconds()
-        val walk = forecast?.let { walkAdviceNow(weather, it, thresholds, now) }
+        val walk = forecast?.let { walkAdviceForReading(weather, it, thresholds, now) }
 
         val briefingOn = hasNotificationPermission() &&
             runCatching { isDailyWeatherNotificationEnabled() }.getOrDefault(true) &&
@@ -190,7 +188,7 @@ internal class WalkTimeLogic(
         val forecast = fetchForecast(units, location.label, location.latitude, location.longitude).getOrNull()
             ?: return Result.retry()
         val thresholds = runCatching { petWeatherThresholds() }.getOrDefault(PetWeatherThresholds.DEFAULT)
-        val walk = walkAdviceNow(weather, forecast, thresholds, nowEpochSeconds())
+        val walk = walkAdviceForReading(weather, forecast, thresholds, nowEpochSeconds())
         if (walk?.rating != WalkRating.GREAT) return Result.success()
         val (title, body) = buildWalkTimeContent(weather, badAirPhrase(forecast, weather.offsetSeconds, nowEpochSeconds(), thresholds))
         postNotification(
@@ -205,24 +203,6 @@ internal class WalkTimeLogic(
         return Result.success()
     }
 }
-
-/** The walk card's advice for now, from the current reading and the hours from now on. */
-private fun walkAdviceNow(
-    weather: CurrentWeather,
-    forecast: List<DayForecast>,
-    thresholds: PetWeatherThresholds,
-    now: Long,
-): WalkAdvice? =
-    walkAdviceFor(
-        weather.units.toCelsius(weather.feelsLike),
-        forecast.flatMap { it.hourlySlots }.fromCurrentSlot(now),
-        thresholds,
-        utcOffsetSeconds = weather.offsetSeconds,
-        nowEpochSeconds = now,
-        conditionNow = weather.conditionMain,
-        windForceNow = windForce(weather.windSpeed, weather.units),
-        gustForceNow = weather.windGust?.let { windForce(it, weather.units) },
-    )
 
 private fun moodFor(
     weather: CurrentWeather,

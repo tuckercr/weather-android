@@ -2,6 +2,8 @@ package com.fangjet.weather.ui.pets
 
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.AirQuality
+import com.fangjet.weather.domain.CurrentWeather
+import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.WeatherUnits
@@ -315,6 +317,43 @@ class WalkCheckTest {
         listOf(slot(), slot(airBand = 2), slot(pavement = 49.0), slot(wind = 15.0), slot(rain = 40), slot(icon = "01n")).forEach {
             assertEquals(check(it).isWalkable, isWalkableHour(it, default))
         }
+    }
+
+    @Test
+    fun `advice for a reading takes now from the reading`() {
+        // A hurricane in the reading, under a calm forecast hour: the reading is what's happening.
+        val reading = CurrentWeather(
+            cityName = "Austin",
+            conditionMain = "Clear",
+            description = "Clear sky",
+            iconCode = "01d",
+            temperature = 18.0,
+            feelsLike = 18.0,
+            tempMin = 10.0,
+            tempMax = 20.0,
+            humidityPercent = 50,
+            pressureHpa = 1013,
+            windSpeed = 35.0,
+            windDeg = 90,
+            visibilityMeters = 10_000,
+            cloudPercent = 0,
+            units = WeatherUnits.METRIC,
+        )
+        val start = 1_762_516_800L
+        val day = DayForecast(
+            dateLabel = "Fri, Nov 7",
+            conditionMain = "Clear",
+            description = "clear",
+            iconCode = "01d",
+            temperature = 18.0,
+            feelsLike = 18.0,
+            tempMin = 10.0,
+            tempMax = 20.0,
+            units = WeatherUnits.METRIC,
+            hourlySlots = listOf(slot(epoch = start), slot("4 PM", epoch = start + 3600)),
+        )
+        assertEquals(WalkRating.DANGER, walkAdviceForReading(reading, listOf(day), default, start)?.rating)
+        assertNull(walkAdviceForReading(reading, emptyList(), default, start))
     }
 
     @Test

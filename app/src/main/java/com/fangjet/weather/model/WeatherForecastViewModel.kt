@@ -15,6 +15,8 @@ import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.WeatherUnits
+import com.fangjet.weather.ui.pets.WalkAdvice
+import com.fangjet.weather.ui.pets.walkAdviceForReading
 import com.fangjet.weather.util.resolveWeatherUnits
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -178,6 +180,21 @@ class WeatherForecastViewModel internal constructor(
 
     private val _forecast = MutableStateFlow<LoadingState<List<DayForecast>>>(LoadingState.Idle)
     val forecast: StateFlow<LoadingState<List<DayForecast>>> = _forecast.asStateFlow()
+
+    /**
+     * The walk verdict for [weather] (the reading on screen, or the forecast hour standing in for an
+     * old one) at the screen's [nowEpochSeconds], from the forecast's hours. Null while the forecast
+     * is loading or failed, which hides the walk card rather than advising on nothing. The hero's
+     * caption and the walk card both read it.
+     */
+    fun walkAdvice(
+        weather: CurrentWeather,
+        nowEpochSeconds: Long,
+        hasDog: Boolean,
+    ): WalkAdvice? {
+        val days = (forecast.value as? LoadingState.Success)?.data ?: return null
+        return walkAdviceForReading(weather, days, petWeatherThresholds, nowEpochSeconds, hasDog)
+    }
 
     // Set when a refresh fails while weather is already on screen, so the screen can say the data is
     // old and why; null once a refresh succeeds or the user moves to another city.

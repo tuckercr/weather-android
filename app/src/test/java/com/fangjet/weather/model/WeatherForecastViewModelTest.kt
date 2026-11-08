@@ -2,6 +2,7 @@ package com.fangjet.weather.model
 
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
+import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.RainOutlookSettings
 import com.fangjet.weather.domain.SavedLocation
@@ -15,6 +16,8 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestWatcher
@@ -536,6 +539,40 @@ class WeatherForecastViewModelTest {
         foregroundRefreshMinMinutes = foregroundRefreshMinMinutes,
         nowMillis = nowMillis,
     )
+
+    @Test
+    fun `walk advice comes from the loaded forecast and is null until then`() =
+        runTest {
+            val hour = HourlySlot(
+                timeLabel = "3 PM",
+                iconCode = "01d",
+                description = "clear",
+                temperature = 18.0,
+                feelsLike = 18.0,
+                windSpeed = 1.0,
+                windDeg = 0,
+                humidity = 50,
+                pressure = 1013,
+                units = WeatherUnits.METRIC,
+                localHour = 15,
+                epochSeconds = 1_000L,
+            )
+            val vm = viewModel(fetchForecast = {
+                units,
+                _,
+                _,
+                _,
+                ->
+                Result.success(listOf(dayForecast(units).copy(hourlySlots = listOf(hour))))
+            })
+            val reading = currentWeather(cityName = "Austin")
+            assertNull(vm.walkAdvice(reading, 1_000L, hasDog = true))
+
+            vm.refreshForecast(SavedLocation(label = "Austin", latitude = 30.27, longitude = -97.74))
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+
+            assertNotNull(vm.walkAdvice(reading, 1_000L, hasDog = true))
+        }
 
     @Test
     fun `pet weather thresholds come from Remote Config`() {

@@ -1,9 +1,14 @@
 package com.fangjet.weather.ui.pets
 
+import com.fangjet.weather.domain.CurrentWeather
+import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.util.WindForce
+import com.fangjet.weather.util.fromCurrentSlot
+import com.fangjet.weather.util.isDarkAt
 import com.fangjet.weather.util.windForce
+import com.fangjet.weather.util.withSunTimesToday
 import java.time.Instant
 import java.time.ZoneOffset
 import kotlin.math.roundToInt
@@ -150,6 +155,36 @@ fun walkAdviceFor(
         bestSlot?.epochSeconds,
         outlook,
         check,
+    )
+}
+
+/**
+ * The advice for [weather] (the reading on screen, or the forecast hour standing in for an old one)
+ * at [nowEpochSeconds]: the reading for the hour under way (feels-like, condition, wind and gusts,
+ * darkness by today's sunset) and [forecast]'s hours from then on. What the weather view model gives
+ * the screen and the notification worker uses, so the two can't drift; null when the forecast has no
+ * hours left.
+ */
+fun walkAdviceForReading(
+    weather: CurrentWeather,
+    forecast: List<DayForecast>,
+    thresholds: PetWeatherThresholds,
+    nowEpochSeconds: Long,
+    hasDog: Boolean = true,
+): WalkAdvice? {
+    val today = weather.withSunTimesToday(nowEpochSeconds)
+    return walkAdviceFor(
+        weather.units.toCelsius(weather.feelsLike),
+        forecast.flatMap { it.hourlySlots }.fromCurrentSlot(nowEpochSeconds),
+        thresholds,
+        utcOffsetSeconds = weather.offsetSeconds,
+        nowEpochSeconds = nowEpochSeconds,
+        conditionNow = weather.conditionMain,
+        windForceNow = windForce(weather.windSpeed, weather.units),
+        gustForceNow = weather.windGust?.let { windForce(it, weather.units) },
+        sunsetEpochSeconds = today.sunsetEpoch,
+        darkNow = today.isDarkAt(nowEpochSeconds),
+        hasDog = hasDog,
     )
 }
 
