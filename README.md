@@ -50,7 +50,8 @@ WorkManager, and CI on GitHub Actions.
   never suggested. The band is tunable with `walk_bad_air_band`.
 - **One walk verdict**: `walkCheckFor` (`ui/pets/WalkCheck.kt`) judges an hour once, and the hero's
   caption, the walk card, the Air Quality tile's note and the notifications all read it, so they
-  can't disagree. Each factor has a small rule and a level, and the worst one wins:
+  can't disagree. The screen gets it from `WeatherForecastViewModel.walkAdvice`, and the notification
+  worker from the same `walkAdviceForReading`. Each factor has a small rule and a level, and the worst one wins:
 
   | Level | When |
   |---|---|

@@ -225,6 +225,37 @@ noted. Checked against the code, not fixed yet.
 ## Walk planner and pet safety
 
 - [ ] Retune the pavement heat model after an outdoor check of your own. (10-27)
+- [ ] **Hurricane warnings ahead are faked as now.** When hurricane force is forecast in the next 6
+      hours, the walk verdict on now gets a force-12 wind factor, so the card says "Hurricane force
+      winds" while the Wind tile shows a breeze. A warning about later should be its own field on
+      the walk advice ("Hurricane force winds from 6 PM"), separate from the verdict on now. Both
+      apps. (11-07)
+- [ ] **The Danger warning lives inside the walk card.** It borrows the card's icon, label and
+      headline, and needs an exception to the card's own rule for when it shows (no dog,
+      `walk_card_enabled` off). A danger to everyone isn't walk advice: a separate warning banner
+      would be simpler. Both apps. (11-07)
+- [ ] **Air quality switched off is handled in the rules.** `air_quality_enabled` is a field on
+      `PetWeatherThresholds` for the walk check, and the Air Quality tile checks the switch
+      separately. Dropping air quality from the forecast at the source (the repository, cached
+      forecasts too) when it's off would let neither know about it. Both apps. (11-07)
+- [ ] **"Dark" is a walk reason everyone skips.** It sits on the scale at Wait, but the hero's
+      caption filter and the "Good until..." line both leave it out. Walking hours and daylight say
+      when a walk can be, not what the weather is: a separate check would remove those exceptions.
+      Both apps. (11-07)
+- [ ] **Gusts count only at hurricane force.** A one-off rule: gusts should count at every level
+      (for example two Beaufort steps below sustained wind) or not at all. Both apps. (11-07)
+- [ ] **Walk verdict simplifications.** `WalkRating` repeats the verdict's level, reason and best
+      time: the card could read the verdict, and the notifications only ask whether now is a good
+      time. `WalkChange` ("Good until 6 PM, then rain") mirrors `WalkReason` one for one.
+      `WalkAdvice` keeps the pavement temperature apart from the pavement reason, which could carry
+      it. Both apps. (11-07)
+- [ ] **One captions file for both apps.** The hero's captions are in Swift on iOS and strings.xml
+      on Android, with the ones that suggest a walk marked differently on each. One file with tags
+      (mood, time of night, dog, suggests a walk), like SeasonalThemes.json, would keep the wording
+      identical by construction, and it's the shape translation would need. (11-07)
+- [ ] **Shared walk scenarios for both test suites.** Every walk rule is written in Swift and Kotlin
+      with separate tests. One file of scenarios (an hour of weather in; level, reason and caption
+      out) that both test suites load would catch the apps drifting apart. (11-07)
 
 ## Store and release
 
@@ -291,6 +322,57 @@ noted. Checked against the code, not fixed yet.
       might want to tune after release without an update (timeouts, waits, limits, thresholds).
       List them first, then pick the few worth a key; each needs a default and validation in both
       apps. Both apps. (11-05)
+
+## Architecture (MVVM review, 11-07)
+
+Since 11-07 the walk verdict comes from the weather view model in both apps. Still to do:
+
+- [ ] **The weather screen works out its own state.** Mood, today's forecast, the hours from now on,
+      the high and low, next rain and the rain outlook, the seasonal theme, the hourly strip, which
+      tiles show and what they're given (UV by day, wet ground, the pavement and air quality
+      switches) are all derived in the view (`CurrentWeatherContent` in both apps). They belong in
+      one screen state built by the weather view model, which the view only draws. Both apps. Large.
+      (11-07)
+- [ ] **The stale-data decision is made in the view.** Whether the reading is too old to show as
+      now, and the forecast hour that stands in for it, are decided in the view (iOS's `body`,
+      Android's `produceState` loop). The view model should say what to show: the reading, the
+      forecast hour, or the error. Both apps. (11-07)
+- [ ] **No single clock.** iOS keeps `now` in the view, moved by three loops, while the weather view
+      model has its own `now()`, and `PetScene`, `PetMood`, `WeatherIconView` and the stale banner
+      default to `Date()`. Android reads the time in several composables, with a second resume and
+      half-hour timer, and in `petCaption`, the moon phase and `WeatherIcon`. One injectable clock
+      in the view model that ticks would replace them. Both apps. (11-07)
+- [ ] **Today's forecast is found by its display label, and Android loses it after midnight.** Both
+      apps compare "EEE, MMM d" labels to find today. Android remembers the label once per city
+      (`remember(weather.offsetSeconds)`), so on a screen left open past midnight today's forecast
+      is lost. One shared "is this the city's today" function would fix both. (11-07)
+- [ ] **The screen and the notifications disagree.** The hero's high and low take in the temperature
+      now (`TodayDetails.highLow`, `heroHighLow`); the briefing's don't. Android's briefing picks
+      the pets' mood from the reading's icon, the screen by the clock's day or night. One shared
+      function for each. Both apps. (11-07)
+- [ ] **Refresh and location steps live in the view.** Refreshing on a city change, on resume and
+      every half hour, pull to refresh reading My Location first, adding My Location after
+      permission is given, and on iOS rescheduling the notifications, are all in the screen (iOS's
+      `CurrentWeatherView`, Android's `CurrentWeatherRoute` and `rememberAddMyLocation`). They
+      belong in a view model as actions the screen calls. Both apps. Large. (11-07)
+- [ ] **Views read settings and singletons directly.** iOS's weather screen reads
+      `RemoteConfigRepository.shared` for which sections show, `OnboardingNotificationView` reads
+      `PreferencesStore` and asks for notification permission itself, and the Follow my location
+      switch drives `MyLocationFollower.shared`. Android's notification settings screen reads and
+      writes SharedPreferences, and Settings checks permissions in the UI. These should go through
+      the view models. (11-07)
+- [ ] **Data work outside the data layer.** Fetching by coordinates or by name, the labels and the
+      cache encoding are in the weather view models and again in the background refresher (iOS) and
+      the update worker (Android); they belong in the repository. Radar fetches and caches map tiles
+      in the view in both apps, which belongs in the radar view model and a repository. iOS's Add
+      location view holds the rules for what gets added and its label, which belong in its view
+      model. (11-07)
+- [ ] **Layers depend on each other the wrong way.** On Android the worker imports from ui
+      (`petMoodFor`, formatting), data and model import the worker's `NotificationKind`, and
+      `rainOutlook` takes a string resolved in the UI. On iOS `PetMood` and `SeasonalTheme` hand out
+      SwiftUI colours yet are used by the notification planner, and the scheduler draws a SwiftUI
+      pet icon. Domain types should be split from their colours and moved out of ui. Both apps.
+      (11-07)
 
 ## Ideas
 
