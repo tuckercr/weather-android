@@ -49,9 +49,6 @@ Finished items move to Done at the bottom.
       notification onboarding). SEARCH.md marks the changes building it on iOS made (11-06).
       When it's built, add the keys to `firebase/remoteconfig.template.json` with iOS's defaults;
       iOS reads them with in-app defaults, so nothing needs deploying first. (11-06)
-- [ ] **Privacy policy: `city_added` now has `source` and `provider`** on iOS (anonymous
-      categories, never a place or what was typed). Update sunnyandmisty.com/privacy before the
-      release that ships it, and the App Store privacy answers if they list events. (11-06)
 - [ ] **Review analytics, and add parameters where they'd help.** Only four events today, three
       with no parameters. Worth knowing: which permissions are granted (notifications, location,
       "Allow all the time" for Follow my location) from onboarding and from Settings; how cities
@@ -228,14 +225,6 @@ noted. Checked against the code, not fixed yet.
 
 ## Walk planner and pet safety
 
-- [ ] **Paw Check's orange paw is too mild for 115 °F.** A pavement estimate of about 115 °F
-      (46 °C) shows the orange "Getting hot" paw, though that's already too hot for paws. The bands
-      are Remote Config `walk_*_pavement_c`: green below 45 °C (113 °F), orange "Getting hot" from
-      45, red "Too hot for paws" from 52 (126 °F), maroon "Dangerously hot" from 57.2 (135 °F),
-      blue below 0. Common advice is that asphalt can burn paws from about 120 °F (49 °C), so
-      `walk_hot_pavement_c` should probably come down to about 49 and `walk_warm_pavement_c` to
-      about 43, with the walk advice following. Change the defaults in both apps and the template
-      together; a console change would do it without a release, but ask first. (11-07)
 - [ ] Retune the pavement heat model after an outdoor check of your own. (10-27)
 - [ ] **Hurricane warnings ahead are faked as now.** When hurricane force is forecast in the next 6
       hours, the walk verdict on now gets a force-12 wind factor, so the card says "Hurricane force
@@ -433,6 +422,14 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Paw Check bands lowered** (11-08): 115 °F pavement showed the orange "Getting hot" paw,
+      though that's already too hot for paws. `walk_hot_pavement_c` 52 → 46 (about 115 °F) and
+      `walk_warm_pavement_c` 45 → 40 (about 104 °F), in both apps, the template and the READMEs.
+      Dangerous (57.2, 135 °F) and icy (0) are unchanged. Hours with pavement at 40 °C or more are
+      no longer suggested for walks, so hot sunny afternoons offer fewer walk times. Remote Config
+      still serves 52 and 45 until the template is deployed.
+- [x] **Privacy policy for `city_added`'s `source` and `provider`** (11-08): already live since
+      11-06 (sunny-misty-web #3); the store privacy answers are still in Store and release.
 - [x] **Location and cities in the data layer, one weather screen view model** (11-08):
       architecture items 1, 2 and 8. `LocationRepository` owns the location manager (iOS) or Play
       services' client (Android), the permission checks and the refusal bookkeeping;

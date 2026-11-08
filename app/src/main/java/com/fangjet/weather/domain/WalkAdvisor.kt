@@ -74,8 +74,8 @@ private const val DANGER_AHEAD_SECONDS = 6 * 60 * 60L
 internal const val LIKELY_RAIN_CHANCE = 60
 
 // The walk thresholds (pavement heat, rain chance, comfort range, walking hours) are Remote Config
-// values; see PetWeatherThresholds. The rules themselves are in WalkCheck.kt. Defaults: pavement under 45 C (about 113 F; at 52 C, about
-// 125 F, it burns paws in under a minute), under 30% rain, 3..27 C feels-like, and 7 AM..8 PM.
+// values; see PetWeatherThresholds. The rules themselves are in WalkCheck.kt. Defaults: pavement under 40 C (about 104 F; at 46 C, about
+// 115 F, it can burn paws), under 30% rain, 3..27 C feels-like, and 7 AM..8 PM.
 
 /**
  * [WalkCheck]'s verdict on the hour: fine or better. Feels-like rather than air temperature, since

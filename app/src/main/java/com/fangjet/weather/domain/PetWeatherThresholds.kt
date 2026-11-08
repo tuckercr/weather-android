@@ -8,8 +8,8 @@ package com.fangjet.weather.domain
  * Always built through [validated], so every instance is in range and every pair is ordered.
  */
 data class PetWeatherThresholds(
-    /** Pavement at or above this burns paws: the walk rating becomes PAWS_HOT. */
-    val hotPavementC: Double = 52.0,
+    /** Pavement at or above this (about 115 F) burns paws: the walk rating becomes PAWS_HOT. */
+    val hotPavementC: Double = 46.0,
     /** An hour is walkable only below this rain chance, in percent. */
     val maxRainChancePercent: Int = 30,
     /** An hour is walkable only between [comfortMinC] and [comfortMaxC], inclusive. */
@@ -23,7 +23,7 @@ data class PetWeatherThresholds(
     /** At or below this the pets are COLD (and the walk rating TOO_COLD). */
     val petColdC: Double = 0.0,
     /** Pavement at or above this (and below [hotPavementC]) is getting hot: keep walks short. */
-    val warmPavementC: Double = 45.0,
+    val warmPavementC: Double = 40.0,
     /** Pavement below this may be icy or salted. */
     val icyPavementC: Double = 0.0,
     /** Pavement at or above this (about 135 F) is dangerously hot: worse than [hotPavementC]. */

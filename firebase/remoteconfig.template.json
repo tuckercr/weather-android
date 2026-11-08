@@ -76,14 +76,14 @@
       "description": "Skip the silent refresh when the app returns to the foreground if this city was fetched within this many minutes. 0 always refreshes. Pull-to-refresh is never throttled."
     },
     "walk_hot_pavement_c": {
-      "defaultValue": { "value": "52" },
+      "defaultValue": { "value": "46" },
       "valueType": "NUMBER",
-      "description": "Pavement temperature, in °C, at or above which the walk rating is Paws hot and that hour is not walkable. Valid 40–70; anything else uses 52."
+      "description": "Pavement temperature, in °C, at or above which the walk rating is Paws hot and that hour is not walkable (46 is about 115 °F). Valid 40–70; anything else uses 46."
     },
     "walk_warm_pavement_c": {
-      "defaultValue": { "value": "45" },
+      "defaultValue": { "value": "40" },
       "valueType": "NUMBER",
-      "description": "Pavement temperature, in °C, at or above which the Today Paw check tile says \"Getting hot\" and that hour is not suggested for a walk. Valid 30–65 and below walk_hot_pavement_c; anything else uses 45 (or 7 below walk_hot_pavement_c)."
+      "description": "Pavement temperature, in °C, at or above which the Today Paw check tile says \"Getting hot\" and that hour is not suggested for a walk. Valid 30–65 and below walk_hot_pavement_c; anything else uses 40 (or 7 below walk_hot_pavement_c)."
     },
     "walk_icy_pavement_c": {
       "defaultValue": { "value": "0" },

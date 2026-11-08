@@ -11,7 +11,7 @@ class PetWeatherThresholdsTest {
     fun `defaults match the previous hard-coded values`() {
         assertEquals(
             PetWeatherThresholds(
-                hotPavementC = 52.0,
+                hotPavementC = 46.0,
                 maxRainChancePercent = 30,
                 comfortMinC = 3.0,
                 comfortMaxC = 27.0,
@@ -42,7 +42,7 @@ class PetWeatherThresholdsTest {
             petColdC = -20.0,
         )
 
-        // A hot-pavement limit of 40 moves the default warm limit (45) to 7 below it.
+        // A hot-pavement limit of 40 moves the default warm limit (40) to 7 below it.
         assertEquals(PetWeatherThresholds(40.0, 100, -20.0, 40.0, 0, 23, 45.0, -20.0, warmPavementC = 33.0), t)
     }
 
@@ -135,8 +135,8 @@ class PetWeatherThresholdsTest {
     }
 
     @Test
-    fun `pavement tile thresholds default to 45 and 0 and use in-range values`() {
-        assertEquals(45.0, default.warmPavementC, 0.0)
+    fun `pavement tile thresholds default to 40 and 0 and use in-range values`() {
+        assertEquals(40.0, default.warmPavementC, 0.0)
         assertEquals(0.0, default.icyPavementC, 0.0)
 
         val t = PetWeatherThresholds.validated(warmPavementC = 40.0, icyPavementC = -5.0)
@@ -148,11 +148,11 @@ class PetWeatherThresholdsTest {
 
     @Test
     fun `a warm pavement threshold at or above the hot one moves below it, leaving the hot one alone`() {
-        // walk_hot_pavement_c = 44 is valid; the default warm threshold of 45 would never show.
-        val t = PetWeatherThresholds.validated(hotPavementC = 44.0)
+        // walk_hot_pavement_c = 40 is valid; the default warm threshold of 40 would never show.
+        val t = PetWeatherThresholds.validated(hotPavementC = 40.0)
 
-        assertEquals(44.0, t.hotPavementC, 0.0)
-        assertEquals(37.0, t.warmPavementC, 0.0)
+        assertEquals(40.0, t.hotPavementC, 0.0)
+        assertEquals(33.0, t.warmPavementC, 0.0)
     }
 
     @Test

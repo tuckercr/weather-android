@@ -106,11 +106,11 @@
          to these defaults; see PetWeatherThresholds. -->
     <entry>
         <key>walk_hot_pavement_c</key>
-        <value>52</value>
+        <value>46</value>
     </entry>
     <entry>
         <key>walk_warm_pavement_c</key>
-        <value>45</value>
+        <value>40</value>
     </entry>
     <entry>
         <key>walk_icy_pavement_c</key>

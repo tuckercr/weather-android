@@ -84,10 +84,12 @@ class TodayDetailsTest {
         val t = PetWeatherThresholds.DEFAULT
         assertEquals(PavementBand.DANGEROUS, pavementBand(57.2, false, 20.0, t))
         assertEquals(PavementBand.TOO_HOT, pavementBand(57.1, false, 20.0, t))
-        assertEquals(PavementBand.TOO_HOT, pavementBand(52.0, false, 20.0, t))
-        assertEquals(PavementBand.WARM, pavementBand(51.9, false, 20.0, t))
-        assertEquals(PavementBand.WARM, pavementBand(45.0, false, 20.0, t))
-        assertEquals(PavementBand.SAFE, pavementBand(44.9, false, 20.0, t))
+        // About 115 F: already too hot for paws.
+        assertEquals(PavementBand.TOO_HOT, pavementBand(46.1, false, 20.0, t))
+        assertEquals(PavementBand.TOO_HOT, pavementBand(46.0, false, 20.0, t))
+        assertEquals(PavementBand.WARM, pavementBand(45.9, false, 20.0, t))
+        assertEquals(PavementBand.WARM, pavementBand(40.0, false, 20.0, t))
+        assertEquals(PavementBand.SAFE, pavementBand(39.9, false, 20.0, t))
         assertEquals(PavementBand.SAFE, pavementBand(0.0, true, 0.1, t))
     }
 
