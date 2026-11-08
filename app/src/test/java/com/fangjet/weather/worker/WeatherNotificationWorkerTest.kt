@@ -22,7 +22,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * The worker's wiring: which saved city, which units, and coordinates versus a city-name query.
+ * The worker's wiring: which saved city and which units, fetched by the data layer's rule
+ * (`SavedLocation.weatherRequest`: coordinates when there are any, the name as the fallback query,
+ * and an empty label for My Location).
  * The notification content, gating and walk planning are covered by [NotificationWorkerLogicTest];
  * posting needs the Android framework, so these runs keep the Remote Config switch off and stop
  * before it, and an empty forecast means there's no walk to plan.
@@ -68,8 +70,8 @@ class WeatherNotificationWorkerTest {
             assertEquals(Result.success(), worker(listOf(london)).doWork())
 
             coVerify {
-                weather.fetchCurrentWeather(WeatherUnits.METRIC, "London, GB", null, 51.5, -0.1)
-                weather.fetchForecast(WeatherUnits.METRIC, null, 51.5, -0.1)
+                weather.fetchCurrentWeather(WeatherUnits.METRIC, "London, GB", "London, GB", 51.5, -0.1)
+                weather.fetchForecast(WeatherUnits.METRIC, "London, GB", 51.5, -0.1)
             }
         }
 
@@ -93,7 +95,7 @@ class WeatherNotificationWorkerTest {
 
             worker(listOf(here)).doWork()
 
-            coVerify { weather.fetchCurrentWeather(WeatherUnits.METRIC, "", null, 37.4, -122.1) }
+            coVerify { weather.fetchCurrentWeather(WeatherUnits.METRIC, "", "My Location", 37.4, -122.1) }
         }
 
     @Test
@@ -105,7 +107,7 @@ class WeatherNotificationWorkerTest {
             worker(listOf(london, here)).doWork()
 
             coVerify(exactly = 1) { weather.fetchCurrentWeather(any(), any(), any(), any(), any()) }
-            coVerify { weather.fetchCurrentWeather(WeatherUnits.METRIC, "", null, 37.4, -122.1) }
+            coVerify { weather.fetchCurrentWeather(WeatherUnits.METRIC, "", "My Location", 37.4, -122.1) }
         }
 
     @Test

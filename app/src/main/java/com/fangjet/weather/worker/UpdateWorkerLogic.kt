@@ -26,18 +26,9 @@ internal class UpdateWorkerLogic(
     // The city tab last viewed. Null refreshes only the notification city.
     private val getActiveIndex: suspend () -> Int? = { null },
     private val getUnits: suspend () -> WeatherUnits,
-    private val fetchCurrentWeather: suspend (
-        units: WeatherUnits,
-        label: String,
-        latitude: Double?,
-        longitude: Double?,
-    ) -> kotlin.Result<CurrentWeather>,
-    private val fetchForecast: suspend (
-        units: WeatherUnits,
-        label: String,
-        latitude: Double?,
-        longitude: Double?,
-    ) -> kotlin.Result<List<DayForecast>>,
+    // A saved location's weather, by the data layer's rule (WeatherRepository.fetchCurrentWeather(location)).
+    private val fetchCurrentWeather: suspend (units: WeatherUnits, location: SavedLocation) -> kotlin.Result<CurrentWeather>,
+    private val fetchForecast: suspend (units: WeatherUnits, location: SavedLocation) -> kotlin.Result<List<DayForecast>>,
     private val cacheCurrentWeather: suspend (cacheKey: String, weather: CurrentWeather) -> Unit,
     private val cacheForecast: suspend (cacheKey: String, forecast: List<DayForecast>) -> Unit,
     // After a refresh, with whatever came back: the rain alert checks it.
@@ -67,18 +58,8 @@ internal class UpdateWorkerLogic(
         units: WeatherUnits,
         alert: Boolean,
     ): Boolean {
-        val currentResult = fetchCurrentWeather(
-            units,
-            location.label,
-            location.latitude,
-            location.longitude,
-        )
-        val forecastResult = fetchForecast(
-            units,
-            location.label,
-            location.latitude,
-            location.longitude,
-        )
+        val currentResult = fetchCurrentWeather(units, location)
+        val forecastResult = fetchForecast(units, location)
 
         val cacheKey = location.cacheKey
 

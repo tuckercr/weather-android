@@ -7,6 +7,8 @@ import com.fangjet.weather.analytics.AnalyticsRepository
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
 import com.fangjet.weather.data.WeatherRepository
+import com.fangjet.weather.data.fetchCurrentWeather
+import com.fangjet.weather.data.fetchForecast
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.PetWeatherThresholds
@@ -28,7 +30,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -36,26 +37,15 @@ import javax.inject.Inject
 @HiltViewModel
 class WeatherForecastViewModel internal constructor(
     private val resolveWeatherUnits: suspend () -> WeatherUnits,
-    private val fetchCurrentWeather: suspend (
-        units: WeatherUnits,
-        locationLabel: String,
-        cityQuery: String?,
-        latitude: Double?,
-        longitude: Double?,
-    ) -> Result<CurrentWeather>,
-    private val fetchForecast: suspend (
-        units: WeatherUnits,
-        cityQuery: String?,
-        latitude: Double?,
-        longitude: Double?,
-    ) -> Result<List<DayForecast>>,
+    // A saved location's weather, by the data layer's rule (WeatherRepository.fetchCurrentWeather(location)).
+    private val fetchCurrentWeather: suspend (units: WeatherUnits, location: SavedLocation) -> Result<CurrentWeather>,
+    private val fetchForecast: suspend (units: WeatherUnits, location: SavedLocation) -> Result<List<DayForecast>>,
     private val setLastCity: suspend (String) -> Unit,
     // Per-city cache: key is SavedLocation.cacheKey
     private val getCachedCurrentWeather: suspend (locationKey: String) -> CurrentWeather?,
     private val getCachedForecast: suspend (locationKey: String) -> List<DayForecast>?,
-    private val setCachedCurrentWeather: suspend (locationKey: String, json: String) -> Unit,
-    private val setCachedForecast: suspend (locationKey: String, json: String) -> Unit,
-    private val json: Json,
+    private val setCachedCurrentWeather: suspend (locationKey: String, weather: CurrentWeather) -> Unit,
+    private val setCachedForecast: suspend (locationKey: String, forecast: List<DayForecast>) -> Unit,
     private val onError: (errorKey: String) -> Unit = {},
     private val onSettingsOpened: () -> Unit = {},
     isWalkCardEnabled: () -> Boolean = { true },
@@ -79,7 +69,6 @@ class WeatherForecastViewModel internal constructor(
         application: Application,
         preferencesRepository: PreferencesRepository,
         weatherRepository: WeatherRepository,
-        injectedJson: Json,
         analyticsRepository: AnalyticsRepository,
         remoteConfigRepository: RemoteConfigRepository,
     ) : this(
@@ -87,46 +76,13 @@ class WeatherForecastViewModel internal constructor(
             val override = preferencesRepository.unitOverride.first()
             application.resolveWeatherUnits(override)
         },
-        fetchCurrentWeather = weatherRepository::fetchCurrentWeather,
-        fetchForecast = weatherRepository::fetchForecast,
+        fetchCurrentWeather = { units, location -> weatherRepository.fetchCurrentWeather(location, units) },
+        fetchForecast = { units, location -> weatherRepository.fetchForecast(location, units) },
         setLastCity = preferencesRepository::setLastCity,
-        getCachedCurrentWeather = { key ->
-            val raw = preferencesRepository.getCachedWeatherFor(key)
-            if (raw != null) {
-                try {
-                    injectedJson.decodeFromString<CurrentWeather>(raw)
-                } catch (_: Exception) {
-                    null
-                }
-            } else {
-                null
-            }
-        },
-        getCachedForecast = { key ->
-            val raw = preferencesRepository.getCachedForecastFor(key)
-            if (raw != null) {
-                try {
-                    injectedJson.decodeFromString<List<DayForecast>>(raw)
-                } catch (_: Exception) {
-                    null
-                }
-            } else {
-                null
-            }
-        },
-        setCachedCurrentWeather = { key, weatherJson ->
-            preferencesRepository.setCachedWeatherFor(
-                key,
-                weatherJson,
-            )
-        },
-        setCachedForecast = { key, forecastJson ->
-            preferencesRepository.setCachedForecastFor(
-                key,
-                forecastJson,
-            )
-        },
-        json = injectedJson,
+        getCachedCurrentWeather = preferencesRepository::getCachedWeather,
+        getCachedForecast = preferencesRepository::getCachedForecast,
+        setCachedCurrentWeather = preferencesRepository::setCachedWeather,
+        setCachedForecast = preferencesRepository::setCachedForecast,
         onError = { key -> analyticsRepository.logWeatherError(key) },
         onSettingsOpened = { analyticsRepository.logSettingsOpened() },
         isWalkCardEnabled = remoteConfigRepository::walkCardEnabled,
@@ -227,10 +183,7 @@ class WeatherForecastViewModel internal constructor(
         if (fetchedRecently(lastCurrentFetchMillis, location)) return
         viewModelScope.launch {
             val units = resolveWeatherUnits()
-            val label = if (location.isCurrentLocation) "" else location.label
-            val result = fetchForLocation(location) { lat, lon ->
-                fetchCurrentWeather(units, label, null, lat, lon)
-            } ?: fetchCurrentWeather(units, label, location.label, null, null)
+            val result = fetchCurrentWeather(units, location)
             // Drop stale results only when the user has since switched to a different location.
             val target = currentTargetKey.value
             if (target != null && target != location.cacheKey) return@launch
@@ -239,12 +192,7 @@ class WeatherForecastViewModel internal constructor(
                 _currentWeather.value = LoadingState.Success(weather)
                 _staleErrorKey.value = null
                 setLastCity(weather.cityName)
-                viewModelScope.launch {
-                    setCachedCurrentWeather(
-                        location.cacheKey,
-                        json.encodeToString(CurrentWeather.serializer(), weather),
-                    )
-                }
+                viewModelScope.launch { setCachedCurrentWeather(location.cacheKey, weather) }
             }
             result.onFailure { e ->
                 if (_currentWeather.value is LoadingState.Success) _staleErrorKey.value = resolveErrorKey(e)
@@ -256,18 +204,14 @@ class WeatherForecastViewModel internal constructor(
         if (fetchedRecently(lastForecastFetchMillis, location)) return
         viewModelScope.launch {
             val units = resolveWeatherUnits()
-            val result = fetchForLocation(location) { lat, lon ->
-                fetchForecast(units, null, lat, lon)
-            } ?: fetchForecast(units, location.label, null, null)
+            val result = fetchForecast(units, location)
             // Drop stale results only when the user has since switched to a different location.
             val target = forecastTargetKey.value
             if (target != null && target != location.cacheKey) return@launch
             result.onSuccess { forecast ->
                 lastForecastFetchMillis[location.cacheKey] = nowMillis()
                 _forecast.value = LoadingState.Success(forecast)
-                viewModelScope.launch {
-                    setCachedForecast(location.cacheKey, encodeForecasts(forecast))
-                }
+                viewModelScope.launch { setCachedForecast(location.cacheKey, forecast) }
             }
         }
     }
@@ -287,22 +231,14 @@ class WeatherForecastViewModel internal constructor(
             _currentWeather.value = cached?.let { LoadingState.Success(it) } ?: LoadingState.Loading
 
             val units = resolveWeatherUnits()
-            val label = if (location.isCurrentLocation) "" else location.label
-            val result = fetchForLocation(location) { lat, lon ->
-                fetchCurrentWeather(units, label, null, lat, lon)
-            } ?: fetchCurrentWeather(units, label, location.label, null, null)
+            val result = fetchCurrentWeather(units, location)
 
             if (fetchId != currentWeatherFetchGeneration.get()) return@launch
             result.fold(
                 onSuccess = { weather ->
                     lastCurrentFetchMillis[location.cacheKey] = nowMillis()
                     setLastCity(weather.cityName)
-                    viewModelScope.launch {
-                        setCachedCurrentWeather(
-                            location.cacheKey,
-                            json.encodeToString(CurrentWeather.serializer(), weather),
-                        )
-                    }
+                    viewModelScope.launch { setCachedCurrentWeather(location.cacheKey, weather) }
                     _currentWeather.value = LoadingState.Success(weather)
                     _staleErrorKey.value = null
                 },
@@ -334,17 +270,13 @@ class WeatherForecastViewModel internal constructor(
             _forecast.value = cached?.let { LoadingState.Success(it) } ?: LoadingState.Loading
 
             val units = resolveWeatherUnits()
-            val result = fetchForLocation(location) { lat, lon ->
-                fetchForecast(units, null, lat, lon)
-            } ?: fetchForecast(units, location.label, null, null)
+            val result = fetchForecast(units, location)
 
             if (fetchId != forecastFetchGeneration.get()) return@launch
             result.fold(
                 onSuccess = { forecast ->
                     lastForecastFetchMillis[location.cacheKey] = nowMillis()
-                    viewModelScope.launch {
-                        setCachedForecast(location.cacheKey, encodeForecasts(forecast))
-                    }
+                    viewModelScope.launch { setCachedForecast(location.cacheKey, forecast) }
                     _forecast.value = LoadingState.Success(forecast)
                 },
                 onFailure = { e ->
@@ -398,22 +330,6 @@ class WeatherForecastViewModel internal constructor(
         when (error.message) {
             "missing_api_key", "bad_api_key", "city_not_found", "empty_query" -> false
             else -> true
-        }
-
-    private fun encodeForecasts(forecast: List<DayForecast>): String =
-        json.encodeToString(
-            kotlinx.serialization.builtins.ListSerializer(DayForecast.serializer()),
-            forecast,
-        )
-
-    private inline fun <T> fetchForLocation(
-        location: SavedLocation,
-        block: (lat: Double, lon: Double) -> T,
-    ): T? =
-        if (location.latitude != null && location.longitude != null) {
-            block(location.latitude, location.longitude)
-        } else {
-            null
         }
 }
 

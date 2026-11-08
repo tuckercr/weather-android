@@ -53,18 +53,9 @@ private const val MIN_WALK_LEAD_SECONDS = 30 * 60L
 internal class NotificationWorkerLogic(
     private val getSavedLocations: suspend () -> List<SavedLocation>,
     private val getUnits: suspend () -> WeatherUnits,
-    private val fetchCurrentWeather: suspend (
-        units: WeatherUnits,
-        label: String,
-        latitude: Double?,
-        longitude: Double?,
-    ) -> kotlin.Result<CurrentWeather>,
-    private val fetchForecast: suspend (
-        units: WeatherUnits,
-        label: String,
-        latitude: Double?,
-        longitude: Double?,
-    ) -> kotlin.Result<List<DayForecast>>,
+    // A saved location's weather, by the data layer's rule (WeatherRepository.fetchCurrentWeather(location)).
+    private val fetchCurrentWeather: suspend (units: WeatherUnits, location: SavedLocation) -> kotlin.Result<CurrentWeather>,
+    private val fetchForecast: suspend (units: WeatherUnits, location: SavedLocation) -> kotlin.Result<List<DayForecast>>,
     private val hasNotificationPermission: () -> Boolean,
     private val postNotification: (WeatherNotification) -> Unit,
     // Remote Config daily_weather_notifications_enabled: switches the briefing off for everyone.
@@ -91,21 +82,10 @@ internal class NotificationWorkerLogic(
 
         val units = getUnits()
 
-        val weather = fetchCurrentWeather(
-            units,
-            // "My Location" has no city name of its own: an empty label lets the phone's name for
-            // the place show ("57° in Mountain View"), as on the app's own screen.
-            if (location.isCurrentLocation) "" else location.label,
-            location.latitude,
-            location.longitude,
-        ).getOrNull() ?: return Result.retry()
+        // My Location is named by the phone ("57° in Mountain View"), as on the app's own screen.
+        val weather = fetchCurrentWeather(units, location).getOrNull() ?: return Result.retry()
 
-        val forecast = fetchForecast(
-            units,
-            location.label,
-            location.latitude,
-            location.longitude,
-        ).getOrNull()
+        val forecast = fetchForecast(units, location).getOrNull()
         // Only an entry that is actually today may supply the high/low.
         val todayForecast = forecast?.firstOrNull { it.dateLabel == todayLabel(weather.offsetSeconds) }
         val thresholds = runCatching { petWeatherThresholds() }.getOrDefault(PetWeatherThresholds.DEFAULT)
@@ -157,18 +137,9 @@ internal class NotificationWorkerLogic(
 internal class WalkTimeLogic(
     private val getSavedLocations: suspend () -> List<SavedLocation>,
     private val getUnits: suspend () -> WeatherUnits,
-    private val fetchCurrentWeather: suspend (
-        units: WeatherUnits,
-        label: String,
-        latitude: Double?,
-        longitude: Double?,
-    ) -> kotlin.Result<CurrentWeather>,
-    private val fetchForecast: suspend (
-        units: WeatherUnits,
-        label: String,
-        latitude: Double?,
-        longitude: Double?,
-    ) -> kotlin.Result<List<DayForecast>>,
+    // A saved location's weather, by the data layer's rule (WeatherRepository.fetchCurrentWeather(location)).
+    private val fetchCurrentWeather: suspend (units: WeatherUnits, location: SavedLocation) -> kotlin.Result<CurrentWeather>,
+    private val fetchForecast: suspend (units: WeatherUnits, location: SavedLocation) -> kotlin.Result<List<DayForecast>>,
     private val hasNotificationPermission: () -> Boolean,
     private val postNotification: (WeatherNotification) -> Unit,
     private val isWalkTimeEnabled: suspend () -> Boolean,
@@ -179,14 +150,8 @@ internal class WalkTimeLogic(
         if (!isWalkTimeEnabled() || !hasNotificationPermission()) return Result.success()
         val location = getSavedLocations().notificationLocation() ?: return Result.success()
         val units = getUnits()
-        val weather = fetchCurrentWeather(
-            units,
-            if (location.isCurrentLocation) "" else location.label,
-            location.latitude,
-            location.longitude,
-        ).getOrNull() ?: return Result.retry()
-        val forecast = fetchForecast(units, location.label, location.latitude, location.longitude).getOrNull()
-            ?: return Result.retry()
+        val weather = fetchCurrentWeather(units, location).getOrNull() ?: return Result.retry()
+        val forecast = fetchForecast(units, location).getOrNull() ?: return Result.retry()
         val thresholds = runCatching { petWeatherThresholds() }.getOrDefault(PetWeatherThresholds.DEFAULT)
         val walk = walkAdviceForReading(weather, forecast, thresholds, nowEpochSeconds())
         if (walk?.rating != WalkRating.GREAT) return Result.success()

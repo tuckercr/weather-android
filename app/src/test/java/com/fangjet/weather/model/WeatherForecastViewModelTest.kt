@@ -1,5 +1,6 @@
 package com.fangjet.weather.model
 
+import com.fangjet.weather.data.weatherRequest
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
@@ -31,20 +32,15 @@ class WeatherForecastViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     @Test
-    fun `current weather with coordinates passes lat-lon and null city query`() =
+    fun `current weather for a city with coordinates asks by its location`() =
         runTest {
             var request: CurrentRequest? = null
             val savedCities = mutableListOf<String>()
             val viewModel = viewModel(
                 resolveWeatherUnits = { WeatherUnits.IMPERIAL },
-                fetchCurrentWeather = { units, locationLabel, cityQuery, latitude, longitude ->
-                    request = CurrentRequest(
-                        units = units,
-                        locationLabel = locationLabel,
-                        cityQuery = cityQuery,
-                        latitude = latitude,
-                        longitude = longitude,
-                    )
+                fetchCurrentWeather = { units, location ->
+                    request =
+                        location.weatherRequest.let { CurrentRequest(units, it.locationLabel, it.cityQuery, it.latitude, it.longitude) }
                     Result.success(currentWeather(cityName = "Austin, TX, US", units = units))
                 },
                 setLastCity = { savedCities += it },
@@ -59,7 +55,7 @@ class WeatherForecastViewModelTest {
                 CurrentRequest(
                     units = WeatherUnits.IMPERIAL,
                     locationLabel = "Austin, TX, US",
-                    cityQuery = null,
+                    cityQuery = "Austin, TX, US",
                     latitude = 30.2672,
                     longitude = -97.7431,
                 ),
@@ -77,8 +73,9 @@ class WeatherForecastViewModelTest {
         runTest {
             var request: CurrentRequest? = null
             val viewModel = viewModel(
-                fetchCurrentWeather = { units, locationLabel, cityQuery, latitude, longitude ->
-                    request = CurrentRequest(units, locationLabel, cityQuery, latitude, longitude)
+                fetchCurrentWeather = { units, location ->
+                    request =
+                        location.weatherRequest.let { CurrentRequest(units, it.locationLabel, it.cityQuery, it.latitude, it.longitude) }
                     Result.success(currentWeather(cityName = "Denver"))
                 },
             )
@@ -108,12 +105,12 @@ class WeatherForecastViewModelTest {
             val requestedLabels = mutableListOf<String>()
             val savedCities = mutableListOf<String>()
             val viewModel = viewModel(
-                fetchCurrentWeather = { units, locationLabel, _, _, _ ->
-                    requestedLabels += locationLabel
-                    when (locationLabel) {
+                fetchCurrentWeather = { units, location ->
+                    requestedLabels += location.label
+                    when (location.label) {
                         "Austin" -> firstRequest.await()
                         "Denver" -> secondRequest.await()
-                        else -> error("Unexpected location $locationLabel")
+                        else -> error("Unexpected location ${location.label}")
                     }.map { it.copy(units = units) }
                 },
                 setLastCity = { savedCities += it },
@@ -138,7 +135,7 @@ class WeatherForecastViewModelTest {
     fun `current weather network failure maps to retryable user message and can be cleared`() =
         runTest {
             val viewModel = viewModel(
-                fetchCurrentWeather = { _, _, _, _, _ -> Result.failure(IOException("offline")) },
+                fetchCurrentWeather = { _, _ -> Result.failure(IOException("offline")) },
             )
 
             viewModel.refreshCurrent(SavedLocation(label = "Austin", latitude = null, longitude = null))
@@ -160,13 +157,8 @@ class WeatherForecastViewModelTest {
             val expectedForecast = listOf(dayForecast(units = WeatherUnits.IMPERIAL))
             val viewModel = viewModel(
                 resolveWeatherUnits = { WeatherUnits.IMPERIAL },
-                fetchForecast = { units, cityQuery, latitude, longitude ->
-                    request = ForecastRequest(
-                        units = units,
-                        cityQuery = cityQuery,
-                        latitude = latitude,
-                        longitude = longitude,
-                    )
+                fetchForecast = { units, location ->
+                    request = location.weatherRequest.let { ForecastRequest(units, it.cityQuery, it.latitude, it.longitude) }
                     Result.success(expectedForecast)
                 },
             )
@@ -179,7 +171,7 @@ class WeatherForecastViewModelTest {
             assertEquals(
                 ForecastRequest(
                     units = WeatherUnits.IMPERIAL,
-                    cityQuery = null,
+                    cityQuery = "Austin, TX, US",
                     latitude = 30.2672,
                     longitude = -97.7431,
                 ),
@@ -192,7 +184,7 @@ class WeatherForecastViewModelTest {
     fun `forecast maps network failure to retryable user message`() =
         runTest {
             val viewModel = viewModel(
-                fetchForecast = { _, _, _, _ -> Result.failure(IOException("offline")) },
+                fetchForecast = { _, _ -> Result.failure(IOException("offline")) },
             )
 
             viewModel.refreshForecast(SavedLocation(label = "Austin", latitude = null, longitude = null))
@@ -213,7 +205,7 @@ class WeatherForecastViewModelTest {
             val location = SavedLocation(label = "Austin", latitude = 30.27, longitude = -97.74)
             val fresh = currentWeather(cityName = "Austin")
             val viewModel = viewModel(
-                fetchCurrentWeather = { _, _, _, _, _ -> Result.success(fresh) },
+                fetchCurrentWeather = { _, _ -> Result.success(fresh) },
             )
 
             viewModel.backgroundRefreshCurrent(location)
@@ -227,7 +219,7 @@ class WeatherForecastViewModelTest {
         runTest {
             val location = SavedLocation(label = "Austin", latitude = 30.27, longitude = -97.74)
             val viewModel = viewModel(
-                fetchCurrentWeather = { _, _, _, _, _ -> Result.failure(Exception("offline")) },
+                fetchCurrentWeather = { _, _ -> Result.failure(Exception("offline")) },
             )
 
             viewModel.backgroundRefreshCurrent(location)
@@ -242,7 +234,7 @@ class WeatherForecastViewModelTest {
             val location = SavedLocation(label = "Austin", latitude = 30.27, longitude = -97.74)
             val fresh = listOf(dayForecast())
             val viewModel = viewModel(
-                fetchForecast = { _, _, _, _ -> Result.success(fresh) },
+                fetchForecast = { _, _ -> Result.success(fresh) },
             )
 
             viewModel.backgroundRefreshForecast(location)
@@ -256,7 +248,7 @@ class WeatherForecastViewModelTest {
         runTest {
             val location = SavedLocation(label = "Austin", latitude = 30.27, longitude = -97.74)
             val viewModel = viewModel(
-                fetchForecast = { _, _, _, _ -> Result.failure(Exception("offline")) },
+                fetchForecast = { _, _ -> Result.failure(Exception("offline")) },
             )
 
             viewModel.backgroundRefreshForecast(location)
@@ -272,7 +264,7 @@ class WeatherForecastViewModelTest {
             val fetchGate = CompletableDeferred<Result<CurrentWeather>>()
             val viewModel = viewModel(
                 getCachedCurrentWeather = { cached },
-                fetchCurrentWeather = { _, _, _, _, _ -> fetchGate.await() },
+                fetchCurrentWeather = { _, _ -> fetchGate.await() },
             )
 
             viewModel.refreshCurrent(SavedLocation(label = "Austin", latitude = null, longitude = null))
@@ -291,7 +283,7 @@ class WeatherForecastViewModelTest {
             val cached = currentWeather(cityName = "Austin")
             val viewModel = viewModel(
                 getCachedCurrentWeather = { cached },
-                fetchCurrentWeather = { _, _, _, _, _ -> Result.failure(Exception("offline")) },
+                fetchCurrentWeather = { _, _ -> Result.failure(Exception("offline")) },
             )
 
             viewModel.refreshCurrent(SavedLocation(label = "Austin", latitude = null, longitude = null))
@@ -307,7 +299,7 @@ class WeatherForecastViewModelTest {
             var result: Result<CurrentWeather> = Result.failure(Exception("offline"))
             val viewModel = viewModel(
                 getCachedCurrentWeather = { cached },
-                fetchCurrentWeather = { _, _, _, _, _ -> result },
+                fetchCurrentWeather = { _, _ -> result },
             )
             val austin = SavedLocation(label = "Austin", latitude = null, longitude = null)
 
@@ -325,7 +317,7 @@ class WeatherForecastViewModelTest {
     fun `failed refresh with nothing cached shows the error, not the stale banner`() =
         runTest {
             val viewModel = viewModel(
-                fetchCurrentWeather = { _, _, _, _, _ -> Result.failure(Exception("offline")) },
+                fetchCurrentWeather = { _, _ -> Result.failure(Exception("offline")) },
             )
 
             viewModel.refreshCurrent(SavedLocation(label = "Austin", latitude = null, longitude = null))
@@ -339,7 +331,7 @@ class WeatherForecastViewModelTest {
     fun `failed background refresh flags shown weather as stale, and switching city clears it`() =
         runTest {
             var result: Result<CurrentWeather> = Result.success(currentWeather(cityName = "Austin"))
-            val viewModel = viewModel(fetchCurrentWeather = { _, _, _, _, _ -> result })
+            val viewModel = viewModel(fetchCurrentWeather = { _, _ -> result })
             val austin = SavedLocation(label = "Austin", latitude = 30.27, longitude = -97.74)
 
             viewModel.refreshCurrent(austin)
@@ -361,7 +353,7 @@ class WeatherForecastViewModelTest {
             val cached = listOf(dayForecast())
             val viewModel = viewModel(
                 getCachedForecast = { cached },
-                fetchForecast = { _, _, _, _ -> Result.failure(Exception("offline")) },
+                fetchForecast = { _, _ -> Result.failure(Exception("offline")) },
             )
 
             viewModel.refreshForecast(SavedLocation(label = "Austin", latitude = null, longitude = null))
@@ -381,7 +373,7 @@ class WeatherForecastViewModelTest {
             val background = CompletableDeferred<Result<CurrentWeather>>()
             var call = 0
             val viewModel = viewModel(
-                fetchCurrentWeather = { units, _, _, _, _ ->
+                fetchCurrentWeather = { units, _ ->
                     val n = call++
                     (if (n == 0) foreground else background).await().map { it.copy(units = units) }
                 },
@@ -410,11 +402,11 @@ class WeatherForecastViewModelTest {
             val backgroundRequest = CompletableDeferred<Result<CurrentWeather>>()
             val foregroundRequest = CompletableDeferred<Result<CurrentWeather>>()
             val viewModel = viewModel(
-                fetchCurrentWeather = { units, locationLabel, _, _, _ ->
-                    when (locationLabel) {
+                fetchCurrentWeather = { units, location ->
+                    when (location.label) {
                         "Austin" -> backgroundRequest.await()
                         "Denver" -> foregroundRequest.await()
-                        else -> error("Unexpected location $locationLabel")
+                        else -> error("Unexpected location ${location.label}")
                     }.map { it.copy(units = units) }
                 },
             )
@@ -444,11 +436,11 @@ class WeatherForecastViewModelTest {
             val backgroundRequest = CompletableDeferred<Result<List<DayForecast>>>()
             val foregroundRequest = CompletableDeferred<Result<List<DayForecast>>>()
             val viewModel = viewModel(
-                fetchForecast = { _, cityQuery, _, _ ->
-                    when (cityQuery) {
+                fetchForecast = { _, location ->
+                    when (location.label) {
                         "Austin" -> backgroundRequest.await()
                         "Denver" -> foregroundRequest.await()
-                        else -> error("Unexpected city $cityQuery")
+                        else -> error("Unexpected city ${location.label}")
                     }
                 },
             )
@@ -472,8 +464,8 @@ class WeatherForecastViewModelTest {
         runTest {
             var capturedLabel: String? = null
             val viewModel = viewModel(
-                fetchCurrentWeather = { _, locationLabel, _, _, _ ->
-                    capturedLabel = locationLabel
+                fetchCurrentWeather = { _, location ->
+                    capturedLabel = location.weatherRequest.locationLabel
                     Result.success(currentWeather(cityName = "Detected City"))
                 },
             )
@@ -488,28 +480,17 @@ class WeatherForecastViewModelTest {
 
     private fun viewModel(
         resolveWeatherUnits: suspend () -> WeatherUnits = { WeatherUnits.METRIC },
-        fetchCurrentWeather: suspend (
-            units: WeatherUnits,
-            locationLabel: String,
-            cityQuery: String?,
-            latitude: Double?,
-            longitude: Double?,
-        ) -> Result<CurrentWeather> = { units, locationLabel, cityQuery, _, _ ->
-            Result.success(currentWeather(cityName = cityQuery ?: locationLabel, units = units))
+        fetchCurrentWeather: suspend (units: WeatherUnits, location: SavedLocation) -> Result<CurrentWeather> = { units, location ->
+            Result.success(currentWeather(cityName = location.label, units = units))
         },
-        fetchForecast: suspend (
-            units: WeatherUnits,
-            cityQuery: String?,
-            latitude: Double?,
-            longitude: Double?,
-        ) -> Result<List<DayForecast>> = { units, _, _, _ ->
+        fetchForecast: suspend (units: WeatherUnits, location: SavedLocation) -> Result<List<DayForecast>> = { units, _ ->
             Result.success(listOf(dayForecast(units = units)))
         },
         setLastCity: suspend (String) -> Unit = {},
         getCachedCurrentWeather: suspend (String) -> CurrentWeather? = { null },
         getCachedForecast: suspend (String) -> List<DayForecast>? = { null },
-        setCachedCurrentWeather: suspend (String, String) -> Unit = { _, _ -> },
-        setCachedForecast: suspend (String, String) -> Unit = { _, _ -> },
+        setCachedCurrentWeather: suspend (String, CurrentWeather) -> Unit = { _, _ -> },
+        setCachedForecast: suspend (String, List<DayForecast>) -> Unit = { _, _ -> },
         isWalkCardEnabled: () -> Boolean = { true },
         isHourlyForecastEnabled: () -> Boolean = { true },
         isNextRainEnabled: () -> Boolean = { true },
@@ -528,7 +509,6 @@ class WeatherForecastViewModelTest {
         getCachedForecast = getCachedForecast,
         setCachedCurrentWeather = setCachedCurrentWeather,
         setCachedForecast = setCachedForecast,
-        json = kotlinx.serialization.json.Json,
         isWalkCardEnabled = isWalkCardEnabled,
         isHourlyForecastEnabled = isHourlyForecastEnabled,
         isNextRainEnabled = isNextRainEnabled,
@@ -557,12 +537,7 @@ class WeatherForecastViewModelTest {
                 localHour = 15,
                 epochSeconds = 1_000L,
             )
-            val vm = viewModel(fetchForecast = {
-                units,
-                _,
-                _,
-                _,
-                ->
+            val vm = viewModel(fetchForecast = { units, _ ->
                 Result.success(listOf(dayForecast(units).copy(hourlySlots = listOf(hour))))
             })
             val reading = currentWeather(cityName = "Austin")
@@ -597,11 +572,11 @@ class WeatherForecastViewModelTest {
         state: Throttled,
         minMinutes: Long = 10,
     ) = viewModel(
-        fetchCurrentWeather = { _, _, _, _, _ ->
+        fetchCurrentWeather = { _, _ ->
             state.currentFetches++
             Result.success(currentWeather(cityName = "Austin"))
         },
-        fetchForecast = { units, _, _, _ ->
+        fetchForecast = { units, _ ->
             state.forecastFetches++
             Result.success(listOf(dayForecast(units = units)))
         },
@@ -712,7 +687,7 @@ class WeatherForecastViewModelTest {
         runTest {
             var currentFetches = 0
             val viewModel = viewModel(
-                fetchCurrentWeather = { _, _, _, _, _ ->
+                fetchCurrentWeather = { _, _ ->
                     currentFetches++
                     Result.failure(IOException("offline"))
                 },

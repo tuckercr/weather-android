@@ -4,8 +4,11 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.fangjet.weather.domain.CurrentWeather
+import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.UnitOverride
+import com.fangjet.weather.domain.WeatherUnits
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
@@ -146,6 +149,49 @@ class PreferencesRepositoryTest {
         }
 
     // --- weather and forecast caches ---
+
+    @Test
+    fun `the weather and forecast are cached as themselves, and an unreadable entry is none`() =
+        runTest {
+            val prefs = repository()
+            val reading = CurrentWeather(
+                cityName = "London",
+                conditionMain = "Clouds",
+                description = "Overcast",
+                iconCode = "04d",
+                temperature = 9.0,
+                feelsLike = 7.0,
+                tempMin = 6.0,
+                tempMax = 11.0,
+                humidityPercent = 80,
+                pressureHpa = 1012,
+                windSpeed = 4.0,
+                windDeg = 220,
+                visibilityMeters = 10_000,
+                cloudPercent = 90,
+                units = WeatherUnits.METRIC,
+            )
+            val day = DayForecast(
+                dateLabel = "Sat, Nov 7",
+                conditionMain = "Clouds",
+                description = "overcast",
+                iconCode = "04d",
+                temperature = 9.0,
+                feelsLike = 7.0,
+                tempMin = 6.0,
+                tempMax = 11.0,
+                units = WeatherUnits.METRIC,
+            )
+
+            prefs.setCachedWeather("london", reading)
+            prefs.setCachedForecast("london", listOf(day))
+            prefs.setCachedWeatherFor("tokyo", "not json")
+
+            assertEquals(reading, prefs.getCachedWeather("london"))
+            assertEquals(listOf(day), prefs.getCachedForecast("london"))
+            assertNull(prefs.getCachedWeather("tokyo"))
+            assertNull(prefs.getCachedForecast("tokyo"))
+        }
 
     @Test
     fun `caches are kept per location and do not overwrite each other`() =

@@ -7,6 +7,8 @@ import androidx.work.WorkerParameters
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
 import com.fangjet.weather.data.WeatherRepository
+import com.fangjet.weather.data.fetchCurrentWeather
+import com.fangjet.weather.data.fetchForecast
 import com.fangjet.weather.util.resolveWeatherUnits
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -29,20 +31,8 @@ class WeatherNotificationWorker @AssistedInject constructor(
             val override = preferencesRepository.unitOverride.first()
             context.resolveWeatherUnits(override)
         },
-        fetchCurrentWeather = { units, label, lat, lon ->
-            if (lat != null && lon != null) {
-                weatherRepository.fetchCurrentWeather(units, label, latitude = lat, longitude = lon)
-            } else {
-                weatherRepository.fetchCurrentWeather(units, label, cityQuery = label)
-            }
-        },
-        fetchForecast = { units, label, lat, lon ->
-            if (lat != null && lon != null) {
-                weatherRepository.fetchForecast(units, latitude = lat, longitude = lon)
-            } else {
-                weatherRepository.fetchForecast(units, cityQuery = label)
-            }
-        },
+        fetchCurrentWeather = { units, location -> weatherRepository.fetchCurrentWeather(location, units) },
+        fetchForecast = { units, location -> weatherRepository.fetchForecast(location, units) },
         hasNotificationPermission = context::canPostNotifications,
         postNotification = context::postWeatherNotification,
         isDailyWeatherNotificationEnabled = remoteConfigRepository::dailyWeatherNotificationsEnabled,
