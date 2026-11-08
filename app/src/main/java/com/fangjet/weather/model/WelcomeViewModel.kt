@@ -4,12 +4,29 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fangjet.weather.analytics.AnalyticsRepository
 import com.fangjet.weather.data.PreferencesRepository
+import com.fangjet.weather.data.RemoteConfigRepository
+import com.fangjet.weather.worker.NotificationKind
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/** Where a returning or new user starts: the dog question only follows the welcome, in the same run. */
+enum class OnboardingStep { WELCOME, NOTIFICATIONS, LOCATION, DONE }
+
+/** What "Stay in the loop" promises: the walk nudge with a dog, rain alerts while Remote Config has them on. */
+data class NotificationPromise(
+    val hasDog: Boolean = true,
+    val walkTimeEnabled: Boolean = true,
+    val rainEnabled: Boolean = true,
+)
 
 data class OnboardingState(
     val hasSeenWelcome: Boolean,
@@ -27,12 +44,17 @@ class WelcomeViewModel internal constructor(
     private val setLocationOnboardingDone: suspend () -> Unit,
     private val setShowWalkCard: suspend (Boolean) -> Unit = {},
     private val onOnboardingComplete: () -> Unit = {},
+    // The dog answer as saved, for a restored app's notification screen.
+    private val hasDogOnce: suspend () -> Boolean = { true },
+    // Remote Config's switch for each kind of notification.
+    private val remotelyEnabled: (NotificationKind) -> Boolean = { true },
 ) : ViewModel() {
 
     @Inject
     constructor(
         preferencesRepository: PreferencesRepository,
         analyticsRepository: AnalyticsRepository,
+        remoteConfigRepository: RemoteConfigRepository,
     ) : this(
         hasSeenWelcomeOnce = preferencesRepository::hasSeenWelcomeOnce,
         notificationOnboardingDoneOnce = preferencesRepository::notificationOnboardingDoneOnce,
@@ -42,13 +64,38 @@ class WelcomeViewModel internal constructor(
         setLocationOnboardingDone = preferencesRepository::setLocationOnboardingDone,
         setShowWalkCard = preferencesRepository::setShowWalkCard,
         onOnboardingComplete = analyticsRepository::logOnboardingComplete,
+        hasDogOnce = { preferencesRepository.showWalkCard.first() },
+        remotelyEnabled = remoteConfigRepository::notificationsEnabled,
     )
 
     /** null while the prefs read is in-flight. */
     private val _onboardingState = MutableStateFlow<OnboardingState?>(null)
     val onboardingState: StateFlow<OnboardingState?> = _onboardingState.asStateFlow()
 
+    /** Where to start: null while the prefs read is in flight. */
+    val step: StateFlow<OnboardingStep?> =
+        _onboardingState
+            .map { state ->
+                when {
+                    state == null -> null
+                    !state.hasSeenWelcome -> OnboardingStep.WELCOME
+                    !state.notificationOnboardingDone -> OnboardingStep.NOTIFICATIONS
+                    !state.locationOnboardingDone -> OnboardingStep.LOCATION
+                    else -> OnboardingStep.DONE
+                }
+            }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private val _notificationPromise = MutableStateFlow(NotificationPromise())
+
+    /** What the notification screen promises, from the dog answer and Remote Config. */
+    val notificationPromise: StateFlow<NotificationPromise> = _notificationPromise.asStateFlow()
+
     init {
+        _notificationPromise.value = NotificationPromise(
+            walkTimeEnabled = remotelyEnabled(NotificationKind.WALK_TIME),
+            rainEnabled = remotelyEnabled(NotificationKind.RAIN),
+        )
+        viewModelScope.launch { _notificationPromise.update { it.copy(hasDog = hasDogOnce()) } }
         viewModelScope.launch {
             _onboardingState.value = OnboardingState(
                 hasSeenWelcome = hasSeenWelcomeOnce(),
@@ -67,6 +114,7 @@ class WelcomeViewModel internal constructor(
 
     /** "Is there a dog at home?": the walk card only shows when there is. */
     fun answerHasDog(hasDog: Boolean) {
+        _notificationPromise.update { it.copy(hasDog = hasDog) }
         viewModelScope.launch { setShowWalkCard(hasDog) }
     }
 

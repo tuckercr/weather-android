@@ -119,10 +119,8 @@ import com.fangjet.weather.model.WeekSection
 import com.fangjet.weather.model.weatherScreen
 import com.fangjet.weather.ui.pets.PetScene
 import com.fangjet.weather.ui.pets.WalkCard
-import com.fangjet.weather.ui.pets.heroWalkCaption
 import com.fangjet.weather.ui.pets.inkColor
-import com.fangjet.weather.ui.pets.petCaption
-import com.fangjet.weather.ui.pets.pickHeroCaption
+import com.fangjet.weather.ui.pets.resolve
 import com.fangjet.weather.ui.pets.skyColor
 import com.fangjet.weather.ui.theme.CatsDogsTheme
 import com.fangjet.weather.ui.theme.StaleBannerBg
@@ -138,6 +136,7 @@ import com.fangjet.weather.util.besideRainChance
 import com.fangjet.weather.util.displayedRainChance
 import com.fangjet.weather.util.formatEpochTime
 import com.fangjet.weather.util.hourlyStrip
+import com.fangjet.weather.util.isCalmWind
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.rainOutlook
 import com.fangjet.weather.util.readingDay
@@ -501,14 +500,7 @@ private fun CurrentWeatherContent(
     val night = state.night
     val heroInk = seasonalTheme?.heroInk(night) ?: mood.inkColor
     var selectedDay by remember { mutableStateOf<DayForecast?>(null) }
-    // The walk's reason when it's one the scene can't show (bad air, hot pavement, a gale), then the
-    // theme's caption on its day, otherwise the weather's, leaving out walks when now isn't the time.
-    val walkNow = state.walkAdvice?.now
-    val heroCaption = pickHeroCaption(
-        reason = walkNow?.let { heroWalkCaption(it, state.nowEpochSeconds, weather.offsetSeconds, hasDog = state.hasDog) },
-        theme = state.themeCaption,
-        weather = petCaption(mood, state.nowEpochSeconds, weather.offsetSeconds, hasDog = state.hasDog, walk = walkNow),
-    )
+    val heroCaption = state.heroCaption.resolve()
 
     // Landscape phones and tablets put the hero beside today's details instead of stacking
     // everything in one stretched column.
@@ -600,22 +592,10 @@ private fun CurrentWeatherContent(
                 }
             }
             val walkSection: @Composable () -> Unit = {
-                state.walkAdvice?.takeIf { state.showsWalkCard }?.let { WalkCard(advice = it) }
+                state.walkCard?.let { WalkCard(content = it) }
             }
             val detailsSection: @Composable () -> Unit = {
-                TodayTiles(
-                    weather = state.weatherToday,
-                    showingForecast = state.showingForecast,
-                    pavementNow = state.tiles.pavementNow,
-                    groundWet = state.tiles.groundWet,
-                    uvIndex = state.tiles.uvIndex,
-                    uvPeak = state.tiles.uvPeak,
-                    airQuality = state.tiles.airQuality,
-                    hasDog = state.hasDog,
-                    nowEpochSeconds = state.nowEpochSeconds,
-                    thresholds = state.thresholds,
-                    switches = state.tileSwitches,
-                )
+                TodayTiles(state.todayTiles)
             }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (wide) {
@@ -1091,12 +1071,6 @@ internal fun formatWind(
 /** At and above this many m/s (what rounds to 10.0), wind speeds show without a decimal. */
 private const val WHOLE_MS_FROM = 9.95
 
-/** A speed that would show as 0 (whole mph, or m/s to one decimal): written as a plain 0, with no direction. */
-internal fun isCalmWind(
-    speed: Double,
-    units: WeatherUnits,
-): Boolean = speed < (if (units == WeatherUnits.IMPERIAL) 0.5 else 0.05)
-
 /** "6:50" in the city's time, without AM or PM: the hours either side of a sun marker say which. */
 internal fun formatShortEpochTime(
     epochSeconds: Long,
@@ -1113,9 +1087,6 @@ internal fun formatShortEpochTime(
 
 /** Wide enough for "H 85° · L 76°" in bodyLarge, at any font size. */
 private val TEMPERATURE_RANGE_WIDTH = 112.sp
-
-/** The compass point a wind comes from, 0 (N) to 7 (NW) clockwise; indexes `R.array.compass_points_spoken`. */
-internal fun windDirectionIndex(deg: Int): Int = ((deg + 22) / 45) % 8
 
 @Composable
 private fun UpcomingDayRow(

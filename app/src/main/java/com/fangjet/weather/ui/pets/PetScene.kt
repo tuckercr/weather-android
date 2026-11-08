@@ -1,7 +1,6 @@
 package com.fangjet.weather.ui.pets
 
 import android.graphics.Bitmap
-import androidx.annotation.ArrayRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,9 +31,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.SceneDecoration
-import com.fangjet.weather.domain.WalkCheck
-import com.fangjet.weather.domain.WalkLevel
-import com.fangjet.weather.domain.WalkReason
+import com.fangjet.weather.model.HeroCaption
+import com.fangjet.weather.model.WALK_SUGGESTIONS
+import com.fangjet.weather.model.captionOptions
 import com.fangjet.weather.ui.LocalSouthernHemisphere
 import com.fangjet.weather.ui.MoonPhase
 import com.fangjet.weather.ui.moonPhaseAt
@@ -85,10 +84,7 @@ import com.fangjet.weather.ui.theme.PetSunHot
 import com.fangjet.weather.ui.theme.PetTongue
 import com.fangjet.weather.ui.theme.PetUmbrella
 import com.fangjet.weather.ui.theme.PetWitchHat
-import com.fangjet.weather.util.WindForce
-import com.fangjet.weather.util.airNameRes
 import java.time.Instant
-import java.time.ZoneOffset
 import kotlin.math.abs
 import kotlin.math.cos
 
@@ -112,149 +108,23 @@ val PetMood.skyColor: Color
 val PetMood.inkColor: Color
     get() = if (this == PetMood.NIGHT) PetInkOnNight else PetInk
 
-/**
- * The part of the night it is, by the city's local hour. The night scene runs from sunset to
- * sunrise, so any night hour before noon is before dawn and any after noon is evening.
- */
-enum class NightPart { EVENING, LATE_NIGHT, BEFORE_DAWN }
-
-fun nightPartAt(localHour: Int): NightPart =
-    when (localHour) {
-        23, in 0 until 5 -> NightPart.LATE_NIGHT
-        in 5 until 12 -> NightPart.BEFORE_DAWN
-        else -> NightPart.EVENING
-    }
-
-@ArrayRes
-private fun PetMood.captionsRes(
-    nightPart: NightPart,
-    hasDog: Boolean,
-): Int =
+/** The caption's words: the choice comes worked out in [HeroCaption]. */
+@Composable
+fun HeroCaption.resolve(): String =
     when (this) {
-        PetMood.FAIR -> if (hasDog) R.array.pet_caption_fair else R.array.pet_caption_fair_no_dog
-        PetMood.SUNNY -> if (hasDog) R.array.pet_caption_sunny else R.array.pet_caption_sunny_no_dog
-        PetMood.CLOUDY -> if (hasDog) R.array.pet_caption_cloudy else R.array.pet_caption_cloudy_no_dog
-        PetMood.RAIN -> if (hasDog) R.array.pet_caption_rain else R.array.pet_caption_rain_no_dog
-        PetMood.STORM -> R.array.pet_caption_storm
-        PetMood.SNOW -> if (hasDog) R.array.pet_caption_snow else R.array.pet_caption_snow_no_dog
-        PetMood.HOT -> if (hasDog) R.array.pet_caption_hot else R.array.pet_caption_hot_no_dog
-        PetMood.COLD -> if (hasDog) R.array.pet_caption_cold else R.array.pet_caption_cold_no_dog
-        PetMood.NIGHT -> when (nightPart) {
-            NightPart.EVENING -> if (hasDog) R.array.pet_caption_night_evening else R.array.pet_caption_night_evening_no_dog
-            NightPart.LATE_NIGHT -> R.array.pet_caption_night_late
-            NightPart.BEFORE_DAWN ->
-                if (hasDog) R.array.pet_caption_night_before_dawn else R.array.pet_caption_night_before_dawn_no_dog
+        is HeroCaption.Walk -> text.resolve()
+        is HeroCaption.Theme -> text
+        is HeroCaption.Weather -> {
+            val suggestions = WALK_SUGGESTIONS.map { stringResource(it) }.toSet()
+            val options = captionOptions(
+                stringArrayResource(captions).toList(),
+                stringArrayResource(noDogCaptions).toList(),
+                suggestions,
+                leaveOutWalkSuggestions,
+            )
+            options[day % options.size]
         }
     }
-
-/**
- * One caption per mood per day, so it varies without flickering between recompositions. The day
- * and (at night) the hour are the city's, from its [utcOffsetSeconds], not the device's. Without a
- * dog ([hasDog] false, Settings' Dog walking off), the captions leave out walks. When [walk] says
- * now isn't the time for a walk (for anything but the dark, which the night captions allow for),
- * the captions that suggest one are left out, and if that leaves none, the captions without a dog
- * stand in.
- */
-@Composable
-fun petCaption(
-    mood: PetMood,
-    // The screen's clock.
-    nowEpochSeconds: Long,
-    utcOffsetSeconds: Int = 0,
-    hasDog: Boolean = true,
-    walk: WalkCheck? = null,
-): String {
-    val local = Instant.ofEpochSecond(nowEpochSeconds).atOffset(ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
-    val nightPart = nightPartAt(local.hour)
-    val suggestions = WALK_SUGGESTIONS.map { stringResource(it) }.toSet()
-    val options = captionOptions(
-        stringArrayResource(mood.captionsRes(nightPart, hasDog)).toList(),
-        stringArrayResource(mood.captionsRes(nightPart, hasDog = false)).toList(),
-        suggestions,
-        walk,
-    )
-    return options[local.dayOfYear % options.size]
-}
-
-/**
- * [options] without the captions that suggest a walk when [walk] says now isn't the time, or
- * [noDog] if that leaves none.
- */
-internal fun captionOptions(
-    options: List<String>,
-    noDog: List<String>,
-    suggestions: Set<String>,
-    walk: WalkCheck?,
-): List<String> {
-    if (walk == null || !rulesOutWalkNow(walk)) return options
-    return options.filterNot { it in suggestions }.ifEmpty { noDog }
-}
-
-/** The hero's caption: the walk's [reason] when there is one, then a seasonal [theme]'s, then the [weather]'s. */
-internal fun pickHeroCaption(
-    reason: String?,
-    theme: String?,
-    weather: String,
-): String = reason ?: theme ?: weather
-
-/** The captions that suggest a walk now, which [petCaption] leaves out when now isn't the time. */
-internal val WALK_SUGGESTIONS = listOf(
-    R.string.caption_fair_walkies,
-    R.string.caption_cloudy_keen,
-    R.string.caption_cloudy_stroll,
-    R.string.caption_evening_last_stroll,
-    R.string.caption_evening_lap,
-)
-
-/** Anything but the dark at a wait or worse. */
-internal fun rulesOutWalkNow(walk: WalkCheck): Boolean = walk.factors.any { it.reason != WalkReason.Dark && it.level >= WalkLevel.WAIT }
-
-/**
- * When [walk] rules out more than a wait for a reason the scene can't show (the air, the pavement,
- * a gale or worse), the hero's caption gives the reason instead of the weather: "Smoky air today.
- * Quick potty breaks, then back on the sofa." Null otherwise. Without a dog the check has no
- * pavement in it.
- * It takes the place of a seasonal theme's caption too. Same captions as iOS's
- * `PetMood.walkCaptions`.
- */
-internal fun heroWalkCaptions(
-    walk: WalkCheck,
-    hasDog: Boolean,
-): List<WalkText>? {
-    val worst = walk.factors.firstOrNull()?.takeIf { it.level >= WalkLevel.POTTY_ONLY } ?: return null
-    return when (val reason = worst.reason) {
-        is WalkReason.Wind -> when {
-            reason.force >= WindForce.HURRICANE -> listOf(WalkText(R.string.hero_hurricane))
-            reason.force >= WindForce.STORM -> listOf(WalkText(R.string.hero_storm_wind_1), WalkText(R.string.hero_storm_wind_2))
-            hasDog -> listOf(WalkText(R.string.hero_gale_1), WalkText(R.string.hero_gale_2))
-            else -> listOf(WalkText(R.string.hero_gale_no_dog_1), WalkText(R.string.hero_gale_no_dog_2))
-        }
-        is WalkReason.Air -> {
-            val air = WalkText(airNameRes(reason.pollutant) ?: R.string.walk_air_poor)
-            if (hasDog) {
-                listOf(WalkText(R.string.hero_air_1, listOf(air)), WalkText(R.string.hero_air_2))
-            } else {
-                listOf(WalkText(R.string.hero_air_no_dog_1, listOf(air)), WalkText(R.string.hero_air_no_dog_2))
-            }
-        }
-        is WalkReason.Pavement -> listOf(WalkText(R.string.hero_pavement_1), WalkText(R.string.hero_pavement_2))
-        else -> null
-    }
-}
-
-/** Today's pick from [heroWalkCaptions], by the city's day, as [petCaption] picks. */
-@Composable
-fun heroWalkCaption(
-    walk: WalkCheck,
-    // The screen's clock.
-    nowEpochSeconds: Long,
-    utcOffsetSeconds: Int = 0,
-    hasDog: Boolean = true,
-): String? {
-    val options = heroWalkCaptions(walk, hasDog) ?: return null
-    val local = Instant.ofEpochSecond(nowEpochSeconds).atOffset(ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
-    return options[local.dayOfYear % options.size].resolve()
-}
 
 /**
  * Sunny (the dog) and Misty (the cat) acting out [mood], drawn with simple shapes after the app

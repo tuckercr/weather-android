@@ -21,3 +21,12 @@ fun formatEpochTime(
             .ofPattern("h:mm a"),
     )
 }
+
+/** A speed that would show as 0 (whole mph, or m/s to one decimal): written as a plain 0, with no direction. */
+fun isCalmWind(
+    speed: Double,
+    units: com.fangjet.weather.domain.WeatherUnits,
+): Boolean = speed < (if (units == com.fangjet.weather.domain.WeatherUnits.IMPERIAL) 0.5 else 0.05)
+
+/** The compass point a wind comes from, 0 (N) to 7 (NW) clockwise; indexes `R.array.compass_points_spoken`. */
+fun windDirectionIndex(deg: Int): Int = ((deg + 22) / 45) % 8

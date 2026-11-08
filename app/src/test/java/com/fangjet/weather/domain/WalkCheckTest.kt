@@ -1,15 +1,16 @@
 package com.fangjet.weather.domain
 
 import com.fangjet.weather.R
-import com.fangjet.weather.ui.airQualityDogLine
-import com.fangjet.weather.ui.pets.WALK_SUGGESTIONS
-import com.fangjet.weather.ui.pets.WalkText
-import com.fangjet.weather.ui.pets.captionOptions
-import com.fangjet.weather.ui.pets.heroWalkCaptions
-import com.fangjet.weather.ui.pets.pickHeroCaption
-import com.fangjet.weather.ui.pets.rulesOutWalkNow
-import com.fangjet.weather.ui.pets.walkCaption
-import com.fangjet.weather.ui.pets.walkDetail
+import com.fangjet.weather.model.HeroCaption
+import com.fangjet.weather.model.WALK_SUGGESTIONS
+import com.fangjet.weather.model.WalkText
+import com.fangjet.weather.model.airQualityDogLine
+import com.fangjet.weather.model.captionOptions
+import com.fangjet.weather.model.heroCaption
+import com.fangjet.weather.model.heroWalkCaptions
+import com.fangjet.weather.model.rulesOutWalkNow
+import com.fangjet.weather.model.walkCaption
+import com.fangjet.weather.model.walkDetail
 import com.fangjet.weather.util.PavementBand
 import com.fangjet.weather.util.WindForce
 import com.fangjet.weather.util.airNameRes
@@ -367,10 +368,24 @@ class WalkCheckTest {
     }
 
     @Test
-    fun `the walk's reason comes before a seasonal theme's caption`() {
-        assertEquals("Smoky air today.", pickHeroCaption("Smoky air today.", "Happy Halloween!", "Nap weather."))
-        assertEquals("Happy Halloween!", pickHeroCaption(null, "Happy Halloween!", "Nap weather."))
-        assertEquals("Nap weather.", pickHeroCaption(null, null, "Nap weather."))
+    fun `the walk's reason comes before a seasonal theme's caption, and the theme before the weather's`() {
+        val now = 1_704_067_200L + 15 * 3600
+
+        fun caption(
+            walk: WalkCheck?,
+            theme: String?,
+        ) = heroCaption(walk, theme, PetMood.FAIR, now, 0, hasDog = true)
+        val smoky = check(slot(airBand = 3))
+
+        assertTrue(caption(smoky, "Happy Halloween!") is HeroCaption.Walk)
+        assertEquals(HeroCaption.Theme("Happy Halloween!"), caption(check(slot()), "Happy Halloween!"))
+        val weather = caption(check(slot()), null) as HeroCaption.Weather
+        assertEquals(R.array.pet_caption_fair, weather.captions)
+        assertEquals(R.array.pet_caption_fair_no_dog, weather.noDogCaptions)
+        assertFalse(weather.leaveOutWalkSuggestions)
+        // Rain now rules out a walk, so the captions that suggest one are left out.
+        val rainy = caption(check(slot(icon = "10d"), conditionNow = "Rain"), null) as HeroCaption.Weather
+        assertTrue(rainy.leaveOutWalkSuggestions)
     }
 
     @Test
@@ -379,10 +394,13 @@ class WalkCheckTest {
         val noDog = listOf("Evening zoomies, courtesy of Misty.")
         val suggestions = evening.toSet()
         val rainy = check(slot(icon = "10n"), conditionNow = "Rain")
-        assertEquals(noDog, captionOptions(evening, noDog, suggestions, rainy))
+        assertEquals(noDog, captionOptions(evening, noDog, suggestions, rulesOutWalkNow(rainy)))
         // The dark alone keeps the evening's walk.
-        assertEquals(evening, captionOptions(evening, noDog, suggestions, check(slot(icon = "01n"))))
-        assertEquals(listOf("Nap weather."), captionOptions(listOf("One more lap?", "Nap weather."), noDog, suggestions, rainy))
+        assertEquals(evening, captionOptions(evening, noDog, suggestions, rulesOutWalkNow(check(slot(icon = "01n")))))
+        assertEquals(
+            listOf("Nap weather."),
+            captionOptions(listOf("One more lap?", "Nap weather."), noDog, suggestions, rulesOutWalkNow(rainy)),
+        )
     }
 
     // --- helpers ---

@@ -129,8 +129,8 @@ data class WeatherScreenState(
     val mood: PetMood,
     /** Today's seasonal theme by the city's own date, so it ends by itself when its day does. */
     val seasonalTheme: SeasonalTheme?,
-    /** The theme's caption for today, when it has one. */
-    val themeCaption: String?,
+    /** Which caption the hero shows: the walk's reason, the theme's, or the mood's. */
+    val heroCaption: HeroCaption,
     /** Today's forecast, by the city's own date; null before the forecast has today. */
     val today: DayForecast?,
     /** Today's high and low in whole degrees, taking in the temperature now. */
@@ -145,9 +145,11 @@ data class WeatherScreenState(
     /** Null while the forecast is loading or failed, which hides the card rather than advising on nothing. */
     val walkAdvice: WalkAdvice?,
     val showsWalkCard: Boolean,
+    /** What the walk card says; null when it doesn't show. */
+    val walkCard: WalkCardContent?,
     val tiles: TodayTileInputs,
-    val thresholds: PetWeatherThresholds,
-    val tileSwitches: TodayTileSwitches,
+    /** The Today tiles, worked out from [tiles] and the reading. */
+    val todayTiles: TodayTilesState,
     val showsRadar: Boolean,
     /** Null when the rest of the week is switched off, or there's nothing to show for it. */
     val week: WeekSection?,
@@ -225,6 +227,18 @@ private fun weatherScreenState(
     val walkAdvice = days?.let { walkAdviceForReading(weather, it, config.thresholds, nowEpochSeconds, hasDog) }
     val hourNow = upcomingSlots.firstOrNull()
     val upcomingDays = if (today != null) forecastDays.drop(1) else forecastDays
+    // A danger warning shows for everyone, dog or not.
+    val showsWalkCard = walkAdvice?.let { walkCardShown(it, config.walkCardEnabled && hasDog) } ?: false
+    val tiles = TodayTileInputs(
+        // Paw check goes with the walk card: Settings' Dog walking switch hides both.
+        pavementNow = hourNow?.pavementTemperature?.takeIf { hasDog },
+        groundWet = hourNow?.groundWet == true || isPrecipitating(weather.conditionMain),
+        uvIndex = hourNow?.uvIndex?.takeUnless { iconCodeNow.endsWith("n") },
+        uvPeak = today?.hourlySlots?.filter { it.uvIndex != null }?.maxByOrNull { it.uvIndex ?: 0.0 },
+        // The forecast's hour in progress, so it shows offline too. A forecast cached before the
+        // switch went off can still have it, hence the check here as well.
+        airQuality = hourNow?.airQuality?.takeIf { config.airQualityEnabled },
+    )
 
     return WeatherScreenState(
         nowEpochSeconds = nowEpochSeconds,
@@ -236,7 +250,14 @@ private fun weatherScreenState(
         iconCodeNow = iconCodeNow,
         mood = mood,
         seasonalTheme = seasonalTheme,
-        themeCaption = seasonalTheme?.caption(mood == PetMood.NIGHT, localDate(nowEpochSeconds, offset)),
+        heroCaption = heroCaption(
+            walk = walkAdvice?.now,
+            themeCaption = seasonalTheme?.caption(mood == PetMood.NIGHT, localDate(nowEpochSeconds, offset)),
+            mood = mood,
+            nowEpochSeconds = nowEpochSeconds,
+            utcOffsetSeconds = offset,
+            hasDog = hasDog,
+        ),
         today = today,
         high = high.roundToInt(),
         low = low.roundToInt(),
@@ -248,20 +269,22 @@ private fun weatherScreenState(
         nextRain = nextRain,
         rainOutlook = rainOutlook(upcomingSlots, config.rainOutlookSettings, weather.units, nextRain),
         walkAdvice = walkAdvice,
-        // A danger warning shows for everyone, dog or not.
-        showsWalkCard = walkAdvice?.let { walkCardShown(it, config.walkCardEnabled && hasDog) } ?: false,
-        tiles = TodayTileInputs(
-            // Paw check goes with the walk card: Settings' Dog walking switch hides both.
-            pavementNow = hourNow?.pavementTemperature?.takeIf { hasDog },
-            groundWet = hourNow?.groundWet == true || isPrecipitating(weather.conditionMain),
-            uvIndex = hourNow?.uvIndex?.takeUnless { iconCodeNow.endsWith("n") },
-            uvPeak = today?.hourlySlots?.filter { it.uvIndex != null }?.maxByOrNull { it.uvIndex ?: 0.0 },
-            // The forecast's hour in progress, so it shows offline too. A forecast cached before the
-            // switch went off can still have it, hence the check here as well.
-            airQuality = hourNow?.airQuality?.takeIf { config.airQualityEnabled },
+        showsWalkCard = showsWalkCard,
+        walkCard = walkAdvice?.takeIf { showsWalkCard }?.let(::walkCardContent),
+        tiles = tiles,
+        todayTiles = todayTilesState(
+            weather = weatherToday,
+            showingForecast = showingForecast,
+            pavementNow = tiles.pavementNow,
+            groundWet = tiles.groundWet,
+            uvIndex = tiles.uvIndex,
+            uvPeak = tiles.uvPeak,
+            airQuality = tiles.airQuality,
+            hasDog = hasDog,
+            nowEpochSeconds = nowEpochSeconds,
+            thresholds = config.thresholds,
+            switches = config.todayTiles,
         ),
-        thresholds = config.thresholds,
-        tileSwitches = config.todayTiles,
         showsRadar = config.radarEnabled,
         week = when {
             !config.weekForecastEnabled -> null

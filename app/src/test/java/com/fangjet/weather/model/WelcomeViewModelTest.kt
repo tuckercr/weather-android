@@ -1,5 +1,6 @@
 package com.fangjet.weather.model
 
+import com.fangjet.weather.worker.NotificationKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -118,6 +119,40 @@ class WelcomeViewModelTest {
             assertEquals(listOf(false, true), saved)
         }
 
+    @Test
+    fun `the first step is wherever onboarding was left`() =
+        runTest {
+            suspend fun stepFor(
+                welcome: Boolean,
+                notifications: Boolean,
+                location: Boolean,
+            ): OnboardingStep? {
+                val vm = viewModel(
+                    hasSeenWelcomeOnce = { welcome },
+                    notificationOnboardingDoneOnce = { notifications },
+                    locationOnboardingDoneOnce = { location },
+                )
+                mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+                return vm.step.value
+            }
+
+            assertEquals(OnboardingStep.WELCOME, stepFor(welcome = false, notifications = false, location = false))
+            assertEquals(OnboardingStep.NOTIFICATIONS, stepFor(welcome = true, notifications = false, location = false))
+            assertEquals(OnboardingStep.LOCATION, stepFor(welcome = true, notifications = true, location = false))
+            assertEquals(OnboardingStep.DONE, stepFor(welcome = true, notifications = true, location = true))
+        }
+
+    @Test
+    fun `the notification promise follows the dog answer and Remote Config`() =
+        runTest {
+            val vm = viewModel(hasDogOnce = { true }, remotelyEnabled = { it != NotificationKind.RAIN })
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals(NotificationPromise(hasDog = true, walkTimeEnabled = true, rainEnabled = false), vm.notificationPromise.value)
+
+            vm.answerHasDog(hasDog = false)
+            assertEquals(false, vm.notificationPromise.value.hasDog)
+        }
+
     private fun viewModel(
         hasSeenWelcomeOnce: suspend () -> Boolean = { false },
         notificationOnboardingDoneOnce: suspend () -> Boolean = { false },
@@ -126,6 +161,8 @@ class WelcomeViewModelTest {
         setNotificationOnboardingDone: suspend () -> Unit = {},
         setLocationOnboardingDone: suspend () -> Unit = {},
         setShowWalkCard: suspend (Boolean) -> Unit = {},
+        hasDogOnce: suspend () -> Boolean = { true },
+        remotelyEnabled: (NotificationKind) -> Boolean = { true },
     ) = WelcomeViewModel(
         hasSeenWelcomeOnce = hasSeenWelcomeOnce,
         notificationOnboardingDoneOnce = notificationOnboardingDoneOnce,
@@ -134,6 +171,8 @@ class WelcomeViewModelTest {
         setNotificationOnboardingDone = setNotificationOnboardingDone,
         setLocationOnboardingDone = setLocationOnboardingDone,
         setShowWalkCard = setShowWalkCard,
+        hasDogOnce = hasDogOnce,
+        remotelyEnabled = remotelyEnabled,
     )
 
     class MainDispatcherRule(

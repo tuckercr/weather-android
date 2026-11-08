@@ -9,6 +9,10 @@ import com.fangjet.weather.domain.WalkLevel
 import com.fangjet.weather.domain.WalkOutlook
 import com.fangjet.weather.domain.WalkRating
 import com.fangjet.weather.domain.WalkReason
+import com.fangjet.weather.model.WalkText
+import com.fangjet.weather.model.outlookText
+import com.fangjet.weather.model.walkCaption
+import com.fangjet.weather.model.walkDetail
 import com.fangjet.weather.util.PavementBand
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

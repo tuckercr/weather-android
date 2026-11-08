@@ -8,8 +8,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,7 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.fangjet.weather.model.CityListViewModel
-import com.fangjet.weather.model.SettingsViewModel
+import com.fangjet.weather.model.OnboardingStep
 import com.fangjet.weather.model.WelcomeViewModel
 import com.fangjet.weather.ui.AddLocationRoute
 import com.fangjet.weather.ui.CurrentWeatherRoute
@@ -31,7 +29,6 @@ import com.fangjet.weather.ui.OnboardingLocationScreen
 import com.fangjet.weather.ui.OnboardingNotificationScreen
 import com.fangjet.weather.ui.SettingsRoute
 import com.fangjet.weather.ui.WelcomeScreen
-import com.fangjet.weather.worker.NotificationKind
 
 object WeatherDestinations {
     const val LOADING = "loading"
@@ -57,10 +54,7 @@ fun WeatherNavHost(
     val activity = LocalActivity.current as ComponentActivity
     val welcomeViewModel = hiltViewModel<WelcomeViewModel>(viewModelStoreOwner = activity)
     val cityListViewModel = hiltViewModel<CityListViewModel>(viewModelStoreOwner = activity)
-    val onboardingState by welcomeViewModel.onboardingState.collectAsStateWithLifecycle()
-
-    // The dog answer, for the notification screen right after it (a restored app shows the dog wording).
-    var answeredHasDog by rememberSaveable { mutableStateOf(true) }
+    val step by welcomeViewModel.step.collectAsStateWithLifecycle()
     NavHost(
         navController = navController,
         startDestination = WeatherDestinations.LOADING,
@@ -70,13 +64,12 @@ fun WeatherNavHost(
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-            LaunchedEffect(onboardingState) {
-                val state = onboardingState ?: return@LaunchedEffect
-                val next = when {
-                    !state.hasSeenWelcome -> WeatherDestinations.WELCOME
-                    !state.notificationOnboardingDone -> WeatherDestinations.NOTIFICATION_PERMISSION
-                    !state.locationOnboardingDone -> WeatherDestinations.LOCATION_PERMISSION
-                    else -> WeatherDestinations.CURRENT
+            LaunchedEffect(step) {
+                val next = when (step ?: return@LaunchedEffect) {
+                    OnboardingStep.WELCOME -> WeatherDestinations.WELCOME
+                    OnboardingStep.NOTIFICATIONS -> WeatherDestinations.NOTIFICATION_PERMISSION
+                    OnboardingStep.LOCATION -> WeatherDestinations.LOCATION_PERMISSION
+                    OnboardingStep.DONE -> WeatherDestinations.CURRENT
                 }
                 navController.navigate(next) {
                     popUpTo(WeatherDestinations.LOADING) { inclusive = true }
@@ -102,7 +95,6 @@ fun WeatherNavHost(
         composable(WeatherDestinations.DOG_QUESTION) {
             OnboardingDogScreen(
                 onAnswered = { hasDog ->
-                    answeredHasDog = hasDog
                     welcomeViewModel.answerHasDog(hasDog)
                     navController.navigate(WeatherDestinations.NOTIFICATION_PERMISSION) {
                         popUpTo(WeatherDestinations.DOG_QUESTION) { inclusive = true }
@@ -113,11 +105,11 @@ fun WeatherNavHost(
         }
 
         composable(WeatherDestinations.NOTIFICATION_PERMISSION) {
-            val settingsViewModel = hiltViewModel<SettingsViewModel>()
+            val promise by welcomeViewModel.notificationPromise.collectAsStateWithLifecycle()
             OnboardingNotificationScreen(
-                hasDog = answeredHasDog,
-                walkTimeEnabled = settingsViewModel.remotelyEnabled(NotificationKind.WALK_TIME),
-                rainEnabled = settingsViewModel.remotelyEnabled(NotificationKind.RAIN),
+                hasDog = promise.hasDog,
+                walkTimeEnabled = promise.walkTimeEnabled,
+                rainEnabled = promise.rainEnabled,
                 onDone = {
                     welcomeViewModel.completeNotificationOnboarding()
                     navController.navigate(WeatherDestinations.LOCATION_PERMISSION) {

@@ -344,17 +344,8 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 - [ ] **Views still work things out (review of every view, 11-07).** Found by a pass over all
       views in both apps; none is a bug today, but each is logic a view model or the domain should
-      own. Biggest first:
-  - **Captions chosen in views.** The walk card's text (iOS `WalkCard.caption`, `outlookLine`;
-    Android `walkCaption`) and Android's hero caption (`PetScene.kt`: night part by hour, daily
-    rotation, walk filtering, `heroWalkCaptions`) pick wording from walk levels and wind force.
-    The choice should come with the screen state as a key and variant, leaving only the words to
-    the view. Medium.
-  - **Today tiles decide and derive in the view.** Which tiles show (UV only without Daylight,
-    Paw Check needs a pavement value) and each tile's bands and lines (feels-like band, dew point
-    and fluff, wind force and gusts, Daylight's state from the clock, sky and visibility, the air
-    tile's tint from `airWalkLevel`). Should be a ready list of tiles in `WeatherScreenState`.
-    Both apps. Medium to large.
+      own. The captions, the Today tiles, app start-up and the onboarding glue are done (see Done).
+      Left, biggest first:
   - **Location permission flows in views.** Onboarding's "Use my location" and Add location's
     "Add My Location" choose between fetch, ask and skip in the click handlers (iOS
     `OnboardingLocationView`, `AddLocationView`; Android `OnboardingLocationScreen`,
@@ -363,20 +354,12 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
   - **Radar playback and polling in the view.** Frame index, play/pause, the playback loop, the
     "now" frame, `RadarTile.from` and the recheck loop live in the radar views; Android's frame
     label also hardcodes English "Now ·" and "Forecast ·". Should be `RadarViewModel`'s. Medium.
-  - **App start-up in the app type.** iOS's `Cats_DogsApp.init` sets up Firebase, analytics,
-    Remote Config, the notification delegate and categories, the scheduler and Follow my
-    location; Android's `WeatherApplication` holds the notification channel rules. Should be an
-    app start-up service. Small.
-  - **Onboarding glue in views.** RootView (iOS) and `WeatherNavHost` (Android) decide the next
-    onboarding step and pass the dog answer between view models; Android keeps its own copy of
-    the answer and makes a `SettingsViewModel` just to read Remote Config. Should be
-    `WelcomeViewModel`'s. Small.
   - **Smaller rules in views.** The stale banner's text and the offline check (iOS
     `WeatherErrorViews`), "the last city can't be removed" and the "X added" toast
     (`LocationsView`), the notifications row's "Off / N on", adding a city when location is
     granted in Settings (iOS `SettingsView`), switch visibility from `remotelyEnabled` (Android
-    `NotificationSettingsScreen`), the southern-hemisphere check, `uvLevelRes`, `isCalmWind`
-    and `moonPhaseAt` in Android's ui. Small each.
+    `NotificationSettingsScreen`), the southern-hemisphere check, and `uvLevelRes` and
+    `moonPhaseAt` in Android's ui. Small each.
   - **Clock reads in views.** `WeatherIconView`/`WeatherIcon` and the pets' default moon fall
     back to the device clock, not the screen's. Small.
   - **View models made in views.** iOS builds `CurrentWeatherViewModel` and Add location's view
@@ -436,6 +419,16 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Captions, Today tiles, start-up and onboarding out of the views** (11-07): the screen state
+      carries the walk card's wording (iOS `WalkCardContent`; Android `WalkCardContent` of string
+      resources), Android's hero caption choice (`HeroCaption`: the walk's reason, the theme's, or
+      the mood's captions with whether to leave out walk suggestions and which day's pick), and the
+      Today tiles (`TodayTilesState`: which tiles show, in order, with each one's values, bands and
+      lines, and the air tile's tone by the walk rules); the views only say it and colour it. iOS's
+      launch work moved to `AppStartup` and Android's notification channels to
+      `NotificationChannels`. `WelcomeViewModel` says which onboarding step is next and, on iOS,
+      hands the dog answer and the location on; on Android it gives the notification screen its
+      dog answer and Remote Config switches. All unit tested.
 - [x] **The last Android workers have wiring tests, and bad air is named from strings.xml**
       (11-07): `WalkTimeWorkerTest` and `WeatherUpdateWorkerTest` check which city each fetches,
       in which units, and that it's cached. The briefing and walk nudge take bad air's name from
