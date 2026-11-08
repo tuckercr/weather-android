@@ -344,15 +344,7 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 - [ ] **Architecture decisions to review (11-07).** From an MVVM audit of both apps after the
       refactors (iOS judged about 80-85% of the way; Android "MVVM with one unfinished seam").
-      Decide 4 and 11 first, since they change where things go:
-  1. **Screen view models built from other view models.** `CurrentWeatherViewModel` holds the
-     city list, weather and location view models; on Android it's built with `viewModel { }` from
-     activity- and screen-scoped ones and can't be Hilt-injected. Shared state (saved cities,
-     active city, weather) in repositories or one app-wide store would be the usual shape. M-L.
-  2. **Location is a view model, not a data source.** `LocationPermissionViewModel` wraps the
-     location manager; iOS makes several copies, and Android's data layer and workers import its
-     helpers from `model/`. A `LocationRepository` owned once, with Settings' "a grant adds the
-     city" rule in a view model. M.
+      Decide 4 and 11 first, since they change where things go. 1, 2 and 8 are done (see Done):
   3. **Dependency wiring.** iOS view models fall back to `.shared` singletons in their
      initialisers (a service locator); `AppViewModels` could take one dependencies container.
      Android uses lambda constructors behind `@Inject`, which is consistent but unusual. M.
@@ -367,8 +359,6 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
      a restart. S-M.
   7. **The clock moves only when told.** `tick()` is called from several hooks; a clock service
      publishing ticks would be harder to get wrong. S.
-  8. **Activity-scoped view models as app state (Android).** Repositories exposing the cities and
-     weather would own it better. Goes with 1.
   9. **Weather cached in settings storage** (UserDefaults, DataStore preferences). Fine at today's
      size; look again before caching more.
   10. **Names don't match the layers.** Business rules in `Utilities`/`util`, domain code in
@@ -443,6 +433,17 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Location and cities in the data layer, one weather screen view model** (11-08):
+      architecture items 1, 2 and 8. `LocationRepository` owns the location manager (iOS) or Play
+      services' client (Android), the permission checks and the refusal bookkeeping;
+      `LocationPermissionViewModel`, Settings, the weather screen and (Android) Follow my location
+      go through it. `CityRepository` holds the saved cities and the active one, one copy for every
+      screen; `CityListViewModel` is a thin view model over it. `CurrentWeatherViewModel` is gone:
+      its steps are `WeatherForecastViewModel`'s, which reads both repositories, so no view model
+      holds another. iOS Settings' "a grant adds My Location" rule moved into `SettingsViewModel`.
+      Left as they are: iOS's Follow my location keeps its own location manager (it watches
+      significant moves in the background); Android's weather view model refetches when the city on
+      screen changes by itself, iOS's view still says so (`activeCityChanged`).
 - [x] **Location flows, radar playback and view model creation out of the views** (11-07):
       "Use my location" and "Add My Location" go through `LocationPermissionViewModel`
       (`useMyLocation`, iOS `canOfferMyLocation`; Android `myLocationOffered` and `addMyLocation`

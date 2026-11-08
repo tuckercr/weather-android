@@ -56,7 +56,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
   `WalkCheck`, `PetWeatherThresholds`, `SeasonalTheme`),
   `model/` (the ViewModels, exposing `StateFlow`; `WeatherForecastViewModel` holds the screen's
   clock, moved on by `tick()`, and builds the `WeatherScreen` the weather screen draws;
-  `CurrentWeatherViewModel` runs the screen's refresh and My Location steps), `ui/`
+  it also runs the screen's refresh and My Location steps, over `data/CityRepository` and
+  `data/LocationRepository`; no view model holds another), `ui/`
   (Compose screens; `navigation/WeatherNavHost`
   routes onboarding and screens; `ui/pets/` draws the pets and the walk card and words the captions), `util/`
   (`StaleWeather`, `NextRain`, `TodayDetails` and other pure rules), `worker/`, `analytics/`, `di/`

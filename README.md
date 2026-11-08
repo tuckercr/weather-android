@@ -514,10 +514,11 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `RainOutlookTest` | When the rain outlook shows (minimum chance, switch, window size), its headline (now or around, likely or a chance, the next-rain line's words), drying out, the total in mm or inches, and the bars |
 | `:app` | `LocaleWeatherUnitsTest` | An explicit Celsius/Fahrenheit system preference beats the locale; unknown falls back to it |
 | `:app` | `WelcomeViewModelTest` | Onboarding state and persistence |
-| `:app` | `CityListViewModelTest` | Add, remove, reorder, active-city tracking, legacy single-city migration, and `city_added` firing |
+| `:app` | `CityRepositoryTest` | Add, remove, reorder, active-city tracking, legacy single-city migration, and `city_added` firing |
 | `:app` | `GeoLocationViewModelTest` | City autocomplete: short input, latest search wins, a failed search told apart from finding nothing |
 | `:app` | `AddLocationRulesTest` | Add location's button: the first row named what was typed (accents ignored), the size check that stops "Nas" adding Nås, saved places (label or within 2 km, never My Location) gone to, and failed or empty searches |
-| `:app` | `LocationPermissionViewModelTest` | Current-location lookup: permission denial, cached vs current location, failure |
+| `:app` | `LocationPermissionViewModelTest` | Current-location lookup: permission denial, cached vs current location, failure, and `LocationRepository`'s position reads |
+| `:app` | `WeatherScreenStepsTest` | The weather screen's refreshes and My Location steps |
 | `:app` | `NotificationWorkerLogicTest` | Briefing text, walk-time planning and nudge, rain alerts (lead, quiet hours, once per shower), city-timezone "today" matching, and the switches |
 | `:app` | `UpdateWorkerLogicTest` | Background refresh result routing, caching, and resolved units |
 
