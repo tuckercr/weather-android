@@ -52,9 +52,14 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
   Firebase: `ForecastSourcePolicy` carries the `open_meteo_enabled` switch in from the app. `:app`
   has everything else.
 - **`:app` layout.** `data/` (`PreferencesRepository` on DataStore: cities, settings and the
-  per-city cache; `RemoteConfigRepository`), `domain/` (`PetWeatherThresholds`, `SeasonalTheme`),
-  `model/` (the ViewModels, exposing `StateFlow`), `ui/` (Compose screens; `navigation/WeatherNavHost`
-  routes onboarding and screens; `ui/pets/` has the moods, the scene and `WalkAdvisor`), `util/`
+  per-city cache; `RemoteConfigRepository`), `domain/` (rules with no UI: `PetMood`, `WalkAdvisor`,
+  `WalkCheck`, `PetWeatherThresholds`, `SeasonalTheme`),
+  `model/` (the ViewModels, exposing `StateFlow`; `WeatherForecastViewModel` holds the screen's
+  clock, moved on by `tick()`, and builds the `WeatherScreen` the weather screen draws;
+  it also runs the screen's refresh and My Location steps, over `data/CityRepository` and
+  `data/LocationRepository`; no view model holds another), `ui/`
+  (Compose screens; `navigation/WeatherNavHost`
+  routes onboarding and screens; `ui/pets/` draws the pets and the walk card and words the captions), `util/`
   (`StaleWeather`, `NextRain`, `TodayDetails` and other pure rules), `worker/`, `analytics/`, `di/`
   (Hilt).
 - **Forecasts.** Cities with coordinates get their current reading and forecast from Open-Meteo
@@ -62,8 +67,10 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
   same request), with OpenWeather's reading as the backup and My Location named by the phone
   (`DevicePlaceNames`); name-only cities fall back to OpenWeather's reading and 3-hourly forecast. Open-Meteo's WMO codes are mapped to
   OpenWeather-style condition and icon codes, so moods and icons work the same for both.
-- **Cache first.** Cached weather and forecast paint at once and stay on screen if a refresh fails;
-  `util/StaleWeather.kt` decides how an old reading is shown.
+- **Cache first.** `data/LocationWeatherRepository` is the one way to a saved location's weather:
+  its cache, and refreshes that fetch in the user's units and cache the result. The weather view
+  model and the workers all use it. Cached weather and forecast paint at once and stay on screen
+  if a refresh fails; `util/StaleWeather.kt` decides how an old reading is shown.
 - **Time zones.** Everything shown for a city uses the city's UTC offset
   (`CurrentWeather.offsetSeconds`), including "today", night captions and seasonal themes. Only the
   8:30 briefing uses the device clock.

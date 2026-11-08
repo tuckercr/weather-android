@@ -76,6 +76,31 @@ class AirQualityTest {
     }
 
     @Test
+    fun `a dust storm is dust, not smoke`() {
+        // Riyadh on 11-07: PM2.5's index off the top of the scale and none for PM10, but six times
+        // as much PM10 as PM2.5 by mass.
+        val response = json.decodeFromString(
+            AirQualityHourlyResponse.serializer(),
+            """{"timezone":"Asia/Riyadh","hourly":{"time":[100,3700],"us_aqi":[504,500],"us_aqi_pm2_5":[504,500],""" +
+                """"us_aqi_pm10":[null,500],"pm2_5":[517.8,null],"pm10":[3173.9,null]}}""",
+        )
+
+        val hourly = AirQualitySource.toHourly(response)
+        assertEquals(Pollutant.COARSE_PARTICLES, hourly[100L]?.mainPollutant)
+        // Both indices topped out: a tie goes to coarse particles.
+        assertEquals(Pollutant.COARSE_PARTICLES, hourly[3700L]?.mainPollutant)
+    }
+
+    @Test
+    fun `smoke and city air stay fine particles`() {
+        assertEquals(false, AirQuality.isDusty(117.0, 127.0)) // Lahore's smoke
+        assertEquals(false, AirQuality.isDusty(98.0, 204.0)) // New Delhi
+        assertEquals(true, AirQuality.isDusty(128.0, 561.0)) // Kuwait City's dust
+        assertEquals(false, AirQuality.isDusty(5.0, 30.0)) // too little to call
+        assertEquals(false, AirQuality.isDusty(null, 300.0))
+    }
+
+    @Test
     fun `an hour without an index has no reading`() {
         val response = json.decodeFromString(
             AirQualityHourlyResponse.serializer(),

@@ -1,12 +1,14 @@
 package com.fangjet.weather.model
 
-import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fangjet.weather.analytics.AnalyticsRepository
+import com.fangjet.weather.data.CityRepository
+import com.fangjet.weather.data.DevicePositioning
+import com.fangjet.weather.data.LocationRepository
+import com.fangjet.weather.data.LocationWeatherRepository
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
-import com.fangjet.weather.data.WeatherRepository
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.PetWeatherThresholds
@@ -14,46 +16,44 @@ import com.fangjet.weather.domain.RainOutlookSettings
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.TodayTileSwitches
-import com.fangjet.weather.domain.WeatherUnits
-import com.fangjet.weather.util.resolveWeatherUnits
+import com.fangjet.weather.domain.UnitOverride
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.minutes
 
+/**
+ * The weather screen: what it shows for the city on screen, and what it does and in what order.
+ * It refreshes that city when it changes, on returning to the app and every half hour; moves My
+ * Location to where the phone is (or adds it once location access turns up); and works out the
+ * screen state from the cache and what comes back. The screen only tells it what happened. Same
+ * as iOS's `WeatherForecastViewModel`.
+ */
 @HiltViewModel
 class WeatherForecastViewModel internal constructor(
-    private val resolveWeatherUnits: suspend () -> WeatherUnits,
-    private val fetchCurrentWeather: suspend (
-        units: WeatherUnits,
-        locationLabel: String,
-        cityQuery: String?,
-        latitude: Double?,
-        longitude: Double?,
-    ) -> Result<CurrentWeather>,
-    private val fetchForecast: suspend (
-        units: WeatherUnits,
-        cityQuery: String?,
-        latitude: Double?,
-        longitude: Double?,
-    ) -> Result<List<DayForecast>>,
-    private val setLastCity: suspend (String) -> Unit,
-    // Per-city cache: key is SavedLocation.cacheKey
-    private val getCachedCurrentWeather: suspend (locationKey: String) -> CurrentWeather?,
-    private val getCachedForecast: suspend (locationKey: String) -> List<DayForecast>?,
-    private val setCachedCurrentWeather: suspend (locationKey: String, json: String) -> Unit,
-    private val setCachedForecast: suspend (locationKey: String, json: String) -> Unit,
-    private val json: Json,
+    // The saved locations' weather: the cache, and refreshes that fill it.
+    private val repository: LocationWeatherRepository,
+    // The saved cities and which one is on screen.
+    private val cities: CityRepository,
+    // Where the phone is, for My Location.
+    private val position: DevicePositioning,
     private val onError: (errorKey: String) -> Unit = {},
     private val onSettingsOpened: () -> Unit = {},
     isWalkCardEnabled: () -> Boolean = { true },
@@ -66,65 +66,31 @@ class WeatherForecastViewModel internal constructor(
     readTodayTiles: () -> TodayTileSwitches = { TodayTileSwitches() },
     readSeasonalThemes: () -> List<SeasonalTheme> = { emptyList() },
     readPetWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
+    isRadarEnabled: () -> Boolean = { true },
+    // Settings' Dog walking switch.
+    showWalkCard: Flow<Boolean> = flowOf(true),
+    // Settings' units: miles or kilometres follow it, or the device's region with System.
+    unitOverride: Flow<UnitOverride> = flowOf(UnitOverride.SYSTEM),
     // Remote Config foreground_refresh_min_minutes, read on every foreground resume. 0 = never throttle.
     private val foregroundRefreshMinMinutes: () -> Long = { 0L },
     // Monotonic clock in milliseconds; injectable for tests. Fetch times only live in this process.
     private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000 },
+    // The wall clock in epoch seconds, for the screen's "now"; injectable for tests.
+    private val clock: () -> Long = { Instant.now().epochSecond },
 ) : ViewModel() {
 
     @Inject
     constructor(
-        application: Application,
+        locationWeatherRepository: LocationWeatherRepository,
+        cityRepository: CityRepository,
+        locationRepository: LocationRepository,
         preferencesRepository: PreferencesRepository,
-        weatherRepository: WeatherRepository,
-        injectedJson: Json,
         analyticsRepository: AnalyticsRepository,
         remoteConfigRepository: RemoteConfigRepository,
     ) : this(
-        resolveWeatherUnits = {
-            val override = preferencesRepository.unitOverride.first()
-            application.resolveWeatherUnits(override)
-        },
-        fetchCurrentWeather = weatherRepository::fetchCurrentWeather,
-        fetchForecast = weatherRepository::fetchForecast,
-        setLastCity = preferencesRepository::setLastCity,
-        getCachedCurrentWeather = { key ->
-            val raw = preferencesRepository.getCachedWeatherFor(key)
-            if (raw != null) {
-                try {
-                    injectedJson.decodeFromString<CurrentWeather>(raw)
-                } catch (_: Exception) {
-                    null
-                }
-            } else {
-                null
-            }
-        },
-        getCachedForecast = { key ->
-            val raw = preferencesRepository.getCachedForecastFor(key)
-            if (raw != null) {
-                try {
-                    injectedJson.decodeFromString<List<DayForecast>>(raw)
-                } catch (_: Exception) {
-                    null
-                }
-            } else {
-                null
-            }
-        },
-        setCachedCurrentWeather = { key, weatherJson ->
-            preferencesRepository.setCachedWeatherFor(
-                key,
-                weatherJson,
-            )
-        },
-        setCachedForecast = { key, forecastJson ->
-            preferencesRepository.setCachedForecastFor(
-                key,
-                forecastJson,
-            )
-        },
-        json = injectedJson,
+        repository = locationWeatherRepository,
+        cities = cityRepository,
+        position = locationRepository,
         onError = { key -> analyticsRepository.logWeatherError(key) },
         onSettingsOpened = { analyticsRepository.logSettingsOpened() },
         isWalkCardEnabled = remoteConfigRepository::walkCardEnabled,
@@ -137,41 +103,51 @@ class WeatherForecastViewModel internal constructor(
         readTodayTiles = remoteConfigRepository::todayTiles,
         readSeasonalThemes = remoteConfigRepository::seasonalThemes,
         readPetWeatherThresholds = remoteConfigRepository::petWeatherThresholds,
+        isRadarEnabled = remoteConfigRepository::radarEnabled,
+        showWalkCard = preferencesRepository.showWalkCard,
+        unitOverride = preferencesRepository.unitOverride,
         foregroundRefreshMinMinutes = remoteConfigRepository::foregroundRefreshMinMinutes,
     )
-
-    /** Remote Config `walk_card_enabled`: false hides the "time to walk the dog" card. */
-    val walkCardEnabled: Boolean = isWalkCardEnabled()
-
-    /** Remote Config `hourly_forecast_enabled`: false hides the HOURLY section. */
-    val hourlyForecastEnabled: Boolean = isHourlyForecastEnabled()
-
-    /** Remote Config `next_rain_enabled`: false hides the "Rain starting around 3:15 PM" line. */
-    val nextRainEnabled: Boolean = isNextRainEnabled()
-
-    /** Remote Config `week_forecast_enabled`: false hides the rest-of-the-week section. */
-    val weekForecastEnabled: Boolean = isWeekForecastEnabled()
-
-    /** Remote Config `rain_outlook_*` (validated): whether the rain outlook card shows, and what it charts. */
-    val rainOutlookSettings: RainOutlookSettings = readRainOutlookSettings()
 
     /** Remote Config `temperature_units_shown`: false shows temperatures as "89°", without the unit. */
     val temperatureUnitsShown: Boolean = isTemperatureUnitsShown()
 
     /**
-     * Remote Config `air_quality_enabled`. The fetch checks it too; this hides a reading in a
-     * forecast cached before it went off.
+     * The Remote Config switches and settings the screen goes by, read once. Air quality: the fetch
+     * checks `air_quality_enabled` too; this hides a reading in a forecast cached before it went off.
      */
-    val airQualityEnabled: Boolean = isAirQualityEnabled()
+    val screenConfig = WeatherScreenConfig(
+        thresholds = readPetWeatherThresholds(),
+        seasonalThemes = readSeasonalThemes(),
+        nextRainEnabled = isNextRainEnabled(),
+        rainOutlookSettings = readRainOutlookSettings(),
+        airQualityEnabled = isAirQualityEnabled(),
+        hourlyForecastEnabled = isHourlyForecastEnabled(),
+        radarEnabled = isRadarEnabled(),
+        weekForecastEnabled = isWeekForecastEnabled(),
+        walkCardEnabled = isWalkCardEnabled(),
+        todayTiles = readTodayTiles(),
+    )
 
-    /** Remote Config `tile_*_enabled`: which Today tiles show. */
-    val todayTiles: TodayTileSwitches = readTodayTiles()
+    /**
+     * Settings' units, for miles or kilometres in Misty's View. The screen applies the device's
+     * region with System, so a region change (which recreates the activity) applies at once.
+     */
+    val unitOverride: StateFlow<UnitOverride> =
+        unitOverride.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UnitOverride.SYSTEM)
 
-    /** Remote Config `seasonal_themes` (or the shipped list); the screen picks today's by the city's date. */
-    val seasonalThemes: List<SeasonalTheme> = readSeasonalThemes()
+    private val _now = MutableStateFlow(clock())
 
-    /** Remote Config pet-mood and walk-advice thresholds (validated; Celsius). */
-    val petWeatherThresholds: PetWeatherThresholds = readPetWeatherThresholds()
+    /**
+     * The screen's clock: what "now" is for everything shown. It moves on with [tick] (on refreshes,
+     * returning to the app and a regular timer), so past hours drop off together.
+     */
+    val now: StateFlow<Long> = _now.asStateFlow()
+
+    /** Moves the screen's clock on to the time now. */
+    fun tick() {
+        _now.value = clock()
+    }
 
     private val _currentWeather = MutableStateFlow<LoadingState<CurrentWeather>>(LoadingState.Idle)
     val currentWeather: StateFlow<LoadingState<CurrentWeather>> = _currentWeather.asStateFlow()
@@ -186,9 +162,39 @@ class WeatherForecastViewModel internal constructor(
 
     private val currentRefreshing = MutableStateFlow(false)
     private val forecastRefreshing = MutableStateFlow(false)
+    private val pullLocating = MutableStateFlow(false)
+
+    /** A fetch is under way, or pull to refresh is still waiting for the phone's position. */
     val isRefreshing: StateFlow<Boolean> =
-        combine(currentRefreshing, forecastRefreshing) { a, b -> a || b }
+        combine(currentRefreshing, forecastRefreshing, pullLocating) { current, forecast, locating -> current || forecast || locating }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** The saved cities, for the tabs. */
+    val locations: StateFlow<List<SavedLocation>> = cities.locations
+
+    /** The tab on screen. */
+    val activeIndex: StateFlow<Int> = cities.activeIndex
+
+    private val addFailures = Channel<Unit>(Channel.CONFLATED)
+
+    /** Adding My Location found no position, for the screen to say so. */
+    val addMyLocationFailed: Flow<Unit> = addFailures.receiveAsFlow()
+
+    /** Location access at the last check, to spot it being granted later in system settings. */
+    private var locationWasGranted: Boolean? = null
+
+    /** A position is being read, so another check doesn't start one too. */
+    private var locating = false
+
+    /**
+     * What the screen shows for the active city at the screen's clock: the reading (or the forecast
+     * hour standing in for an old one), the hero, the walk verdict, the tiles and the sections the
+     * settings switch on.
+     */
+    val screen: StateFlow<WeatherScreen> =
+        combine(_currentWeather, _forecast, _staleErrorKey, _now, showWalkCard) { current, forecast, stale, now, hasDog ->
+            weatherScreen(current, forecast, stale, now, hasDog, screenConfig)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, WeatherScreen.Loading)
 
     private val currentWeatherFetchGeneration = AtomicInteger(0)
     private val forecastFetchGeneration = AtomicInteger(0)
@@ -205,15 +211,138 @@ class WeatherForecastViewModel internal constructor(
     private val lastCurrentFetchMillis = ConcurrentHashMap<String, Long>()
     private val lastForecastFetchMillis = ConcurrentHashMap<String, Long>()
 
+    // --- What happened on screen ---
+
+    /**
+     * The screen comes back to the foreground (and first shows): the clock moves on, the city on
+     * screen is quietly refreshed, My Location follows the phone, and cities added by name get their
+     * coordinates.
+     */
+    fun becameActive() {
+        tick()
+        quietlyRefreshActiveCity()
+        updateMyLocation()
+        cities.fillInMissingCoordinates()
+    }
+
+    /** A city tab was picked. */
+    fun selectCity(index: Int) = cities.setActiveIndex(index)
+
+    /** The retry buttons. */
+    fun retry() = refreshActiveCity()
+
+    /**
+     * Pull to refresh. On My Location the phone's position is read first, whatever the 15-minute
+     * limit, so My Location moves (by the usual 1 km rule) before its weather is fetched: a drive with
+     * the screen on never resumes the app, so this is how to catch up by hand.
+     */
+    fun pulledToRefresh() {
+        viewModelScope.launch {
+            if (cities.activeLocation.value?.isCurrentLocation == true) {
+                pullLocating.value = true
+                val here = position.currentPosition()
+                pullLocating.value = false
+                if (here != null) {
+                    cities.noteMyLocationChecked()
+                    // A move changes the active city, which refreshes it.
+                    if (cities.updateCurrentLocation(here)) return@launch
+                }
+            }
+            refreshActiveCity()
+        }
+    }
+
+    // --- While the screen is up ---
+
+    /** The quiet refresh every half hour, run by the screen while it's resumed, until cancelled. */
+    suspend fun refreshWhileActive() {
+        while (true) {
+            delay(AUTO_REFRESH_INTERVAL)
+            tick()
+            quietlyRefreshActiveCity()
+        }
+    }
+
+    /**
+     * While refreshes keep failing, the clock is re-read every few minutes so old weather gives way
+     * to the forecast once it passes the cutoff. Run by the screen while there's an error.
+     */
+    suspend fun recheckWhileStale() {
+        if (staleErrorKey.value == null) return
+        while (true) {
+            delay(STALE_RECHECK_INTERVAL)
+            tick()
+        }
+    }
+
+    // --- Steps ---
+
+    private fun refreshActiveCity() {
+        // A refresh moves "now" on too, so the hourly strip and captions update even when the
+        // weather itself hasn't changed.
+        val location = cities.activeLocation.value
+        if (location == null) {
+            tick()
+            return
+        }
+        refreshCurrent(location)
+        refreshForecast(location)
+    }
+
+    private fun quietlyRefreshActiveCity() {
+        val location = cities.activeLocation.value ?: return
+        backgroundRefreshCurrent(location)
+        backgroundRefreshForecast(location)
+    }
+
+    /**
+     * Each time the screen resumes, with location access on:
+     * - re-reads the position while My Location is saved (at most every 15 minutes), so it follows
+     *   the device rather than staying where it was added;
+     * - otherwise adds it once access turns up after onboarding went without it (granted later in
+     *   system settings, say). Only when there are no cities yet, or access has just changed to
+     *   granted, so someone who removed My Location on purpose doesn't get it back every launch.
+     *   It waits for the saved cities to load: before then the empty list would read as "none yet".
+     */
+    private fun updateMyLocation() {
+        // While a read is under way this check is skipped whole, so a grant made meanwhile is still
+        // "newly granted" next time.
+        if (locating) return
+        val granted = position.hasLocationPermission()
+        val newlyGranted = granted && locationWasGranted == false
+        locationWasGranted = granted
+        if (!granted) return
+        locating = true
+        viewModelScope.launch {
+            try {
+                cities.locationsLoaded.first { it }
+                val adding = when {
+                    hasMyLocation() -> if (cities.claimMyLocationCheck()) false else return@launch
+                    newlyGranted || cities.locations.value.isEmpty() -> true
+                    else -> return@launch
+                }
+                val here = position.knownPosition()
+                when {
+                    here == null -> if (adding) addFailures.trySend(Unit)
+                    hasMyLocation() -> cities.updateCurrentLocation(here)
+                    // A position read only to move My Location, arriving after it was removed, adds nothing.
+                    adding -> cities.addLocation(here)
+                }
+            } finally {
+                locating = false
+            }
+        }
+    }
+
+    private fun hasMyLocation() = cities.locations.value.any { it.isCurrentLocation }
+
+    // --- Fetching ---
+
     /** Silent background refresh (foreground return). Updates data if fetch succeeds; never shows loading or errors. */
-    fun backgroundRefreshCurrent(location: SavedLocation) {
+    internal fun backgroundRefreshCurrent(location: SavedLocation) {
         if (fetchedRecently(lastCurrentFetchMillis, location)) return
         viewModelScope.launch {
-            val units = resolveWeatherUnits()
-            val label = if (location.isCurrentLocation) "" else location.label
-            val result = fetchForLocation(location) { lat, lon ->
-                fetchCurrentWeather(units, label, null, lat, lon)
-            } ?: fetchCurrentWeather(units, label, location.label, null, null)
+            val result = repository.refreshWeather(location)
             // Drop stale results only when the user has since switched to a different location.
             val target = currentTargetKey.value
             if (target != null && target != location.cacheKey) return@launch
@@ -221,13 +350,7 @@ class WeatherForecastViewModel internal constructor(
                 lastCurrentFetchMillis[location.cacheKey] = nowMillis()
                 _currentWeather.value = LoadingState.Success(weather)
                 _staleErrorKey.value = null
-                setLastCity(weather.cityName)
-                viewModelScope.launch {
-                    setCachedCurrentWeather(
-                        location.cacheKey,
-                        json.encodeToString(CurrentWeather.serializer(), weather),
-                    )
-                }
+                repository.rememberShownCity(weather.cityName)
             }
             result.onFailure { e ->
                 if (_currentWeather.value is LoadingState.Success) _staleErrorKey.value = resolveErrorKey(e)
@@ -235,22 +358,16 @@ class WeatherForecastViewModel internal constructor(
         }
     }
 
-    fun backgroundRefreshForecast(location: SavedLocation) {
+    internal fun backgroundRefreshForecast(location: SavedLocation) {
         if (fetchedRecently(lastForecastFetchMillis, location)) return
         viewModelScope.launch {
-            val units = resolveWeatherUnits()
-            val result = fetchForLocation(location) { lat, lon ->
-                fetchForecast(units, null, lat, lon)
-            } ?: fetchForecast(units, location.label, null, null)
+            val result = repository.refreshForecast(location)
             // Drop stale results only when the user has since switched to a different location.
             val target = forecastTargetKey.value
             if (target != null && target != location.cacheKey) return@launch
             result.onSuccess { forecast ->
                 lastForecastFetchMillis[location.cacheKey] = nowMillis()
                 _forecast.value = LoadingState.Success(forecast)
-                viewModelScope.launch {
-                    setCachedForecast(location.cacheKey, encodeForecasts(forecast))
-                }
             }
         }
     }
@@ -260,32 +377,25 @@ class WeatherForecastViewModel internal constructor(
      * Shows cached data immediately if available (no loading flash), then silently
      * replaces with fresh data. Shows an error only when there is no cached data to fall back to.
      */
-    fun refreshCurrent(location: SavedLocation) {
+    internal fun refreshCurrent(location: SavedLocation) {
+        // A refresh also moves "now" on, so the hourly strip and captions update even when the
+        // weather itself hasn't changed.
+        tick()
         if (currentTargetKey.value != location.cacheKey) _staleErrorKey.value = null
         currentTargetKey.value = location.cacheKey
         val fetchId = currentWeatherFetchGeneration.incrementAndGet()
         currentRefreshing.value = true
         viewModelScope.launch {
-            val cached = getCachedCurrentWeather(location.cacheKey)
+            val cached = repository.cachedWeather(location)
             _currentWeather.value = cached?.let { LoadingState.Success(it) } ?: LoadingState.Loading
 
-            val units = resolveWeatherUnits()
-            val label = if (location.isCurrentLocation) "" else location.label
-            val result = fetchForLocation(location) { lat, lon ->
-                fetchCurrentWeather(units, label, null, lat, lon)
-            } ?: fetchCurrentWeather(units, label, location.label, null, null)
+            val result = repository.refreshWeather(location)
 
             if (fetchId != currentWeatherFetchGeneration.get()) return@launch
             result.fold(
                 onSuccess = { weather ->
                     lastCurrentFetchMillis[location.cacheKey] = nowMillis()
-                    setLastCity(weather.cityName)
-                    viewModelScope.launch {
-                        setCachedCurrentWeather(
-                            location.cacheKey,
-                            json.encodeToString(CurrentWeather.serializer(), weather),
-                        )
-                    }
+                    repository.rememberShownCity(weather.cityName)
                     _currentWeather.value = LoadingState.Success(weather)
                     _staleErrorKey.value = null
                 },
@@ -308,26 +418,21 @@ class WeatherForecastViewModel internal constructor(
         }
     }
 
-    fun refreshForecast(location: SavedLocation) {
+    internal fun refreshForecast(location: SavedLocation) {
+        tick()
         forecastTargetKey.value = location.cacheKey
         val fetchId = forecastFetchGeneration.incrementAndGet()
         forecastRefreshing.value = true
         viewModelScope.launch {
-            val cached = getCachedForecast(location.cacheKey)
+            val cached = repository.cachedForecast(location)
             _forecast.value = cached?.let { LoadingState.Success(it) } ?: LoadingState.Loading
 
-            val units = resolveWeatherUnits()
-            val result = fetchForLocation(location) { lat, lon ->
-                fetchForecast(units, null, lat, lon)
-            } ?: fetchForecast(units, location.label, null, null)
+            val result = repository.refreshForecast(location)
 
             if (fetchId != forecastFetchGeneration.get()) return@launch
             result.fold(
                 onSuccess = { forecast ->
                     lastForecastFetchMillis[location.cacheKey] = nowMillis()
-                    viewModelScope.launch {
-                        setCachedForecast(location.cacheKey, encodeForecasts(forecast))
-                    }
                     _forecast.value = LoadingState.Success(forecast)
                 },
                 onFailure = { e ->
@@ -383,21 +488,19 @@ class WeatherForecastViewModel internal constructor(
             else -> true
         }
 
-    private fun encodeForecasts(forecast: List<DayForecast>): String =
-        json.encodeToString(
-            kotlinx.serialization.builtins.ListSerializer(DayForecast.serializer()),
-            forecast,
-        )
+    init {
+        // Another city on screen (a tab, an added city, My Location moving, the saved cities
+        // loading): a real refetch. Last in the class, so everything a refresh uses is set up.
+        viewModelScope.launch { cities.activeLocation.filterNotNull().collect { refreshActiveCity() } }
+    }
 
-    private inline fun <T> fetchForLocation(
-        location: SavedLocation,
-        block: (lat: Double, lon: Double) -> T,
-    ): T? =
-        if (location.latitude != null && location.longitude != null) {
-            block(location.latitude, location.longitude)
-        } else {
-            null
-        }
+    companion object {
+        /** The quiet refresh while the screen stays open, so a screen left on overnight keeps up. */
+        val AUTO_REFRESH_INTERVAL = 30.minutes
+
+        /** How often old weather is re-checked against the cutoff while refreshes keep failing. */
+        val STALE_RECHECK_INTERVAL = 5.minutes
+    }
 }
 
 private const val MILLIS_PER_MINUTE = 60_000L

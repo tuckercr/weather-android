@@ -70,6 +70,8 @@ private const val DIMMED_BAR_ALPHA = 0.4f
 internal fun RainOutlookCard(
     outlook: RainOutlook,
     units: WeatherUnits,
+    // The city's, for the next-rain headline's time.
+    utcOffsetSeconds: Int,
     modifier: Modifier = Modifier,
 ) {
     // A new forecast (or the clock moving on) starts with nothing selected.
@@ -83,7 +85,7 @@ internal fun RainOutlookCard(
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Text(
-                text = headlineText(outlook.headline),
+                text = headlineText(outlook.headline, utcOffsetSeconds),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -110,9 +112,12 @@ internal fun RainOutlookCard(
 }
 
 @Composable
-private fun headlineText(headline: RainOutlookHeadline): String =
+private fun headlineText(
+    headline: RainOutlookHeadline,
+    utcOffsetSeconds: Int,
+): String =
     when (headline) {
-        is RainOutlookHeadline.NextRain -> headline.text
+        is RainOutlookHeadline.NextRain -> nextRainText(headline.nextRain, utcOffsetSeconds)
         is RainOutlookHeadline.Likely ->
             headline.hour?.let { stringResource(R.string.rain_outlook_likely_around, it) }
                 ?: stringResource(R.string.rain_outlook_likely_now)
@@ -391,8 +396,8 @@ private fun RainOutlookCardPreview() {
         previewSlot("12 AM", 0, 0.0),
     )
     CatsDogsTheme {
-        rainOutlook(slots, RainOutlookSettings(), WeatherUnits.METRIC, nextRainText = null)?.let {
-            RainOutlookCard(outlook = it, units = WeatherUnits.METRIC, modifier = Modifier.padding(16.dp))
+        rainOutlook(slots, RainOutlookSettings(), WeatherUnits.METRIC, nextRain = null)?.let {
+            RainOutlookCard(outlook = it, units = WeatherUnits.METRIC, utcOffsetSeconds = 0, modifier = Modifier.padding(16.dp))
         }
     }
 }

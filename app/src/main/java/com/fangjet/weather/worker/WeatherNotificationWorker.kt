@@ -4,10 +4,11 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.fangjet.weather.data.LocationRepository
+import com.fangjet.weather.data.LocationWeatherRepository
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
-import com.fangjet.weather.data.WeatherRepository
-import com.fangjet.weather.util.resolveWeatherUnits
+import com.fangjet.weather.util.airNameOrPoorRes
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
@@ -18,33 +19,19 @@ class WeatherNotificationWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
     preferencesRepository: PreferencesRepository,
-    weatherRepository: WeatherRepository,
+    locationWeatherRepository: LocationWeatherRepository,
     remoteConfigRepository: RemoteConfigRepository,
     private val scheduler: WorkManagerScheduler,
+    locationRepository: LocationRepository,
 ) : CoroutineWorker(context, workerParams) {
 
     private val logic = NotificationWorkerLogic(
         getSavedLocations = { preferencesRepository.savedLocations.first() },
-        getUnits = {
-            val override = preferencesRepository.unitOverride.first()
-            context.resolveWeatherUnits(override)
-        },
-        fetchCurrentWeather = { units, label, lat, lon ->
-            if (lat != null && lon != null) {
-                weatherRepository.fetchCurrentWeather(units, label, latitude = lat, longitude = lon)
-            } else {
-                weatherRepository.fetchCurrentWeather(units, label, cityQuery = label)
-            }
-        },
-        fetchForecast = { units, label, lat, lon ->
-            if (lat != null && lon != null) {
-                weatherRepository.fetchForecast(units, latitude = lat, longitude = lon)
-            } else {
-                weatherRepository.fetchForecast(units, cityQuery = label)
-            }
-        },
+        refreshWeather = locationWeatherRepository::refreshWeather,
+        refreshForecast = locationWeatherRepository::refreshForecast,
         hasNotificationPermission = context::canPostNotifications,
         postNotification = context::postWeatherNotification,
+        airName = { context.getString(airNameOrPoorRes(it)) },
         isDailyWeatherNotificationEnabled = remoteConfigRepository::dailyWeatherNotificationsEnabled,
         isWalkTimeRemotelyEnabled = remoteConfigRepository::walkTimeNotificationsEnabled,
         petWeatherThresholds = remoteConfigRepository::petWeatherThresholds,
@@ -56,7 +43,7 @@ class WeatherNotificationWorker @AssistedInject constructor(
 
     // Tomorrow's run back on 8:30, however late this one was. Not on a retry: that would move the
     // retry itself to tomorrow.
-    private val follower = myLocationFollower(context, preferencesRepository)
+    private val follower = myLocationFollower(locationRepository, preferencesRepository)
 
     override suspend fun doWork(): Result {
         // Where the phone is now, so the briefing isn't for the last place the app was opened.

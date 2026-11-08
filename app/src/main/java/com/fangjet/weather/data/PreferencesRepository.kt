@@ -9,6 +9,8 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.fangjet.weather.domain.CurrentWeather
+import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.UnitOverride
 import com.fangjet.weather.domain.withMyLocationAt
@@ -122,6 +124,24 @@ class PreferencesRepository internal constructor(
     suspend fun setActiveLocationIndex(index: Int) {
         dataStore.edit { it[KEY_ACTIVE_LOCATION_INDEX] = index }
     }
+
+    /** [locationKey]'s cached reading; null when there's none or it can't be read (an older format). */
+    suspend fun getCachedWeather(locationKey: String): CurrentWeather? =
+        getCachedWeatherFor(locationKey)?.let { runCatching { json.decodeFromString<CurrentWeather>(it) }.getOrNull() }
+
+    suspend fun setCachedWeather(
+        locationKey: String,
+        weather: CurrentWeather,
+    ) = setCachedWeatherFor(locationKey, json.encodeToString(weather))
+
+    /** [locationKey]'s cached forecast; null when there's none or it can't be read (an older format). */
+    suspend fun getCachedForecast(locationKey: String): List<DayForecast>? =
+        getCachedForecastFor(locationKey)?.let { runCatching { json.decodeFromString<List<DayForecast>>(it) }.getOrNull() }
+
+    suspend fun setCachedForecast(
+        locationKey: String,
+        forecast: List<DayForecast>,
+    ) = setCachedForecastFor(locationKey, json.encodeToString(forecast))
 
     suspend fun getCachedWeatherFor(locationKey: String): String? {
         val raw = dataStore.data.map { it[KEY_WEATHER_CACHE] }.first() ?: return null

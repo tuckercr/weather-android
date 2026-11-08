@@ -184,20 +184,21 @@ class RemoteConfigRepository @Inject constructor(
      */
     fun petWeatherThresholds(): PetWeatherThresholds =
         runCatching {
-            PetWeatherThresholds.validated(
-                hotPavementC = double(KEY_WALK_HOT_PAVEMENT_C),
-                warmPavementC = double(KEY_WALK_WARM_PAVEMENT_C),
-                icyPavementC = double(KEY_WALK_ICY_PAVEMENT_C),
-                dangerousPavementC = double(KEY_WALK_DANGEROUS_PAVEMENT_C),
-                maxRainChancePercent = wholeNumber(KEY_WALK_MAX_RAIN_CHANCE),
-                comfortMinC = double(KEY_WALK_COMFORT_MIN_C),
-                comfortMaxC = double(KEY_WALK_COMFORT_MAX_C),
-                walkHoursStart = wholeNumber(KEY_WALK_HOURS_START),
-                walkHoursEnd = wholeNumber(KEY_WALK_HOURS_END),
-                petHotC = double(KEY_PET_HOT_THRESHOLD_C),
-                petColdC = double(KEY_PET_COLD_THRESHOLD_C),
-                badAirBand = wholeNumber(KEY_WALK_BAD_AIR_BAND),
-            )
+            PetWeatherThresholds
+                .validated(
+                    hotPavementC = double(KEY_WALK_HOT_PAVEMENT_C),
+                    warmPavementC = double(KEY_WALK_WARM_PAVEMENT_C),
+                    icyPavementC = double(KEY_WALK_ICY_PAVEMENT_C),
+                    dangerousPavementC = double(KEY_WALK_DANGEROUS_PAVEMENT_C),
+                    maxRainChancePercent = wholeNumber(KEY_WALK_MAX_RAIN_CHANCE),
+                    comfortMinC = double(KEY_WALK_COMFORT_MIN_C),
+                    comfortMaxC = double(KEY_WALK_COMFORT_MAX_C),
+                    walkHoursStart = wholeNumber(KEY_WALK_HOURS_START),
+                    walkHoursEnd = wholeNumber(KEY_WALK_HOURS_END),
+                    petHotC = double(KEY_PET_HOT_THRESHOLD_C),
+                    petColdC = double(KEY_PET_COLD_THRESHOLD_C),
+                    badAirBand = wholeNumber(KEY_WALK_BAD_AIR_BAND),
+                ).copy(airQualityEnabled = airQualityEnabled())
         }.getOrDefault(PetWeatherThresholds.DEFAULT)
 
     /**

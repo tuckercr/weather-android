@@ -1,10 +1,8 @@
 package com.fangjet.weather.worker
 
-import android.content.Context
+import com.fangjet.weather.data.DeviceLocation
+import com.fangjet.weather.data.LocationRepository
 import com.fangjet.weather.data.PreferencesRepository
-import com.fangjet.weather.model.DeviceLocation
-import com.fangjet.weather.model.PlayServicesLocationFetcher
-import com.fangjet.weather.model.hasBackgroundLocationPermission
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import timber.log.Timber
@@ -37,16 +35,11 @@ internal class MyLocationFollower(
 }
 
 internal fun myLocationFollower(
-    context: Context,
+    locationRepository: LocationRepository,
     preferencesRepository: PreferencesRepository,
-): MyLocationFollower {
-    // Only made when there's a position to read: most runs never need Play services' client.
-    val fetcher by lazy { PlayServicesLocationFetcher(context) }
-    return MyLocationFollower(
-        isOn = { preferencesRepository.followMyLocation.first() },
-        hasBackgroundPermission = context::hasBackgroundLocationPermission,
-        // A recent fix if there is one, otherwise a fresh one (up to 10 seconds), then the last known.
-        readLocation = { fetcher.tryCurrentLocation() ?: fetcher.tryLastLocation() },
-        moveMyLocation = preferencesRepository::moveMyLocation,
-    )
-}
+) = MyLocationFollower(
+    isOn = { preferencesRepository.followMyLocation.first() },
+    hasBackgroundPermission = locationRepository::hasBackgroundLocationPermission,
+    readLocation = locationRepository::backgroundPosition,
+    moveMyLocation = preferencesRepository::moveMyLocation,
+)

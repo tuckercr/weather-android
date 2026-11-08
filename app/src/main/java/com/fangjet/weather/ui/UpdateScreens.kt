@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.fangjet.weather.BuildConfig
 import com.fangjet.weather.R
-import com.fangjet.weather.ui.pets.PetMood
+import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.ui.pets.PetScene
 import com.fangjet.weather.ui.pets.skyColor
 

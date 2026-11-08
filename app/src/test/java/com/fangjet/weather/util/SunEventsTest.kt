@@ -4,7 +4,6 @@ import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.WeatherUnits
-import com.fangjet.weather.ui.formatEpochTime
 import com.fangjet.weather.ui.formatShortEpochTime
 import org.junit.Assert.assertEquals
 import org.junit.Test

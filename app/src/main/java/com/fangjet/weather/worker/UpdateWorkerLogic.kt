@@ -4,7 +4,6 @@ import androidx.work.ListenableWorker.Result
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.SavedLocation
-import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.domain.notificationLocation
 import kotlinx.coroutines.CancellationException
 import timber.log.Timber
@@ -12,10 +11,6 @@ import timber.log.Timber
 /**
  * Pure logic extracted from [WeatherUpdateWorker] so it can be unit-tested without Android
  * framework dependencies (Context, DataStore, WorkManager runtime, etc.).
- *
- * The units used for both fetches come from [getUnits], which the worker wires to honor the user's
- * unit override, so the background refresh never writes a different unit system into the cache than
- * a foreground refresh would.
  *
  * It refreshes the notification city (whose forecast the rain alert reads) and, when it's another
  * one, the city tab last viewed, which the app opens to, so that doesn't open on an old cache either.
@@ -25,21 +20,9 @@ internal class UpdateWorkerLogic(
     private val getSavedLocations: suspend () -> List<SavedLocation>,
     // The city tab last viewed. Null refreshes only the notification city.
     private val getActiveIndex: suspend () -> Int? = { null },
-    private val getUnits: suspend () -> WeatherUnits,
-    private val fetchCurrentWeather: suspend (
-        units: WeatherUnits,
-        label: String,
-        latitude: Double?,
-        longitude: Double?,
-    ) -> kotlin.Result<CurrentWeather>,
-    private val fetchForecast: suspend (
-        units: WeatherUnits,
-        label: String,
-        latitude: Double?,
-        longitude: Double?,
-    ) -> kotlin.Result<List<DayForecast>>,
-    private val cacheCurrentWeather: suspend (cacheKey: String, weather: CurrentWeather) -> Unit,
-    private val cacheForecast: suspend (cacheKey: String, forecast: List<DayForecast>) -> Unit,
+    // Fetches and caches a location's weather: LocationWeatherRepository.refreshWeather and refreshForecast.
+    private val refreshWeather: suspend (location: SavedLocation) -> kotlin.Result<CurrentWeather>,
+    private val refreshForecast: suspend (location: SavedLocation) -> kotlin.Result<List<DayForecast>>,
     // After a refresh, with whatever came back: the rain alert checks it.
     private val afterRefresh: suspend (
         location: SavedLocation,
@@ -54,41 +37,18 @@ internal class UpdateWorkerLogic(
             ?.let(locations::getOrNull)
             ?.takeIf { it.cacheKey != notificationCity.cacheKey }
 
-        val units = getUnits()
-
-        val notificationOk = refresh(notificationCity, units, alert = true)
-        if (lastViewed != null) refresh(lastViewed, units, alert = false)
+        val notificationOk = refresh(notificationCity, alert = true)
+        if (lastViewed != null) refresh(lastViewed, alert = false)
         return if (notificationOk) Result.success() else Result.retry()
     }
 
-    /** Fetches and caches [location]; true when either fetch worked. [alert] runs [afterRefresh] too. */
+    /** Refreshes [location]'s cache; true when either fetch worked. [alert] runs [afterRefresh] too. */
     private suspend fun refresh(
         location: SavedLocation,
-        units: WeatherUnits,
         alert: Boolean,
     ): Boolean {
-        val currentResult = fetchCurrentWeather(
-            units,
-            location.label,
-            location.latitude,
-            location.longitude,
-        )
-        val forecastResult = fetchForecast(
-            units,
-            location.label,
-            location.latitude,
-            location.longitude,
-        )
-
-        val cacheKey = location.cacheKey
-
-        val weatherOk = currentResult
-            .onSuccess { weather -> cacheCurrentWeather(cacheKey, weather) }
-            .isSuccess
-
-        val forecastOk = forecastResult
-            .onSuccess { forecast -> cacheForecast(cacheKey, forecast) }
-            .isSuccess
+        val currentResult = refreshWeather(location)
+        val forecastResult = refreshForecast(location)
 
         if (alert) {
             // The refresh has done its job by now: a failed alert mustn't turn it into a failed run.
@@ -100,6 +60,6 @@ internal class UpdateWorkerLogic(
                 Timber.w(e, "after-refresh step failed")
             }
         }
-        return weatherOk || forecastOk
+        return currentResult.isSuccess || forecastResult.isSuccess
     }
 }

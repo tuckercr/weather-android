@@ -1,6 +1,7 @@
 package com.fangjet.weather.ui
 
 import com.fangjet.weather.domain.WeatherUnits
+import com.fangjet.weather.util.isCalmWind
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

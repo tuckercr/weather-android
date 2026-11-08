@@ -1,18 +1,22 @@
 package com.fangjet.weather.worker
 
 import androidx.work.ListenableWorker.Result
+import com.fangjet.weather.R
+import com.fangjet.weather.data.testLocationWeatherRepository
+import com.fangjet.weather.data.weatherRequest
 import com.fangjet.weather.domain.AirQuality
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
+import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.QuarterHour
 import com.fangjet.weather.domain.SavedLocation
+import com.fangjet.weather.domain.WalkAdvice
+import com.fangjet.weather.domain.WalkRating
 import com.fangjet.weather.domain.WeatherUnits
-import com.fangjet.weather.ui.pets.PetMood
-import com.fangjet.weather.ui.pets.WalkAdvice
-import com.fangjet.weather.ui.pets.WalkRating
 import com.fangjet.weather.util.NextRain
+import com.fangjet.weather.util.airNameOrPoorRes
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -40,7 +44,7 @@ class NotificationWorkerLogicTest {
     fun `returns retry when weather fetch fails`() =
         runTest {
             val logic = logic(
-                fetchCurrentWeather = { _, _, _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
+                fetchCurrentWeather = { _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
             )
 
             assertEquals(Result.retry(), logic.doWork())
@@ -77,7 +81,7 @@ class NotificationWorkerLogicTest {
             val posted = mutableListOf<Pair<String, String>>()
             var fetches = 0
             val logic = logic(
-                fetchCurrentWeather = { _, _, _, _ ->
+                fetchCurrentWeather = { _, _ ->
                     fetches++
                     kotlin.Result.success(weather())
                 },
@@ -125,9 +129,9 @@ class NotificationWorkerLogicTest {
             var capturedLon: Double? = "not-called".hashCode().toDouble()
             val logic = logic(
                 savedLocations = listOf(london),
-                fetchCurrentWeather = { _, _, lat, lon ->
-                    capturedLat = lat
-                    capturedLon = lon
+                fetchCurrentWeather = { _, loc ->
+                    capturedLat = loc.latitude
+                    capturedLon = loc.longitude
                     kotlin.Result.success(weather())
                 },
             )
@@ -145,9 +149,9 @@ class NotificationWorkerLogicTest {
             var capturedLon: Double? = 99.0
             val logic = logic(
                 savedLocations = listOf(cityByName),
-                fetchCurrentWeather = { _, _, lat, lon ->
-                    capturedLat = lat
-                    capturedLon = lon
+                fetchCurrentWeather = { _, loc ->
+                    capturedLat = loc.latitude
+                    capturedLon = loc.longitude
                     kotlin.Result.success(weather(cityName = "Austin"))
                 },
             )
@@ -164,8 +168,8 @@ class NotificationWorkerLogicTest {
             var capturedLabel: String? = null
             val logic = logic(
                 savedLocations = listOf(cityByName),
-                fetchCurrentWeather = { _, label, _, _ ->
-                    capturedLabel = label
+                fetchCurrentWeather = { _, loc ->
+                    capturedLabel = loc.label
                     kotlin.Result.success(weather(cityName = "Austin"))
                 },
             )
@@ -182,7 +186,7 @@ class NotificationWorkerLogicTest {
         runTest {
             var captured: WeatherNotification? = null
             val logic = logic(
-                fetchCurrentWeather = { _, _, _, _ ->
+                fetchCurrentWeather = { _, _ ->
                     kotlin.Result.success(weather(temperature = 86.4, cityName = "London, GB"))
                 },
                 postNotification = { captured = it },
@@ -199,10 +203,10 @@ class NotificationWorkerLogicTest {
         runTest {
             var capturedBody: String? = null
             val logic = logic(
-                fetchCurrentWeather = { _, _, _, _ ->
+                fetchCurrentWeather = { _, _ ->
                     kotlin.Result.success(weather(tempMin = 50.0, tempMax = 60.0))
                 },
-                fetchForecast = { _, _, _, _ ->
+                fetchForecast = { _, _ ->
                     kotlin.Result.success(listOf(forecast(tempMin = 45.0, tempMax = 99.0)))
                 },
                 postNotification = { capturedBody = it.body },
@@ -219,10 +223,10 @@ class NotificationWorkerLogicTest {
         runTest {
             var capturedBody: String? = null
             val logic = logic(
-                fetchCurrentWeather = { _, _, _, _ ->
+                fetchCurrentWeather = { _, _ ->
                     kotlin.Result.success(weather(tempMin = 50.0, tempMax = 60.0))
                 },
-                fetchForecast = { _, _, _, _ ->
+                fetchForecast = { _, _ ->
                     kotlin.Result.success(listOf(forecast(tempMin = 45.0, tempMax = 99.0, dateLabel = "Tue, Jan 2")))
                 },
                 postNotification = { capturedBody = it.body },
@@ -238,7 +242,7 @@ class NotificationWorkerLogicTest {
         runTest {
             var capturedBody: String? = null
             val logic = logic(
-                fetchForecast = { _, _, _, _ ->
+                fetchForecast = { _, _ ->
                     kotlin.Result.success(
                         listOf(
                             forecast(tempMin = 10.0, tempMax = 20.0, dateLabel = "Sun, Dec 31"),
@@ -259,10 +263,10 @@ class NotificationWorkerLogicTest {
         runTest {
             var capturedBody: String? = null
             val logic = logic(
-                fetchCurrentWeather = { _, _, _, _ ->
+                fetchCurrentWeather = { _, _ ->
                     kotlin.Result.success(weather(tempMin = 50.0, tempMax = 99.0))
                 },
-                fetchForecast = { _, _, _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
+                fetchForecast = { _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
                 postNotification = { capturedBody = it.body },
             )
 
@@ -340,10 +344,23 @@ class NotificationWorkerLogicTest {
     }
 
     @Test
+    fun `bad air in notifications uses the hero's names for it`() {
+        fun phrase(air: AirQuality.Pollutant) =
+            badAirPhrase(listOf(forecast(slots = listOf(slot(9, rain = 0, air = air)))), 0, NOW, PetWeatherThresholds.DEFAULT, ::airName)
+        // The names come from strings.xml, through the same mapping as the hero's caption.
+        assertEquals("${string("walk_air_smoky")} today", phrase(AirQuality.Pollutant.FINE_PARTICLES))
+        assertEquals("${string("walk_air_dusty")} today", phrase(AirQuality.Pollutant.COARSE_PARTICLES))
+        assertEquals("${string("walk_air_ozone")} today", phrase(AirQuality.Pollutant.OZONE))
+        assertEquals("${string("walk_air_poor")} today", phrase(AirQuality.Pollutant.NITROGEN_DIOXIDE))
+    }
+
+    @Test
     fun `bad air is named by the worst walking hour left today`() {
-        fun phrase(vararg slots: HourlySlot) = badAirPhrase(listOf(forecast(slots = slots.toList())), 0, NOW, PetWeatherThresholds.DEFAULT)
+        fun phrase(vararg slots: HourlySlot) =
+            badAirPhrase(listOf(forecast(slots = slots.toList())), 0, NOW, PetWeatherThresholds.DEFAULT, ::airName)
 
         assertEquals("Smoky air today", phrase(slot(9, rain = 0, air = AirQuality.Pollutant.FINE_PARTICLES)))
+        assertEquals("Dusty air today", phrase(slot(9, rain = 0, air = AirQuality.Pollutant.COARSE_PARTICLES)))
         assertEquals(
             "High ozone today",
             phrase(
@@ -365,7 +382,7 @@ class NotificationWorkerLogicTest {
         runTest {
             var planned: Long? = null
             logic(
-                fetchForecast = { _, _, _, _ -> kotlin.Result.success(listOf(forecast(slots = wetMorningDryLater()))) },
+                fetchForecast = { _, _ -> kotlin.Result.success(listOf(forecast(slots = wetMorningDryLater()))) },
                 isWalkTimeEnabled = true,
                 hasDog = true,
                 scheduleWalkTime = { planned = it },
@@ -379,7 +396,7 @@ class NotificationWorkerLogicTest {
         runTest {
             var planned: Long? = null
             logic(
-                fetchForecast = { _, _, _, _ -> kotlin.Result.success(listOf(forecast(slots = wetMorningDryLater()))) },
+                fetchForecast = { _, _ -> kotlin.Result.success(listOf(forecast(slots = wetMorningDryLater()))) },
                 isWalkTimeEnabled = true,
                 isWalkTimeRemotelyEnabled = false,
                 hasDog = true,
@@ -393,7 +410,7 @@ class NotificationWorkerLogicTest {
         runTest {
             var planned: Long? = null
             logic(
-                fetchForecast = { _, _, _, _ -> kotlin.Result.success(listOf(forecast(slots = wetMorningDryLater()))) },
+                fetchForecast = { _, _ -> kotlin.Result.success(listOf(forecast(slots = wetMorningDryLater()))) },
                 isWalkTimeEnabled = true,
                 hasDog = false,
                 scheduleWalkTime = { planned = it },
@@ -402,7 +419,7 @@ class NotificationWorkerLogicTest {
 
             val dry = listOf(forecast(slots = (8..12).map { slot(it, rain = 0) }))
             logic(
-                fetchForecast = { _, _, _, _ -> kotlin.Result.success(dry) },
+                fetchForecast = { _, _ -> kotlin.Result.success(dry) },
                 isWalkTimeEnabled = true,
                 isBriefingEnabled = false,
                 hasDog = false,
@@ -416,7 +433,7 @@ class NotificationWorkerLogicTest {
         runTest {
             var planned: Long? = null
             logic(
-                fetchForecast = { _, _, _, _ -> kotlin.Result.success(listOf(forecast(slots = wetMorningDryLater()))) },
+                fetchForecast = { _, _ -> kotlin.Result.success(listOf(forecast(slots = wetMorningDryLater()))) },
                 isWalkTimeEnabled = false,
                 scheduleWalkTime = { planned = it },
             ).doWork()
@@ -429,19 +446,14 @@ class NotificationWorkerLogicTest {
         runTest {
             val dry = listOf(forecast(slots = (8..12).map { slot(it, rain = 0) }))
             var planned: Long? = null
-            logic(fetchForecast = {
-                _,
-                _,
-                _,
-                _,
-                ->
+            logic(fetchForecast = { _, _ ->
                 kotlin.Result.success(dry)
             }, isWalkTimeEnabled = true, hasDog = true, scheduleWalkTime = { planned = it })
                 .doWork()
             assertEquals(null, planned)
 
             logic(
-                fetchForecast = { _, _, _, _ -> kotlin.Result.success(dry) },
+                fetchForecast = { _, _ -> kotlin.Result.success(dry) },
                 isWalkTimeEnabled = true,
                 isBriefingEnabled = false,
                 hasDog = true,
@@ -458,11 +470,11 @@ class NotificationWorkerLogicTest {
             fun walkLogic(slots: List<HourlySlot>) =
                 WalkTimeLogic(
                     getSavedLocations = { listOf(london) },
-                    getUnits = { WeatherUnits.IMPERIAL },
-                    fetchCurrentWeather = { _, _, _, _ -> kotlin.Result.success(weather(cityName = "London")) },
-                    fetchForecast = { _, _, _, _ -> kotlin.Result.success(listOf(forecast(slots = slots))) },
+                    refreshWeather = { kotlin.Result.success(weather(cityName = "London")) },
+                    refreshForecast = { kotlin.Result.success(listOf(forecast(slots = slots))) },
                     hasNotificationPermission = { true },
                     postNotification = { posted += it },
+                    airName = ::airName,
                     isWalkTimeEnabled = { true },
                     nowEpochSeconds = { NOW },
                 )
@@ -497,6 +509,37 @@ class NotificationWorkerLogicTest {
     }
 
     @Test
+    fun `the rain alert is posted once per shower, only when it's switched on`() =
+        runTest {
+            val posted = mutableListOf<WeatherNotification>()
+            var lastStart: Long? = null
+
+            fun rainLogic(enabled: Boolean) =
+                RainAlertLogic(
+                    isEnabled = { enabled },
+                    hasDog = { true },
+                    lastAlertStart = { lastStart },
+                    setLastAlertStart = { lastStart = it },
+                    postNotification = { posted += it },
+                    nowEpochSeconds = { NOW },
+                )
+
+            rainLogic(enabled = false).check(london, weather(), rainFrom(3))
+            assertTrue(posted.isEmpty())
+
+            rainLogic(enabled = true).check(london, weather(), rainFrom(3))
+            rainLogic(enabled = true).check(london, weather(), rainFrom(3))
+            assertEquals(NotificationKind.RAIN, posted.single().kind)
+            assertEquals(PetMood.RAIN, posted.single().mood)
+            assertEquals(NOW + 3 * 900, lastStart)
+
+            // Nothing to go on without the refreshed weather and forecast.
+            lastStart = null
+            rainLogic(enabled = true).check(london, null, rainFrom(3))
+            assertEquals(1, posted.size)
+        }
+
+    @Test
     fun `rain alert text names the time and the city, and mentions the walk only with a dog`() {
         val rain = NextRain.Starting(DAY_START + 15 * HOUR + 900, snow = false)
         val (title, body) = buildRainAlertContent(rain, "Knoxville", 0, hasDog = true)
@@ -512,28 +555,34 @@ class NotificationWorkerLogicTest {
     }
 
     @Test
-    fun `today matching uses the city's utc offset`() =
+    fun `today is the city's date, not the device's`() =
         runTest {
-            var capturedOffset: Int? = null
-            val logic = NotificationWorkerLogic(
-                getSavedLocations = { listOf(london) },
-                getUnits = { WeatherUnits.IMPERIAL },
-                fetchCurrentWeather = { _, _, _, _ ->
-                    kotlin.Result.success(weather(utcOffsetSeconds = -21600))
-                },
-                fetchForecast = { _, _, _, _ -> kotlin.Result.success(listOf(forecast())) },
-                hasNotificationPermission = { true },
-                postNotification = {},
-                todayLabel = { offset ->
-                    capturedOffset = offset
-                    TODAY_LABEL
-                },
-            )
+            val posted = mutableListOf<WeatherNotification>()
+            // A forecast day whose hours start at noon UTC on Monday: 2 AM Monday at UTC-10. At 8:30 AM
+            // UTC it's still Sunday evening there, so for that city it isn't today yet, and the
+            // reading's own high and low stand in.
+            val monday = listOf(forecast(tempMin = 55.0, tempMax = 85.0, slots = (12..16).map { slot(it, rain = 0) }))
+            logic(fetchForecast = { _, _ -> kotlin.Result.success(monday) }, postNotification = { posted += it }).doWork()
+            logic(
+                fetchCurrentWeather = { _, _ -> kotlin.Result.success(weather(utcOffsetSeconds = -10 * 3600)) },
+                fetchForecast = { _, _ -> kotlin.Result.success(monday) },
+                postNotification = { posted += it },
+            ).doWork()
 
-            logic.doWork()
+            assertTrue(posted[0].body.startsWith("High 85°, low 55°"))
+            assertTrue(posted[1].body.startsWith("High 80°, low 60°"))
+        }
 
-            // The city's offset (Mountain Daylight, UTC-6h) is used to resolve "today", not the device's.
-            assertEquals(-21600, capturedOffset)
+    @Test
+    fun `the briefing's high and low take in the temperature now, as the hero's do`() =
+        runTest {
+            val posted = mutableListOf<WeatherNotification>()
+            logic(
+                fetchCurrentWeather = { _, _ -> kotlin.Result.success(weather(temperature = 90.0)) },
+                postNotification = { posted += it },
+            ).doWork()
+
+            assertTrue(posted.single().body.startsWith("High 90°, low 55°"))
         }
 
     @Test
@@ -544,7 +593,7 @@ class NotificationWorkerLogicTest {
             logic(postNotification = { posted += it }).doWork()
             logic(
                 savedLocations = listOf(SavedLocation(label = "Sydney", latitude = -33.9, longitude = 151.2)),
-                fetchCurrentWeather = { _, _, _, _ -> kotlin.Result.success(weather().copy(iconCode = "01n")) },
+                fetchCurrentWeather = { _, _ -> kotlin.Result.success(weather().copy(iconCode = "01n")) },
                 postNotification = { posted += it },
             ).doWork()
 
@@ -558,9 +607,9 @@ class NotificationWorkerLogicTest {
     fun `my location asks for the place's own name, a saved city keeps its label`() =
         runTest {
             val labels = mutableListOf<String>()
-            val fetch: suspend (WeatherUnits, String, Double?, Double?) -> kotlin.Result<CurrentWeather> =
-                { _, label, _, _ ->
-                    labels += label
+            val fetch: suspend (WeatherUnits, SavedLocation) -> kotlin.Result<CurrentWeather> =
+                { _, loc ->
+                    labels += loc.weatherRequest.locationLabel
                     kotlin.Result.success(weather())
                 }
             val here = SavedLocation(label = "My Location", latitude = 35.96, longitude = -83.92, isCurrentLocation = true)
@@ -575,13 +624,12 @@ class NotificationWorkerLogicTest {
     private fun logic(
         savedLocations: List<SavedLocation> = listOf(london),
         units: WeatherUnits = WeatherUnits.IMPERIAL,
-        fetchCurrentWeather: suspend (WeatherUnits, String, Double?, Double?) -> kotlin.Result<CurrentWeather> =
-            { _, _, _, _ -> kotlin.Result.success(weather()) },
-        fetchForecast: suspend (WeatherUnits, String, Double?, Double?) -> kotlin.Result<List<DayForecast>> =
-            { _, _, _, _ -> kotlin.Result.success(listOf(forecast())) },
+        fetchCurrentWeather: suspend (WeatherUnits, SavedLocation) -> kotlin.Result<CurrentWeather> =
+            { _, _ -> kotlin.Result.success(weather()) },
+        fetchForecast: suspend (WeatherUnits, SavedLocation) -> kotlin.Result<List<DayForecast>> =
+            { _, _ -> kotlin.Result.success(listOf(forecast())) },
         hasNotificationPermission: () -> Boolean = { true },
         postNotification: (WeatherNotification) -> Unit = {},
-        todayLabel: String = TODAY_LABEL,
         isDailyWeatherNotificationEnabled: () -> Boolean = { true },
         isBriefingEnabled: Boolean = true,
         isWalkTimeEnabled: Boolean = false,
@@ -590,13 +638,12 @@ class NotificationWorkerLogicTest {
         scheduleWalkTime: (Long) -> Unit = {},
     ) = NotificationWorkerLogic(
         getSavedLocations = { savedLocations },
-        getUnits = { units },
-        fetchCurrentWeather = fetchCurrentWeather,
-        fetchForecast = fetchForecast,
+        refreshWeather = testLocationWeatherRepository(units, fetchCurrentWeather, fetchForecast)::refreshWeather,
+        refreshForecast = testLocationWeatherRepository(units, fetchCurrentWeather, fetchForecast)::refreshForecast,
         hasNotificationPermission = hasNotificationPermission,
         postNotification = postNotification,
+        airName = ::airName,
         isDailyWeatherNotificationEnabled = isDailyWeatherNotificationEnabled,
-        todayLabel = { _ -> todayLabel },
         isBriefingEnabled = { isBriefingEnabled },
         isWalkTimeEnabled = { isWalkTimeEnabled },
         isWalkTimeRemotelyEnabled = { isWalkTimeRemotelyEnabled },
@@ -606,6 +653,19 @@ class NotificationWorkerLogicTest {
     )
 
     private companion object {
+        val strings: String = java.io.File("src/main/res/values/strings.xml").readText()
+
+        fun string(name: String) = Regex("<string name=\"$name\">([^<]*)</string>").find(strings)!!.groupValues[1]
+
+        /** What the workers pass: the name from strings.xml for [airNameOrPoorRes]'s resource. */
+        fun airName(pollutant: AirQuality.Pollutant?): String =
+            when (airNameOrPoorRes(pollutant)) {
+                R.string.walk_air_smoky -> string("walk_air_smoky")
+                R.string.walk_air_dusty -> string("walk_air_dusty")
+                R.string.walk_air_ozone -> string("walk_air_ozone")
+                else -> string("walk_air_poor")
+            }
+
         const val TODAY_LABEL = "Mon, Jan 1"
         const val DAY_START = 1_704_067_200L // Mon, Jan 1 2024, 00:00 UTC
         const val HOUR = 3600L

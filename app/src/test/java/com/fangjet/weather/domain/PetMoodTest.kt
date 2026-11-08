@@ -1,6 +1,7 @@
-package com.fangjet.weather.ui.pets
+package com.fangjet.weather.domain
 
-import com.fangjet.weather.domain.PetWeatherThresholds
+import com.fangjet.weather.model.NightPart
+import com.fangjet.weather.model.nightPartAt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -10,6 +11,34 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
 class PetMoodTest {
+    @Test
+    fun `the reading's mood goes day or night by the clock, as the hero and the notifications show it`() {
+        // A clear reading taken at noon UTC, still cached at 10 PM: the night pets.
+        val noon = 1_704_067_200L + 12 * 3600
+        val reading = CurrentWeather(
+            cityName = "London",
+            conditionMain = "Clear",
+            description = "clear sky",
+            iconCode = "01d",
+            temperature = 15.0,
+            feelsLike = 15.0,
+            tempMin = 10.0,
+            tempMax = 18.0,
+            humidityPercent = 50,
+            pressureHpa = 1013,
+            windSpeed = 3.0,
+            windDeg = 180,
+            visibilityMeters = 10000,
+            cloudPercent = 0,
+            units = WeatherUnits.METRIC,
+            sunriseEpoch = noon - 5 * 3600,
+            sunsetEpoch = noon + 5 * 3600,
+            utcOffsetSeconds = 0,
+            observedAtEpochSeconds = noon,
+        )
+
+        assertEquals(PetMood.NIGHT, reading.petMoodAt(noon + 10 * 3600))
+    }
 
     @Test
     fun `precipitation and storms map to their moods regardless of temperature`() {

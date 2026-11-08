@@ -1,7 +1,5 @@
-package com.fangjet.weather.model
+package com.fangjet.weather.data
 
-import com.fangjet.weather.data.GeocodingRepository
-import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.domain.CitySuggestion
 import com.fangjet.weather.domain.SavedLocation
 import io.mockk.coEvery
@@ -29,7 +27,7 @@ import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class CityListViewModelTest {
+class CityRepositoryTest {
 
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
@@ -497,7 +495,7 @@ class CityListViewModelTest {
         geocodingRepo: GeocodingRepository = mockk<GeocodingRepository>(relaxed = true).also {
             coEvery { it.searchCities(any()) } returns Result.success(emptyList())
         },
-    ): CityListViewModel {
+    ): CityRepository {
         val repo = mockk<PreferencesRepository>(relaxed = true)
         every { repo.savedLocations } returns (savedLocationsFlow ?: flowOf(savedLocations))
         every { repo.activeLocationIndex } returns flowOf(activeIndex)
@@ -508,7 +506,7 @@ class CityListViewModelTest {
         coEvery { repo.setActiveLocationIndex(any()) } answers {
             onSetActiveIndex(firstArg())
         }
-        return CityListViewModel(repo, geocodingRepo, onCityAdded = onCityAdded)
+        return CityRepository(repo, geocodingRepo, onCityAdded = onCityAdded)
     }
 
     class MainDispatcherRule(

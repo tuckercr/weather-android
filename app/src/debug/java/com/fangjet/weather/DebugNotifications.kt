@@ -8,9 +8,8 @@ import androidx.work.ListenableWorker
 import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
 import com.fangjet.weather.data.PreferencesRepository
-import com.fangjet.weather.domain.CurrentWeather
+import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.notificationLocation
-import com.fangjet.weather.ui.pets.PetMood
 import com.fangjet.weather.util.NextRain
 import com.fangjet.weather.worker.NotificationKind
 import com.fangjet.weather.worker.WalkTimeWorker
@@ -61,8 +60,7 @@ class DebugNotifications : BroadcastReceiver() {
         val city = runBlocking {
             val location = preferences.savedLocations.first().notificationLocation()
             location
-                ?.let { preferences.getCachedWeatherFor(it.cacheKey) }
-                ?.let { runCatching { dependencies.json().decodeFromString<CurrentWeather>(it).cityName }.getOrNull() }
+                ?.let { preferences.getCachedWeather(it.cacheKey)?.cityName }
                 ?: location?.label?.takeUnless { location.isCurrentLocation }
                 ?: "Knoxville"
         }

@@ -28,19 +28,47 @@ WorkManager, and CI on GitHub Actions.
   chilly or mild, sunny (amber, Sunny in sunglasses) when it's warm, above `walk_comfort_max_c`,
   and hot from `pet_hot_threshold_c`. Captions
   name them ("Sunny wants puddles. Misty wants a towel."), and at night follow the city's time of
-  night (evening, late night, before dawn). The night sky shows the moon's real phase, lit from the
-  other side in the southern hemisphere.
+  night (evening, late night, before dawn). The caption follows the walk verdict (see **One walk
+  verdict** below): when now isn't the time for a walk, captions that suggest one ("Perfect walkies
+  weather! Off we go.") are left out, and when the reason is one the scene can't show it speaks to
+  that instead, in place of a seasonal theme's caption too: bad air by its pollutant ("Smoky air
+  today. Quick potty breaks, then back on the sofa."), hot pavement, or a gale and worse. The night
+  sky shows the moon's real phase, lit from the other side in the southern hemisphere.
 - **Best Walk Time** card: "Now is a great time", the next good hour ("Around 8 AM"), or "Not a good
   day for walkies" when nothing in the next 24 hours qualifies. A good hour is under 30% rain
   chance, at a comfortable feels-like temperature, within walking hours and in daylight, and
   below the warm-pavement limit (estimated, with Open-Meteo); when it is raining now, now never counts,
   whatever the hourly forecast says. A suggestion on the city's next calendar day reads "Tomorrow
   around…", judged in the city's own UTC offset. The paw is tinted by the rating, and a caption
-  explains hot pavement (naming the pavement only when it's the reason) or freezing weather. Users can turn it off in Settings (*I have a dog*, which hides the Paw Check tile too), and
-  `walk_card_enabled` hides it remotely.
+  gives the reason when it's more than a wait: the pavement now ("Paw check: about 55° now. Too hot
+  for paws."), heat or cold, the air by its pollutant ("Smoky air. Potty breaks only.", "High
+  ozone", "Dusty air"), a gale ("Gale force winds. Potty breaks only.") or thunderstorms. At
+  hurricane force the card becomes a "Danger" warning ("Hurricane force winds. Stay inside, away
+  from the windows."), shown even without a dog. Users can turn it off in Settings (*I have a
+  dog*, which hides the Paw Check tile too), and `walk_card_enabled` hides it remotely.
 - **Bad air in the walk planner**: hours at US "Unhealthy" or worse (Europe's "Poor" and up) are
-  never suggested, and the walk card says "Bad air. Potty breaks only." when the air is bad now.
-  Heat still outranks it. The band is tunable with `walk_bad_air_band`.
+  never suggested. The band is tunable with `walk_bad_air_band`.
+- **One walk verdict**: `walkCheckFor` (`ui/pets/WalkCheck.kt`) judges an hour once, and the hero's
+  caption, the walk card, the Air Quality tile's note and the notifications all read it, so they
+  can't disagree. The screen gets it from `WeatherForecastViewModel.walkAdvice`, and the notification
+  worker from the same `walkAdviceForReading`. Each factor has a small rule and a level, and the worst one wins:
+
+  | Level | When |
+  |---|---|
+  | Great | Nothing in the way |
+  | Fine | A walk, with a caveat: air one band short of bad, for older and flat-faced dogs |
+  | Wait | Rain or snow, a near gale (Beaufort 7), pavement getting hot, feels-like outside the comfort range, dark or outside the walking hours |
+  | Potty breaks only | Pavement too hot, too hot or too cold for pets, bad air (`walk_bad_air_band`), a gale (Beaufort 8) |
+  | Stay in | Dangerously hot pavement, the worst air band, thunderstorms, storm force wind (Beaufort 10) |
+  | Danger | Hurricane force wind (Beaufort 12) or gusts, or hurricane force wind forecast in the next 6 hours |
+
+  The reason carries its detail (the pollutant, the wind's force, the pavement's band) for each
+  screen to word. At the same level storms come first, then rain and snow, wind, the pavement,
+  heat, the air, cold and the dark. A walk now is fine or better; the hour under way is judged by
+  the current reading's feels-like, condition, wind and gusts (with the worse of rain now and the
+  hour's storms), the rest by the forecast. With `air_quality_enabled` off the air is left out, even
+  from a forecast cached before it went off, and without a dog (*I have a dog* off) so is the
+  pavement.
 - **Next rain** line under the top card, only when rain or snow is due in the next 2 hours: "Rain
   starting around 3:15 PM", "Rain stopping around 4:30 PM" or "Rain for the next 2 hours", from
   Open-Meteo's 15-minute forecast (0.1 mm in 15 minutes counts; it stops after 30 dry minutes).
@@ -94,8 +122,12 @@ WorkManager, and CI on GitHub Actions.
   is behaving").
 - **Air Quality** tile: the index on the city's scale (Europe's for cities on a European clock, the
   US one elsewhere), its band on a six-colour bar, and what it means for a walk, or for people
-  without a dog. It comes from Open-Meteo's hourly air quality forecast, fetched with the forecast in
-  one request and cached with it, so it shows offline too. `air_quality_enabled` switches it off.
+  without a dog. TalkBack also reads the main pollutant: the one with the highest index, except that
+  particles are dust ("coarse particles") when PM2.5 is under a third of PM10 by mass, since a dust
+  storm can push PM2.5's index off the scale while PM10 gets none. The walk card, hero and
+  notifications name it ("Smoky air", "Dusty air", "High ozone"). It comes from Open-Meteo's hourly
+  air quality forecast, fetched with the forecast in one request and cached with it, so it shows
+  offline too. `air_quality_enabled` switches it off.
 - **Update prompts**: below `android_min_supported_version` the app shows only "Time for an update";
   below `android_min_recommended_version` a banner offers the update, and *Not now* hides it for a
   week. Both open the Play Store listing.
@@ -403,7 +435,7 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `walk_hours_end` | number | `20` | Last local hour a walk may be suggested (inclusive); whole number, valid 0–23, and after `walk_hours_start` |
 | `pet_hot_threshold_c` | number | `30` | At or above this °C (feels-like) the pets look hot and the walk rating is *Paws hot*; valid 20–45, and above `pet_cold_threshold_c` |
 | `pet_cold_threshold_c` | number | `0` | At or below this °C (feels-like) the pets look cold and the walk rating is *Too cold*; valid -20–10, and below `pet_hot_threshold_c` |
-| `walk_bad_air_band` | number | `3` | Air quality band (0 good to 5 worst) from which hours aren't suggested for a walk and the walk rating is *Bad air*. 3 is US "Unhealthy" and Europe's "Poor"; valid 1–5 |
+| `walk_bad_air_band` | number | `3` | Air quality band (0 good to 5 worst) from which a walk is potty breaks only: hours aren't suggested, the walk card and hero say why, and the Air Quality tile says "Potty breaks only today". 3 is US "Unhealthy" and Europe's "Poor"; the worst band (5) keeps pets inside whatever this is; valid 1–5 |
 | `analytics_enabled` | boolean | `true` | Analytics kill switch; see [Gates](#gates) |
 | `tile_feels_like_enabled`, `tile_wind_enabled`, `tile_humidity_enabled`, `tile_paw_check_enabled`, `tile_daylight_enabled`, `tile_sky_enabled` | boolean | `true` | One switch per Today tile (`tile_sky_enabled` is Misty's View, the sky and visibility tile); false hides that tile for everyone |
 | `tile_uv_enabled` | boolean | `false` | The UV index tile; while off, UV stays in the Daylight tile's header (it still gets its own tile when there's no Daylight tile) |
@@ -470,6 +502,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `PetWeatherThresholdsTest` | Remote Config threshold validation: ranges, non-finite values, and pair ordering fallbacks |
 | `:app` | `PetMoodTest` | Pet mood selection by conditions, temperature, and night, with configurable hot/cold cut-offs; night captions by the city's local hour |
 | `:app` | `WalkAdvisorTest` | Walk rating and best time: rain, comfort range, walking hours, daylight, raining now, pavement heat, imperial input, "tomorrow" in the city's calendar, 24-hour cap |
+| `:app` | `WalkCheckTest` | The walk verdict's levels for wind (near gale to hurricane force), air (by `walk_bad_air_band`), pavement, heat, cold, storms, rain and the dark; the order of reasons; pollutant names; the walk card's captions and danger rating; the hero's reason captions and leaving out walk captions; the Air Quality tile following the walk rules |
 | `:app` | `MoonPhaseTest` | The moon's phase from the date, checked against published phases |
 | `:app` | `WeatherIconTest` | Icon for each condition by day and night, moon phases, and southern-hemisphere mirroring |
 | `:app` | `CalmWindTest` | Calm wind reads as 0, and visibility at the 10 km cap reads as clear |
@@ -481,10 +514,11 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `RainOutlookTest` | When the rain outlook shows (minimum chance, switch, window size), its headline (now or around, likely or a chance, the next-rain line's words), drying out, the total in mm or inches, and the bars |
 | `:app` | `LocaleWeatherUnitsTest` | An explicit Celsius/Fahrenheit system preference beats the locale; unknown falls back to it |
 | `:app` | `WelcomeViewModelTest` | Onboarding state and persistence |
-| `:app` | `CityListViewModelTest` | Add, remove, reorder, active-city tracking, legacy single-city migration, and `city_added` firing |
+| `:app` | `CityRepositoryTest` | Add, remove, reorder, active-city tracking, legacy single-city migration, and `city_added` firing |
 | `:app` | `GeoLocationViewModelTest` | City autocomplete: short input, latest search wins, a failed search told apart from finding nothing |
 | `:app` | `AddLocationRulesTest` | Add location's button: the first row named what was typed (accents ignored), the size check that stops "Nas" adding Nås, saved places (label or within 2 km, never My Location) gone to, and failed or empty searches |
-| `:app` | `LocationPermissionViewModelTest` | Current-location lookup: permission denial, cached vs current location, failure |
+| `:app` | `LocationPermissionViewModelTest` | Current-location lookup: permission denial, cached vs current location, failure, and `LocationRepository`'s position reads |
+| `:app` | `WeatherScreenStepsTest` | The weather screen's refreshes and My Location steps |
 | `:app` | `NotificationWorkerLogicTest` | Briefing text, walk-time planning and nudge, rain alerts (lead, quiet hours, once per shower), city-timezone "today" matching, and the switches |
 | `:app` | `UpdateWorkerLogicTest` | Background refresh result routing, caching, and resolved units |
 

@@ -1,6 +1,6 @@
 package com.fangjet.weather.worker
 
-import com.fangjet.weather.model.DeviceLocation
+import com.fangjet.weather.data.DeviceLocation
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test

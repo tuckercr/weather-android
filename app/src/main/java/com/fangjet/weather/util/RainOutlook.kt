@@ -28,7 +28,7 @@ data class RainOutlook(
 sealed interface RainOutlookHeadline {
     /** The next-rain line's own words ("Rain starting around 3:15 PM"): the card takes its place. */
     data class NextRain(
-        val text: String,
+        val nextRain: com.fangjet.weather.util.NextRain,
     ) : RainOutlookHeadline
 
     /** The peak is [LIKELY_CHANCE] or more: "Rain likely now", or around [hour] when it's later. */
@@ -84,14 +84,14 @@ private const val WHOLE_MM_FROM = 10.0
 /**
  * The card for [slots] (from the hour in progress, as the hourly strip shows them), or null when
  * it's switched off or no hour in the first [RainOutlookSettings.hours] reaches
- * [RainOutlookSettings.minChance]. [nextRainText] is the next-rain line's text when that line
- * would show: the card replaces the line and uses it as its headline.
+ * [RainOutlookSettings.minChance]. [nextRain] is the next-rain line when it would show: the
+ * card replaces the line and uses its words as its headline.
  */
 fun rainOutlook(
     slots: List<HourlySlot>,
     settings: RainOutlookSettings,
     units: WeatherUnits,
-    nextRainText: String?,
+    nextRain: NextRain?,
     locale: Locale = Locale.getDefault(),
 ): RainOutlook? {
     if (!settings.enabled) return null
@@ -103,7 +103,7 @@ fun rainOutlook(
     val peak = chances.indexOf(chances.max())
     val peakHour = window[peak].timeLabel.takeIf { peak > 0 }
     val headline = when {
-        nextRainText != null -> RainOutlookHeadline.NextRain(nextRainText)
+        nextRain != null -> RainOutlookHeadline.NextRain(nextRain)
         chances[peak] >= LIKELY_CHANCE -> RainOutlookHeadline.Likely(peakHour)
         else -> RainOutlookHeadline.Chance(peakHour)
     }

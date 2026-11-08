@@ -89,6 +89,9 @@
     <string name="radar_play">Play radar animation</string>
     <string name="radar_pause">Pause radar animation</string>
     <string name="radar_frame">Radar frame</string>
+    <!-- The radar's frame time: %1$s is the time, "7:50 AM". -->
+    <string name="radar_frame_now">Now · %1$s</string>
+    <string name="radar_frame_forecast">Forecast · %1$s</string>
     <string name="radar_legend_light">Light</string>
     <string name="radar_legend_heavy">Heavy</string>
     <string name="radar_credit_osm">© OpenStreetMap contributors</string>
@@ -190,8 +193,15 @@
     <string name="settings_manage_locations">Manage Locations</string>
 
     <!-- Pet scene captions, in the pets' voice: Sunny is the dog, Misty the cat. One is picked per day. -->
+    <!-- Captions that suggest a walk now: left out when the walk verdict says now isn't the time
+         (PetScene's WALK_SUGGESTIONS lists them). -->
+    <string name="caption_fair_walkies">Perfect walkies weather! Off we go.</string>
+    <string name="caption_cloudy_keen">A bit grey, but Sunny is still keen for a walk.</string>
+    <string name="caption_cloudy_stroll">No sun, no problem. Still time for a stroll.</string>
+    <string name="caption_evening_last_stroll">Quiet night. Time for one last stroll before bed?</string>
+    <string name="caption_evening_lap">Sunny thinks there\'s time for one more lap of the block.</string>
     <string-array name="pet_caption_fair">
-        <item>Perfect walkies weather! Off we go.</item>
+        <item>@string/caption_fair_walkies</item>
         <item>Misty has claimed the sunniest windowsill.</item>
         <item>Sunshine and tail wags all round.</item>
     </string-array>
@@ -201,9 +211,9 @@
         <item>Misty has claimed the sunniest windowsill.</item>
     </string-array>
     <string-array name="pet_caption_cloudy">
-        <item>A bit grey, but Sunny is still keen for a walk.</item>
+        <item>@string/caption_cloudy_keen</item>
         <item>Nap weather, says Misty.</item>
-        <item>No sun, no problem. Still time for a stroll.</item>
+        <item>@string/caption_cloudy_stroll</item>
     </string-array>
     <string-array name="pet_caption_rain">
         <item>Sunny wants puddles. Misty wants a towel.</item>
@@ -228,8 +238,8 @@
     </string-array>
     <!-- Night is split by the city's local hour, so a 3 AM caption doesn't suggest an evening stroll. -->
     <string-array name="pet_caption_night_evening">
-        <item>Quiet night. Time for one last stroll before bed?</item>
-        <item>Sunny thinks there\'s time for one more lap of the block.</item>
+        <item>@string/caption_evening_last_stroll</item>
+        <item>@string/caption_evening_lap</item>
     </string-array>
     <string-array name="pet_caption_night_late">
         <item>Sunny and Misty are curled up asleep.</item>
@@ -321,7 +331,35 @@
     <string name="walk_none">Not a good day for walkies</string>
     <string name="walk_too_hot">Too hot for paws.</string>
     <string name="walk_too_cold">Too cold for paws.</string>
-    <string name="walk_bad_air">Bad air. Potty breaks only.</string>
+    <string name="walk_danger_title">Danger</string>
+    <string name="walk_danger_hurricane">Hurricane force winds</string>
+    <string name="walk_danger_stay_inside">Stay inside, away from the windows.</string>
+    <string name="walk_gale">Gale force winds. Potty breaks only.</string>
+    <string name="walk_storm_wind">Storm force winds. Keep pets inside.</string>
+    <string name="walk_storms">Thunderstorms. Keep pets inside.</string>
+    <!-- %1$s is the air's name: walk_air_smoky, walk_air_dusty, walk_air_ozone or walk_air_bad. -->
+    <string name="walk_air_potty">%1$s. Potty breaks only.</string>
+    <string name="walk_air_stay_in">%1$s. Stay in. Potty breaks only.</string>
+    <string name="walk_air_bad">Bad air</string>
+    <string name="walk_air_poor">Poor air</string>
+    <string name="walk_air_smoky">Smoky air</string>
+    <string name="walk_air_dusty">Dusty air</string>
+    <string name="walk_air_ozone">High ozone</string>
+    <!-- The hero's caption when the walk is off for a reason the scene can't show. %1$s is the air's
+         name (walk_air_smoky, walk_air_dusty, walk_air_ozone or walk_air_poor). -->
+    <string name="hero_air_1">%1$s today. Quick potty breaks, then back on the sofa.</string>
+    <string name="hero_air_2">The air\'s not great. Sunny\'s big walk can wait.</string>
+    <string name="hero_air_no_dog_1">%1$s today. Misty\'s keeping the windows shut.</string>
+    <string name="hero_air_no_dog_2">The air\'s not great. Misty is happy indoors.</string>
+    <string name="hero_pavement_1">Hot pavement! Sunny\'s sticking to the grass today.</string>
+    <string name="hero_pavement_2">Too hot underfoot. Short trips on the grass.</string>
+    <string name="hero_gale_1">Gale force winds! Quick potty breaks, then back in.</string>
+    <string name="hero_gale_2">Blowy out there. Misty won\'t go near the door.</string>
+    <string name="hero_gale_no_dog_1">Gale force winds! Misty won\'t go near the door.</string>
+    <string name="hero_gale_no_dog_2">Blowy out there. Misty is staying put.</string>
+    <string name="hero_storm_wind_1">Storm force winds. Everyone stays in today.</string>
+    <string name="hero_storm_wind_2">Misty is under the bed until this wind drops.</string>
+    <string name="hero_hurricane">Hurricane force winds! Everyone inside, away from the windows.</string>
     <!-- After "Now is a great time": the good spell ends at %1$s (an hour, such as "5 PM"). -->
     <string name="walk_until_storms">Good until %1$s, then storms.</string>
     <string name="walk_until_maybe_storms">Good until %1$s, then maybe storms.</string>
@@ -347,9 +385,9 @@
     <string name="uv_high">High</string>
     <string name="uv_very_high">Very high</string>
     <string name="uv_extreme">Extreme</string>
-    <string name="walk_pavement">Paw check: about %1$d°. Too hot for paws.</string>
-    <string name="walk_pavement_dangerous">Paw check: about %1$d°. Dangerously hot.</string>
-    <string name="walk_pavement_warm">Paw check: about %1$d°. Getting hot.</string>
+    <string name="walk_pavement">Paw check: about %1$d° now. Too hot for paws.</string>
+    <string name="walk_pavement_dangerous">Paw check: about %1$d° now. Dangerously hot.</string>
+    <string name="walk_pavement_warm">Paw check: about %1$d° now. Getting hot.</string>
 
     <!-- Today tiles -->
     <string name="label_pavement">Paw Check</string>

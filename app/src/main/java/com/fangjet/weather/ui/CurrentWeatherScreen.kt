@@ -58,13 +58,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,7 +92,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
@@ -104,30 +99,23 @@ import com.fangjet.weather.R
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
-import com.fangjet.weather.domain.PetWeatherThresholds
-import com.fangjet.weather.domain.RainOutlookSettings
+import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.SavedLocation
-import com.fangjet.weather.domain.SeasonalTheme
-import com.fangjet.weather.domain.SeasonalThemes
-import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.WeatherUnits
-import com.fangjet.weather.model.CityListViewModel
 import com.fangjet.weather.model.LoadingState
-import com.fangjet.weather.model.LocationFetchState
 import com.fangjet.weather.model.LocationPermissionViewModel
-import com.fangjet.weather.model.RadarViewModel
-import com.fangjet.weather.model.SettingsViewModel
 import com.fangjet.weather.model.UpdatePromptViewModel
 import com.fangjet.weather.model.WeatherForecastViewModel
-import com.fangjet.weather.ui.pets.PetMood
+import com.fangjet.weather.model.WeatherScreen
+import com.fangjet.weather.model.WeatherScreenConfig
+import com.fangjet.weather.model.WeatherScreenState
+import com.fangjet.weather.model.WeekSection
+import com.fangjet.weather.model.weatherScreen
 import com.fangjet.weather.ui.pets.PetScene
 import com.fangjet.weather.ui.pets.WalkCard
 import com.fangjet.weather.ui.pets.inkColor
-import com.fangjet.weather.ui.pets.isPrecipitating
-import com.fangjet.weather.ui.pets.petCaption
-import com.fangjet.weather.ui.pets.petMoodFor
+import com.fangjet.weather.ui.pets.resolve
 import com.fangjet.weather.ui.pets.skyColor
-import com.fangjet.weather.ui.pets.walkAdviceFor
 import com.fangjet.weather.ui.theme.CatsDogsTheme
 import com.fangjet.weather.ui.theme.StaleBannerBg
 import com.fangjet.weather.ui.theme.StaleBannerText
@@ -139,137 +127,45 @@ import com.fangjet.weather.util.ReadingDay
 import com.fangjet.weather.util.SunEvent
 import com.fangjet.weather.util.UpdatePrompt
 import com.fangjet.weather.util.besideRainChance
-import com.fangjet.weather.util.forecastAsCurrent
-import com.fangjet.weather.util.fromCurrentSlot
+import com.fangjet.weather.util.displayedRainChance
+import com.fangjet.weather.util.formatEpochTime
 import com.fangjet.weather.util.hourlyStrip
-import com.fangjet.weather.util.iconCodeAt
-import com.fangjet.weather.util.isDarkAt
-import com.fangjet.weather.util.isTooOldToShowAsNow
+import com.fangjet.weather.util.isCalmWind
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.rainOutlook
 import com.fangjet.weather.util.readingDay
-import com.fangjet.weather.util.sunEvents
 import com.fangjet.weather.util.usesMilesForDistance
-import com.fangjet.weather.util.withSunTimesToday
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.math.roundToInt
-import kotlin.time.Duration.Companion.minutes
-
-/** How often an open screen re-reads the clock and quietly refreshes the weather. */
-private val AUTO_REFRESH_INTERVAL = 30.minutes
-
-/** How often old weather is re-checked against the cutoff while a refresh keeps failing. */
-private val STALE_RECHECK_INTERVAL = 5.minutes
 
 /**
  * "My Location" for screens that can add it. Returns the Add location screen's "Add My Location"
  * action, or null when it's already in the list or the system won't ask for location any more. Without
  * access it asks first, so "Only this time" / "Ask every time" users can still add it. Access is
  * re-read on every resume, so changing it in system settings shows or hides the action on return.
- *
- * With [autoAdd] (the main screen) it also:
- * - adds it unprompted once access turns up after onboarding went without it: granted later in
- *   Settings, say. Only when there are no cities yet, or access has just changed to granted, so
- *   someone who removed My Location on purpose doesn't get it back on every resume. That check
- *   waits for [locationsLoaded]: before the saved cities have loaded, the empty list would read
- *   as "no cities yet".
- * - re-reads the device's position on every resume while My Location is saved and access is on,
- *   passing it to [onRefreshed], so My Location follows the device rather than staying where it
- *   was added.
+ * The weather screen adds and moves My Location by itself: see [WeatherForecastViewModel].
  */
 @Composable
 internal fun rememberAddMyLocation(
     locations: List<SavedLocation>,
     onLocated: (SavedLocation) -> Unit,
-    autoAdd: Boolean = false,
-    locationsLoaded: Boolean = true,
-    onRefreshed: (SavedLocation) -> Unit = {},
-    // Whether a saved My Location is due a move check (at most every 15 minutes).
-    claimRefresh: () -> Boolean = { true },
     viewModel: LocationPermissionViewModel = hiltViewModel(),
 ): (() -> Unit)? {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    val hasCurrentLocation = locations.any { it.isCurrentLocation }
-    var granted by remember { mutableStateOf(viewModel.hasLocationPermission()) }
-    var wasGranted by rememberSaveable { mutableStateOf(granted) }
-    // Whether the fetch under way is to add My Location, rather than to move a saved one.
-    var fetchingToAdd by rememberSaveable { mutableStateOf(false) }
-    var resumeCount by remember { mutableIntStateOf(0) }
-    val currentHasCurrentLocation by rememberUpdatedState(hasCurrentLocation)
-    val currentHasAnyLocation by rememberUpdatedState(locations.isNotEmpty())
+    val offered by viewModel.myLocationOffered.collectAsStateWithLifecycle()
     val requestPermission = rememberLocationPermissionRequest(viewModel)
-
-    val lifecycleOwner = LocalLifecycleOwner.current
-    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event != Lifecycle.Event.ON_RESUME) return@LifecycleEventObserver
-            granted = viewModel.hasLocationPermission()
-            resumeCount++
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    if (autoAdd) {
-        LaunchedEffect(resumeCount, locationsLoaded) {
-            if (resumeCount == 0 || !locationsLoaded) return@LaunchedEffect
-            val newlyGranted = granted && !wasGranted
-            wasGranted = granted
-            when {
-                !granted -> Unit
-                currentHasCurrentLocation -> {
-                    if (claimRefresh()) {
-                        fetchingToAdd = false
-                        viewModel.fetchLocation()
-                    }
-                }
-                newlyGranted || !currentHasAnyLocation -> {
-                    fetchingToAdd = true
-                    viewModel.fetchLocation()
-                }
-            }
-        }
-    }
-
+    OnResume(viewModel::refreshAccess)
+    val currentLocations by rememberUpdatedState(locations)
+    val currentOnLocated by rememberUpdatedState(onLocated)
     val context = LocalContext.current
-    LaunchedEffect(state) {
-        // A fix that fails to add My Location says so here.
-        if (state == LocationFetchState.Failed && fetchingToAdd) {
-            fetchingToAdd = false
-            Toast.makeText(context, R.string.add_my_location_failed, Toast.LENGTH_LONG).show()
-        }
-        val located = state as? LocationFetchState.Located ?: return@LaunchedEffect
-        // Handled once: a Located still held when this screen comes back (from another screen,
-        // or after rotation) must not re-add a My Location the user has since removed.
-        viewModel.consumeLocated()
-        when {
-            currentHasCurrentLocation -> onRefreshed(located.location)
-            // A position read only to move My Location, arriving after it was removed, adds nothing.
-            fetchingToAdd -> onLocated(located.location)
-        }
-        fetchingToAdd = false
+    LaunchedEffect(viewModel) {
+        // Not when My Location turned up meanwhile, from the weather screen say.
+        viewModel.myLocationAdded.collect { if (currentLocations.none { it.isCurrentLocation }) currentOnLocated(it) }
     }
-
-    // Re-read on recomposition, so an answer in the system dialog shows or hides it at once.
-    val canAsk = !granted && viewModel.canRequestPermission()
-    return when {
-        hasCurrentLocation -> null
-        granted -> {
-            {
-                fetchingToAdd = true
-                viewModel.fetchLocation()
-            }
-        }
-        canAsk -> {
-            {
-                fetchingToAdd = true
-                requestPermission()
-            }
-        }
-        else -> null
+    LaunchedEffect(viewModel) {
+        viewModel.addMyLocationFailed.collect { Toast.makeText(context, R.string.add_my_location_failed, Toast.LENGTH_LONG).show() }
     }
+    if (locations.any { it.isCurrentLocation } || !offered) return null
+    return { if (viewModel.addMyLocation()) requestPermission() }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -279,110 +175,54 @@ fun CurrentWeatherRoute(
     onAddLocation: () -> Unit = {},
 ) {
     val activity = LocalActivity.current as ComponentActivity
-    val cityListViewModel = hiltViewModel<CityListViewModel>(viewModelStoreOwner = activity)
-    val weatherForecastViewModel =
-        hiltViewModel<WeatherForecastViewModel>(viewModelStoreOwner = activity)
-    // Same owner RadarCard uses, so this is the instance that would load the timeline.
-    val radarEnabled = hiltViewModel<RadarViewModel>().radarEnabled
-    val settingsViewModel = hiltViewModel<SettingsViewModel>(viewModelStoreOwner = activity)
+    // What the screen shows and does when: refreshes and My Location. It only gets told what happened.
+    val viewModel = hiltViewModel<WeatherForecastViewModel>(viewModelStoreOwner = activity)
     // The activity's instance, the one that decides whether the app is blocked for an update.
     val updatePromptViewModel = hiltViewModel<UpdatePromptViewModel>(viewModelStoreOwner = activity)
     val updatePrompt by updatePromptViewModel.prompt.collectAsStateWithLifecycle()
-    val unitOverride by settingsViewModel.unitOverride.collectAsStateWithLifecycle()
-    // The user's Settings choice; Remote Config walk_card_enabled can also hide it for everyone.
-    val showWalkCard by settingsViewModel.showWalkCard.collectAsStateWithLifecycle()
+    val unitOverride by viewModel.unitOverride.collectAsStateWithLifecycle()
     val distanceInMiles = LocalContext.current.usesMilesForDistance(unitOverride)
 
-    val locations by cityListViewModel.locations.collectAsStateWithLifecycle()
-    val activeIndex by cityListViewModel.activeIndex.collectAsStateWithLifecycle()
-    val activeLocation by cityListViewModel.activeLocation.collectAsStateWithLifecycle()
-    val weatherState by weatherForecastViewModel.currentWeather.collectAsStateWithLifecycle()
-    val forecastState by weatherForecastViewModel.forecast.collectAsStateWithLifecycle()
-    val isRefreshing by weatherForecastViewModel.isRefreshing.collectAsStateWithLifecycle()
-    val staleErrorKey by weatherForecastViewModel.staleErrorKey.collectAsStateWithLifecycle()
-    // The same instance rememberAddMyLocation uses.
-    val locationPermissionViewModel = hiltViewModel<LocationPermissionViewModel>()
-    val scope = rememberCoroutineScope()
-    // A pull on My Location waits for the device's position before fetching; the spinner stays up.
-    var pullLocating by remember { mutableStateOf(false) }
+    val locations by viewModel.locations.collectAsStateWithLifecycle()
+    val activeIndex by viewModel.activeIndex.collectAsStateWithLifecycle()
+    val screen by viewModel.screen.collectAsStateWithLifecycle()
+    val staleErrorKey by viewModel.staleErrorKey.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
 
-    // Full refresh whenever the active location changes
-    LaunchedEffect(activeLocation) {
-        activeLocation?.let {
-            weatherForecastViewModel.refreshCurrent(it)
-            weatherForecastViewModel.refreshForecast(it)
-        }
-    }
-
-    // Silent background refresh on every foreground resume (picks up new units or stale data)
-    val currentActiveLocation by rememberUpdatedState(activeLocation)
     val lifecycleOwner = LocalLifecycleOwner.current
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                currentActiveLocation?.let {
-                    weatherForecastViewModel.backgroundRefreshCurrent(it)
-                    weatherForecastViewModel.backgroundRefreshForecast(it)
-                }
-                cityListViewModel.fillInMissingCoordinates()
-            }
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.becameActive()
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-
-    // And the same quiet refresh every half hour while the screen stays open (left on a stand
-    // overnight, say), which also moves the hourly strip and captions on.
     LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            while (true) {
-                delay(AUTO_REFRESH_INTERVAL)
-                currentActiveLocation?.let {
-                    weatherForecastViewModel.backgroundRefreshCurrent(it)
-                    weatherForecastViewModel.backgroundRefreshForecast(it)
-                }
-            }
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) { viewModel.refreshWhileActive() }
+    }
+    LaunchedEffect(lifecycleOwner, staleErrorKey) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) { viewModel.recheckWhileStale() }
+    }
+
+    val context = LocalContext.current
+    LaunchedEffect(viewModel) {
+        viewModel.addMyLocationFailed.collect {
+            Toast.makeText(context, R.string.add_my_location_failed, Toast.LENGTH_LONG).show()
         }
     }
 
-    val locationsLoaded by cityListViewModel.locationsLoaded.collectAsStateWithLifecycle()
-    // Adds My Location unprompted and keeps it where the device is; adding it by hand is on the
-    // Add location screen.
-    rememberAddMyLocation(
-        locations = locations,
-        onLocated = cityListViewModel::addLocation,
-        autoAdd = true,
-        locationsLoaded = locationsLoaded,
-        onRefreshed = { cityListViewModel.updateCurrentLocation(it) },
-        claimRefresh = { cityListViewModel.claimMyLocationCheck() },
-        viewModel = locationPermissionViewModel,
-    )
-
     CompositionLocalProvider(
         LocalDistanceInMiles provides distanceInMiles,
-        LocalTemperatureUnitsShown provides weatherForecastViewModel.temperatureUnitsShown,
+        LocalTemperatureUnitsShown provides viewModel.temperatureUnitsShown,
     ) {
         CurrentWeatherScreen(
             locations = locations,
             activeIndex = activeIndex,
-            weatherState = weatherState,
-            forecastState = forecastState,
-            isRefreshing = isRefreshing || pullLocating,
-            staleErrorKey = staleErrorKey,
-            radarEnabled = radarEnabled,
-            walkCardEnabled = weatherForecastViewModel.walkCardEnabled && showWalkCard,
-            hourlyForecastEnabled = weatherForecastViewModel.hourlyForecastEnabled,
-            nextRainEnabled = weatherForecastViewModel.nextRainEnabled,
-            weekForecastEnabled = weatherForecastViewModel.weekForecastEnabled,
-            rainOutlookSettings = weatherForecastViewModel.rainOutlookSettings,
-            dogWalking = showWalkCard,
-            airQualityEnabled = weatherForecastViewModel.airQualityEnabled,
-            todayTiles = weatherForecastViewModel.todayTiles,
-            seasonalThemes = weatherForecastViewModel.seasonalThemes,
-            petWeatherThresholds = weatherForecastViewModel.petWeatherThresholds,
-            onTabSelected = cityListViewModel::setActiveIndex,
+            screen = screen,
+            isRefreshing = isRefreshing,
+            onTabSelected = viewModel::selectCity,
             onOpenSettings = {
-                weatherForecastViewModel.logSettingsOpened()
+                viewModel.logSettingsOpened()
                 onOpenSettings()
             },
             onAddCityClick = onAddLocation,
@@ -394,34 +234,9 @@ fun CurrentWeatherRoute(
                     )
                 }
             },
-            onRefresh = {
-                // On My Location, read the device's position first, whatever the 15-minute limit, so
-                // My Location moves (by the usual 1 km rule) before its weather is fetched. A drive
-                // with the screen on never resumes the app, so this is how to catch up by hand.
-                scope.launch {
-                    val pulled = activeLocation
-                    if (pulled?.isCurrentLocation == true) {
-                        pullLocating = true
-                        val here = locationPermissionViewModel.currentPosition()
-                        pullLocating = false
-                        if (here != null) {
-                            cityListViewModel.noteMyLocationChecked()
-                            // A move changes the active location, which fetches its weather.
-                            if (cityListViewModel.updateCurrentLocation(here)) return@launch
-                        }
-                    }
-                    pulled?.let {
-                        weatherForecastViewModel.refreshCurrent(it)
-                        weatherForecastViewModel.refreshForecast(it)
-                    }
-                }
-            },
-        ) {
-            activeLocation?.let {
-                weatherForecastViewModel.refreshCurrent(it)
-                weatherForecastViewModel.refreshForecast(it)
-            }
-        }
+            onRefresh = viewModel::pulledToRefresh,
+            onRetry = viewModel::retry,
+        )
     }
 }
 
@@ -431,29 +246,9 @@ fun CurrentWeatherScreen(
     modifier: Modifier = Modifier,
     locations: List<SavedLocation>,
     activeIndex: Int,
-    weatherState: LoadingState<CurrentWeather>,
-    forecastState: LoadingState<List<DayForecast>> = LoadingState.Idle,
+    // What to show for the active city, worked out by the weather view model.
+    screen: WeatherScreen,
     isRefreshing: Boolean = false,
-    // Set when the last refresh failed and the weather shown is cached; see StaleWeatherBanner.
-    staleErrorKey: String? = null,
-    radarEnabled: Boolean = true,
-    walkCardEnabled: Boolean = true,
-    // Remote Config hourly_forecast_enabled, next_rain_enabled and week_forecast_enabled: off hides
-    // the HOURLY section, the next-rain line and the rest of the week.
-    hourlyForecastEnabled: Boolean = true,
-    nextRainEnabled: Boolean = true,
-    weekForecastEnabled: Boolean = true,
-    // Remote Config rain_outlook_*: whether the rain outlook card shows, and what it charts.
-    rainOutlookSettings: RainOutlookSettings = RainOutlookSettings(),
-    // Settings' Dog walking switch: off hides the Paw check tile (the walk card follows walkCardEnabled).
-    dogWalking: Boolean = true,
-    // Remote Config air_quality_enabled: off hides the Air quality tile.
-    airQualityEnabled: Boolean = true,
-    // Remote Config tile_*_enabled: which Today tiles show.
-    todayTiles: TodayTileSwitches = TodayTileSwitches(),
-    // Remote Config seasonal_themes (or the shipped list).
-    seasonalThemes: List<SeasonalTheme> = emptyList(),
-    petWeatherThresholds: PetWeatherThresholds = PetWeatherThresholds.DEFAULT,
     onTabSelected: (Int) -> Unit,
     onOpenSettings: () -> Unit = {},
     onAddCityClick: () -> Unit,
@@ -462,9 +257,6 @@ fun CurrentWeatherScreen(
     topBanner: @Composable () -> Unit = {},
     onRetry: () -> Unit,
 ) {
-    // Each pull also re-reads the clock, so the hourly strip and captions move on even when the
-    // weather itself hasn't changed.
-    var pullCount by remember { mutableIntStateOf(0) }
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -544,10 +336,7 @@ fun CurrentWeatherScreen(
         } else {
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
-                onRefresh = {
-                    pullCount++
-                    onRefresh()
-                },
+                onRefresh = onRefresh,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
@@ -561,8 +350,8 @@ fun CurrentWeatherScreen(
                         .padding(top = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    when (weatherState) {
-                        LoadingState.Idle, LoadingState.Loading -> Box(
+                    when (screen) {
+                        WeatherScreen.Loading -> Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 48.dp),
@@ -571,70 +360,31 @@ fun CurrentWeatherScreen(
                             CircularProgressIndicator()
                         }
 
-                        is LoadingState.Error -> WeatherErrorState(
-                            errorKey = weatherState.errorKey,
-                            canRetry = weatherState.canRetry,
+                        is WeatherScreen.Error -> WeatherErrorState(
+                            errorKey = screen.errorKey,
+                            canRetry = screen.canRetry,
                             onRetry = onRetry,
+                            lastUpdated = screen.oldReading?.let { readingTimeText(it, screen.nowEpochSeconds) },
                         )
 
-                        is LoadingState.Success -> {
-                            val cached = weatherState.data
-                            // Re-read on each pull, and every few minutes while the data is old, so a
-                            // reading that passes the cutoff gives way to the forecast for this hour.
-                            val nowEpoch by produceState(Instant.now().epochSecond, pullCount, staleErrorKey) {
-                                while (true) {
-                                    value = Instant.now().epochSecond
-                                    if (staleErrorKey == null) break
-                                    delay(STALE_RECHECK_INTERVAL)
-                                }
-                            }
-                            // Past the cutoff, the old reading isn't shown as "now": the cached
-                            // forecast's current hour stands in, or the error if it doesn't cover now.
-                            val tooOld = staleErrorKey != null && cached.isTooOldToShowAsNow(nowEpoch)
-                            val forecastNow = if (tooOld) {
-                                (forecastState as? LoadingState.Success)?.data?.let { forecastAsCurrent(cached, it, nowEpoch) }
-                            } else {
-                                null
-                            }
-                            if (tooOld && forecastNow == null) {
-                                WeatherErrorState(
-                                    errorKey = staleErrorKey.orEmpty(),
-                                    canRetry = true,
-                                    onRetry = onRetry,
-                                    lastUpdated = readingTimeText(cached, nowEpoch),
+                        is WeatherScreen.Weather -> {
+                            val state = screen.state
+                            state.stale?.let {
+                                StaleWeatherBanner(
+                                    weather = it.reading,
+                                    errorKey = it.errorKey,
+                                    showingForecast = state.showingForecast,
+                                    nowEpochSeconds = state.nowEpochSeconds,
                                 )
-                            } else {
-                                if (staleErrorKey != null) {
-                                    StaleWeatherBanner(
-                                        weather = cached,
-                                        errorKey = staleErrorKey,
-                                        showingForecast = forecastNow != null,
-                                        nowEpochSeconds = nowEpoch,
-                                    )
-                                }
-                                val location = locations.getOrNull(activeIndex)
-                                // The moon (hero scene and night icons) is lit from the other side down south.
-                                CompositionLocalProvider(LocalSouthernHemisphere provides ((location?.latitude ?: 0.0) < 0)) {
-                                    CurrentWeatherContent(
-                                        weather = forecastNow ?: cached,
-                                        showingForecast = forecastNow != null,
-                                        forecastState = forecastState,
-                                        location = location,
-                                        radarEnabled = radarEnabled,
-                                        walkCardEnabled = walkCardEnabled,
-                                        hourlyForecastEnabled = hourlyForecastEnabled,
-                                        nextRainEnabled = nextRainEnabled,
-                                        weekForecastEnabled = weekForecastEnabled,
-                                        rainOutlookSettings = rainOutlookSettings,
-                                        dogWalking = dogWalking,
-                                        airQualityEnabled = airQualityEnabled,
-                                        todayTiles = todayTiles,
-                                        seasonalThemes = seasonalThemes,
-                                        petWeatherThresholds = petWeatherThresholds,
-                                        refreshCount = pullCount,
-                                        onForecastRetry = onRetry,
-                                    )
-                                }
+                            }
+                            val location = locations.getOrNull(activeIndex)
+                            // The moon (hero scene and night icons) is lit from the other side down south.
+                            CompositionLocalProvider(LocalSouthernHemisphere provides ((location?.latitude ?: 0.0) < 0)) {
+                                CurrentWeatherContent(
+                                    state = state,
+                                    location = location,
+                                    onForecastRetry = onRetry,
+                                )
                             }
                         }
                     }
@@ -682,109 +432,20 @@ private fun EmptyLocationsState(
 
 @Composable
 private fun CurrentWeatherContent(
-    weather: CurrentWeather,
-    forecastState: LoadingState<List<DayForecast>>,
+    // Everything shown, worked out by the view model at its clock.
+    state: WeatherScreenState,
     modifier: Modifier = Modifier,
-    // True when [weather] is the cached forecast's current hour standing in for an old reading:
-    // there's no cloud cover (or visibility) to show.
-    showingForecast: Boolean = false,
     location: SavedLocation? = null,
-    radarEnabled: Boolean = true,
-    walkCardEnabled: Boolean = true,
-    hourlyForecastEnabled: Boolean = true,
-    nextRainEnabled: Boolean = true,
-    weekForecastEnabled: Boolean = true,
-    rainOutlookSettings: RainOutlookSettings = RainOutlookSettings(),
-    // Settings' Dog walking switch: off hides the Paw check tile (the walk card follows walkCardEnabled).
-    dogWalking: Boolean = true,
-    airQualityEnabled: Boolean = true,
-    todayTiles: TodayTileSwitches = TodayTileSwitches(),
-    seasonalThemes: List<SeasonalTheme> = emptyList(),
-    petWeatherThresholds: PetWeatherThresholds = PetWeatherThresholds.DEFAULT,
-    refreshCount: Int = 0,
     onForecastRetry: () -> Unit = {},
 ) {
-    val forecastDays = (forecastState as? LoadingState.Success)?.data.orEmpty()
-    val todayLabel = remember(weather.offsetSeconds) {
-        // "Today" in the city's local date, so it matches the city-local forecast day labels.
-        java.time.OffsetDateTime
-            .now(java.time.ZoneOffset.ofTotalSeconds(weather.offsetSeconds))
-            .format(
-                java.time.format.DateTimeFormatter
-                    .ofPattern("EEE, MMM d"),
-            )
-    }
-    val todayForecast = forecastDays.firstOrNull()?.takeIf { it.dateLabel == todayLabel }
-    val upcomingDays = if (todayForecast != null) forecastDays.drop(1) else forecastDays
+    val weather = state.weather
+    val todayForecast = state.today
+    val seasonalTheme = state.seasonalTheme
+    val mood = state.mood
+    val night = state.night
+    val heroInk = seasonalTheme?.heroInk(night) ?: mood.inkColor
     var selectedDay by remember { mutableStateOf<DayForecast?>(null) }
-    val feelsLikeC = weather.units.toCelsius(weather.feelsLike)
-    // Slots from the one in progress onwards. "Now" is re-read whenever the forecast changes,
-    // whenever the screen resumes and every half hour while it stays open, so a cached forecast,
-    // a failed refresh or an app left open for hours never shows (or advises on) past hours.
-    var resumeCount by remember { mutableIntStateOf(0) }
-    LifecycleResumeEffect(Unit) {
-        resumeCount++
-        onPauseOrDispose { }
-    }
-    val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            while (true) {
-                delay(AUTO_REFRESH_INTERVAL)
-                resumeCount++
-            }
-        }
-    }
-    val nowEpochSeconds = remember(forecastDays, resumeCount, refreshCount) {
-        java.time.Instant
-            .now()
-            .epochSecond
-    }
-    // Day or night by the clock, so a reading cached before sunset doesn't flash the daytime hero.
-    val iconCodeNow = weather.iconCodeAt(nowEpochSeconds)
-    val mood = petMoodFor(weather.conditionMain, iconCodeNow, feelsLikeC, petWeatherThresholds)
-    val ink = mood.inkColor
-    val currentSlots = remember(forecastDays, nowEpochSeconds) {
-        forecastDays.flatMap { it.hourlySlots }.fromCurrentSlot(nowEpochSeconds)
-    }
-    // Today's seasonal theme by the city's own date, worked out again whenever "now" moves on, so
-    // it ends by itself when its day does.
-    val seasonalTheme = remember(nowEpochSeconds, weather.offsetSeconds, seasonalThemes) {
-        SeasonalThemes.themeOn(nowEpochSeconds, weather.offsetSeconds, seasonalThemes)
-    }
-    val night = mood == PetMood.NIGHT
-    val heroInk = seasonalTheme?.heroInk(night) ?: ink
-    val heroCaption = seasonalTheme?.caption(
-        night,
-        java.time.Instant
-            .ofEpochSecond(nowEpochSeconds)
-            .atOffset(java.time.ZoneOffset.ofTotalSeconds(weather.offsetSeconds))
-            .toLocalDate(),
-    ) ?: petCaption(mood, weather.offsetSeconds, hasDog = dogWalking)
-    // The reading with today's sunrise and sunset, for one cached on an earlier day, so the Daylight
-    // tile and the walk card follow the clock as the hero does.
-    val weatherToday = remember(weather, nowEpochSeconds) { weather.withSunTimesToday(nowEpochSeconds) }
-    val walkAdvice =
-        remember(
-            currentSlots,
-            feelsLikeC,
-            weather.conditionMain,
-            weather.offsetSeconds,
-            weatherToday,
-            nowEpochSeconds,
-            petWeatherThresholds,
-        ) {
-            walkAdviceFor(
-                feelsLikeC,
-                currentSlots,
-                precipitatingNow = isPrecipitating(weather.conditionMain),
-                thresholds = petWeatherThresholds,
-                utcOffsetSeconds = weather.offsetSeconds,
-                nowEpochSeconds = nowEpochSeconds,
-                sunsetEpochSeconds = weatherToday.sunsetEpoch,
-                darkNow = weatherToday.isDarkAt(nowEpochSeconds),
-            )
-        }
+    val heroCaption = state.heroCaption.resolve()
 
     // Landscape phones and tablets put the hero beside today's details instead of stacking
     // everything in one stretched column.
@@ -813,6 +474,7 @@ private fun CurrentWeatherContent(
                         // Kept a bit smaller than the card so the scene doesn't dominate, especially on wide screens.
                         PetScene(
                             mood = mood,
+                            moonPhase = moonPhaseAt(state.nowEpochSeconds),
                             modifier = Modifier
                                 .fillMaxWidth(PET_SCENE_WIDTH_FRACTION)
                                 .widthIn(max = PET_SCENE_MAX_WIDTH),
@@ -847,18 +509,9 @@ private fun CurrentWeatherContent(
                             fontWeight = FontWeight.Bold,
                             color = heroInk,
                         )
-                        val (high, low) = heroHighLow(weather, todayForecast)
-                        val spokenRange = stringResource(
-                            R.string.label_temp_range_spoken,
-                            high.roundToInt(),
-                            low.roundToInt(),
-                        )
+                        val spokenRange = stringResource(R.string.label_temp_range_spoken, state.high, state.low)
                         Text(
-                            text = stringResource(
-                                R.string.label_temp_range,
-                                high.roundToInt(),
-                                low.roundToInt(),
-                            ),
+                            text = stringResource(R.string.label_temp_range, state.high, state.low),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Medium,
                             color = heroInk,
@@ -875,43 +528,19 @@ private fun CurrentWeatherContent(
                     }
                 }
             }
-            // "Rain starting around 3:15 PM", only when rain or snow is due in the next 2 hours.
-            // next_rain_enabled: Remote Config can hide the line.
-            val nextRain = remember(forecastDays, nowEpochSeconds, nextRainEnabled) {
-                if (nextRainEnabled) nextRain(forecastDays.firstOrNull()?.quarterHours.orEmpty(), nowEpochSeconds) else null
-            }
-            val nextRainText = nextRain?.let { nextRainText(it, weather.offsetSeconds) }
-            // The chance of rain hour by hour, when some hour reaches rain_outlook_min_chance. It
-            // takes the next-rain line's place, and its words for a headline.
-            val rainOutlook = remember(currentSlots, rainOutlookSettings, weather.units, nextRainText) {
-                rainOutlook(currentSlots, rainOutlookSettings, weather.units, nextRainText)
-            }
             val nextRainSection: @Composable () -> Unit = {
+                // "Rain starting around 3:15 PM", only when rain or snow is due in the next 2 hours.
                 // Not when the rain outlook shows: it says the same as its headline.
-                if (rainOutlook == null && nextRain != null && nextRainText != null) NextRainLine(nextRain, nextRainText)
+                val nextRain = state.nextRain
+                if (state.rainOutlook == null && nextRain != null) {
+                    NextRainLine(nextRain, nextRainText(nextRain, weather.offsetSeconds))
+                }
             }
             val walkSection: @Composable () -> Unit = {
-                // walk_card_enabled: Remote Config can hide the card.
-                if (walkCardEnabled) walkAdvice?.let { WalkCard(advice = it) }
+                state.walkCard?.let { WalkCard(content = it) }
             }
             val detailsSection: @Composable () -> Unit = {
-                // UV is always 0 after dark, so only show it in the daytime (OWM night icons end in "n").
-                val isNight = iconCodeNow.endsWith("n")
-                TodayTiles(
-                    weather = weatherToday,
-                    showingForecast = showingForecast,
-                    // Paw check goes with the walk card: Settings' Dog walking switch hides both.
-                    pavementNow = currentSlots.firstOrNull()?.pavementTemperature?.takeIf { dogWalking },
-                    groundWet = currentSlots.firstOrNull()?.groundWet == true || isPrecipitating(weather.conditionMain),
-                    uvIndex = currentSlots.firstOrNull()?.uvIndex?.takeUnless { isNight },
-                    uvPeak = todayForecast?.hourlySlots?.filter { it.uvIndex != null }?.maxByOrNull { it.uvIndex ?: 0.0 },
-                    // The forecast's hour in progress, so it shows offline too.
-                    airQuality = currentSlots.firstOrNull()?.airQuality?.takeIf { airQualityEnabled },
-                    hasDog = dogWalking,
-                    nowEpochSeconds = nowEpochSeconds,
-                    thresholds = petWeatherThresholds,
-                    switches = todayTiles,
-                )
+                TodayTiles(state.todayTiles)
             }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (wide) {
@@ -930,77 +559,67 @@ private fun CurrentWeatherContent(
                     nextRainSection()
                     walkSection()
                 }
-                // Hourly strip (next 24h), starting at the slot in progress — see currentSlots above.
-                val hourly = remember(currentSlots) { currentSlots.take(HOURLY_STRIP_COUNT) }
-                // hourly_forecast_enabled: Remote Config can hide the strip. No section headers:
-                // each card says what it is.
-                if (hourlyForecastEnabled && hourly.isNotEmpty()) {
-                    val strip = remember(hourly, forecastDays, weatherToday, nowEpochSeconds) {
-                        hourlyStrip(hourly, sunEvents(forecastDays, weatherToday), nowEpochSeconds)
-                    }
-                    HourlyStrip(items = strip, utcOffsetSeconds = weather.offsetSeconds)
+                // The next 24 hours from the one in progress. No section headers: each card says what it is.
+                if (state.hourlyStrip.isNotEmpty()) {
+                    HourlyStrip(items = state.hourlyStrip, utcOffsetSeconds = weather.offsetSeconds)
                 }
                 // Straight after the hourly strip, before the tiles (or the radar, when the tiles sit
                 // beside the hero), in both layouts.
-                rainOutlook?.let {
-                    RainOutlookCard(outlook = it, units = weather.units)
+                state.rainOutlook?.let {
+                    RainOutlookCard(outlook = it, units = weather.units, utcOffsetSeconds = weather.offsetSeconds)
                 }
 
                 if (!wide) detailsSection()
                 // Weather radar (shared by the phone and wide layouts). Off via Remote Config
                 // radar_enabled: not composing RadarCard means no RainViewer or tile requests.
-                if (radarEnabled) {
+                if (state.showsRadar) {
                     RadarCard(location = location, utcOffsetSeconds = weather.offsetSeconds)
                 }
 
-                // Upcoming days section (excludes today). week_forecast_enabled: Remote Config can
-                // hide it.
-                val weekHasContent = upcomingDays.isNotEmpty() ||
-                    forecastState is LoadingState.Loading ||
-                    forecastState is LoadingState.Error
-                if (weekForecastEnabled && weekHasContent) {
-                    when {
-                        // Wide screens show the days in two columns rather than stretched rows.
-                        upcomingDays.isNotEmpty() -> upcomingDays.chunked(if (wide) 2 else 1).forEach { row ->
-                            Row(
-                                modifier = Modifier.height(IntrinsicSize.Min),
-                                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                            ) {
-                                row.forEach { day ->
-                                    UpcomingDayRow(
-                                        day = day,
-                                        onClick = { selectedDay = day },
-                                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                                    )
-                                }
-                                if (row.size < 2 && wide) Spacer(modifier = Modifier.weight(1f).fillMaxHeight())
+                // The rest of the week, after today.
+                when (val week = state.week) {
+                    // Wide screens show the days in two columns rather than stretched rows.
+                    is WeekSection.Days -> week.days.chunked(if (wide) 2 else 1).forEach { row ->
+                        Row(
+                            modifier = Modifier.height(IntrinsicSize.Min),
+                            horizontalArrangement = Arrangement.spacedBy(24.dp),
+                        ) {
+                            row.forEach { day ->
+                                UpcomingDayRow(
+                                    day = day,
+                                    onClick = { selectedDay = day },
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                )
                             }
+                            if (row.size < 2 && wide) Spacer(modifier = Modifier.weight(1f).fillMaxHeight())
                         }
+                    }
 
-                        forecastState is LoadingState.Loading -> Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 24.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator()
-                        }
+                    WeekSection.Loading -> Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator()
+                    }
 
-                        forecastState is LoadingState.Error -> Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Text(
-                                text = weatherErrorMessage(forecastState.errorKey),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                            if (forecastState.canRetry) {
-                                TextButton(onClick = onForecastRetry) {
-                                    Text(stringResource(R.string.action_retry))
-                                }
+                    is WeekSection.Error -> Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = weatherErrorMessage(week.errorKey),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        if (week.canRetry) {
+                            TextButton(onClick = onForecastRetry) {
+                                Text(stringResource(R.string.action_retry))
                             }
                         }
                     }
+
+                    null -> Unit
                 }
             }
         }
@@ -1011,7 +630,6 @@ private fun CurrentWeatherContent(
     }
 }
 
-private const val HOURLY_STRIP_COUNT = 24
 private val WIDE_LAYOUT_MIN_WIDTH = 600.dp
 private const val PET_SCENE_WIDTH_FRACTION = 0.8f
 private val PET_SCENE_MAX_WIDTH = 280.dp
@@ -1144,7 +762,7 @@ private fun HourlyCell(
 
 /** "Rain starting around 3:15 PM": the next-rain line's words, also the rain outlook's headline. */
 @Composable
-private fun nextRainText(
+internal fun nextRainText(
     nextRain: NextRain,
     utcOffsetSeconds: Int,
 ): String =
@@ -1215,12 +833,6 @@ internal fun PrecipChance(
         )
     }
 }
-
-/**
- * A chance of rain as shown: nothing under 10%, where it's noise (most dry hours forecast 1%), and
- * otherwise to the nearest 10%, like Apple and Google Weather, since the forecast isn't more precise.
- */
-internal fun displayedRainChance(percent: Int): Int? = if (percent < 10) null else (percent + 5) / 10 * 10
 
 /** The WHO exposure category for a UV index, e.g. "High" for 6. */
 @androidx.annotation.StringRes
@@ -1404,26 +1016,6 @@ internal fun formatWind(
 /** At and above this many m/s (what rounds to 10.0), wind speeds show without a decimal. */
 private const val WHOLE_MS_FROM = 9.95
 
-/** A speed that would show as 0 (whole mph, or m/s to one decimal): written as a plain 0, with no direction. */
-internal fun isCalmWind(
-    speed: Double,
-    units: WeatherUnits,
-): Boolean = speed < (if (units == WeatherUnits.IMPERIAL) 0.5 else 0.05)
-
-internal fun formatEpochTime(
-    epochSeconds: Long,
-    utcOffsetSeconds: Int,
-): String {
-    val localTime = java.time.Instant
-        .ofEpochSecond(epochSeconds)
-        .atZone(java.time.ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
-        .toLocalTime()
-    return localTime.format(
-        java.time.format.DateTimeFormatter
-            .ofPattern("h:mm a"),
-    )
-}
-
 /** "6:50" in the city's time, without AM or PM: the hours either side of a sun marker say which. */
 internal fun formatShortEpochTime(
     epochSeconds: Long,
@@ -1440,9 +1032,6 @@ internal fun formatShortEpochTime(
 
 /** Wide enough for "H 85° · L 76°" in bodyLarge, at any font size. */
 private val TEMPERATURE_RANGE_WIDTH = 112.sp
-
-/** The compass point a wind comes from, 0 (N) to 7 (NW) clockwise; indexes `R.array.compass_points_spoken`. */
-internal fun windDirectionIndex(deg: Int): Int = ((deg + 22) / 45) % 8
 
 @Composable
 private fun UpcomingDayRow(
@@ -1509,7 +1098,7 @@ private fun CurrentWeatherEmptyPreview() {
         CurrentWeatherScreen(
             locations = emptyList(),
             activeIndex = 0,
-            weatherState = LoadingState.Idle,
+            screen = WeatherScreen.Loading,
             onTabSelected = {},
             onAddCityClick = {},
         ) {}
@@ -1545,7 +1134,14 @@ private fun CurrentWeatherSuccessPreview() {
                 SavedLocation("New York, US", 40.7128, -74.0060),
             ),
             activeIndex = 0,
-            weatherState = LoadingState.Success(previewWeather),
+            screen = weatherScreen(
+                current = LoadingState.Success(previewWeather),
+                forecast = LoadingState.Idle,
+                staleErrorKey = null,
+                nowEpochSeconds = Instant.now().epochSecond,
+                hasDog = true,
+                config = WeatherScreenConfig(),
+            ),
             onTabSelected = {},
             onAddCityClick = {},
         ) {}
@@ -1553,18 +1149,3 @@ private fun CurrentWeatherSuccessPreview() {
 }
 
 private val TEMP_TOP_TRIM = 18.dp
-
-/**
- * The hero's "H … · L …": today's forecast high and low, widened to take in the temperature now.
- * OpenWeather's current `temp_max`/`temp_min` are the spread across nearby stations at this moment,
- * not the day's range, so they're only the fallback until today's forecast is in.
- */
-internal fun heroHighLow(
-    weather: CurrentWeather,
-    today: DayForecast?,
-): Pair<Double, Double> =
-    if (today == null) {
-        weather.tempMax to weather.tempMin
-    } else {
-        maxOf(today.tempMax, weather.temperature) to minOf(today.tempMin, weather.temperature)
-    }

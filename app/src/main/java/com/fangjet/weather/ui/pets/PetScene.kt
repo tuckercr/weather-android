@@ -1,7 +1,6 @@
 package com.fangjet.weather.ui.pets
 
 import android.graphics.Bitmap
-import androidx.annotation.ArrayRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,7 +29,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import com.fangjet.weather.R
+import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.SceneDecoration
+import com.fangjet.weather.model.HeroCaption
+import com.fangjet.weather.model.WALK_SUGGESTIONS
+import com.fangjet.weather.model.captionOptions
 import com.fangjet.weather.ui.LocalSouthernHemisphere
 import com.fangjet.weather.ui.MoonPhase
 import com.fangjet.weather.ui.moonPhaseAt
@@ -81,8 +84,7 @@ import com.fangjet.weather.ui.theme.PetSunHot
 import com.fangjet.weather.ui.theme.PetTongue
 import com.fangjet.weather.ui.theme.PetUmbrella
 import com.fangjet.weather.ui.theme.PetWitchHat
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
+import java.time.Instant
 import kotlin.math.abs
 import kotlin.math.cos
 
@@ -106,56 +108,23 @@ val PetMood.skyColor: Color
 val PetMood.inkColor: Color
     get() = if (this == PetMood.NIGHT) PetInkOnNight else PetInk
 
-/**
- * The part of the night it is, by the city's local hour. The night scene runs from sunset to
- * sunrise, so any night hour before noon is before dawn and any after noon is evening.
- */
-enum class NightPart { EVENING, LATE_NIGHT, BEFORE_DAWN }
-
-fun nightPartAt(localHour: Int): NightPart =
-    when (localHour) {
-        23, in 0 until 5 -> NightPart.LATE_NIGHT
-        in 5 until 12 -> NightPart.BEFORE_DAWN
-        else -> NightPart.EVENING
-    }
-
-@ArrayRes
-private fun PetMood.captionsRes(
-    nightPart: NightPart,
-    hasDog: Boolean,
-): Int =
+/** The caption's words: the choice comes worked out in [HeroCaption]. */
+@Composable
+fun HeroCaption.resolve(): String =
     when (this) {
-        PetMood.FAIR -> if (hasDog) R.array.pet_caption_fair else R.array.pet_caption_fair_no_dog
-        PetMood.SUNNY -> if (hasDog) R.array.pet_caption_sunny else R.array.pet_caption_sunny_no_dog
-        PetMood.CLOUDY -> if (hasDog) R.array.pet_caption_cloudy else R.array.pet_caption_cloudy_no_dog
-        PetMood.RAIN -> if (hasDog) R.array.pet_caption_rain else R.array.pet_caption_rain_no_dog
-        PetMood.STORM -> R.array.pet_caption_storm
-        PetMood.SNOW -> if (hasDog) R.array.pet_caption_snow else R.array.pet_caption_snow_no_dog
-        PetMood.HOT -> if (hasDog) R.array.pet_caption_hot else R.array.pet_caption_hot_no_dog
-        PetMood.COLD -> if (hasDog) R.array.pet_caption_cold else R.array.pet_caption_cold_no_dog
-        PetMood.NIGHT -> when (nightPart) {
-            NightPart.EVENING -> if (hasDog) R.array.pet_caption_night_evening else R.array.pet_caption_night_evening_no_dog
-            NightPart.LATE_NIGHT -> R.array.pet_caption_night_late
-            NightPart.BEFORE_DAWN ->
-                if (hasDog) R.array.pet_caption_night_before_dawn else R.array.pet_caption_night_before_dawn_no_dog
+        is HeroCaption.Walk -> text.resolve()
+        is HeroCaption.Theme -> text
+        is HeroCaption.Weather -> {
+            val suggestions = WALK_SUGGESTIONS.map { stringResource(it) }.toSet()
+            val options = captionOptions(
+                stringArrayResource(captions).toList(),
+                stringArrayResource(noDogCaptions).toList(),
+                suggestions,
+                leaveOutWalkSuggestions,
+            )
+            options[day % options.size]
         }
     }
-
-/**
- * One caption per mood per day, so it varies without flickering between recompositions. The day
- * and (at night) the hour are the city's, from its [utcOffsetSeconds], not the device's. Without a
- * dog ([hasDog] false, Settings' Dog walking off), the captions leave out walks.
- */
-@Composable
-fun petCaption(
-    mood: PetMood,
-    utcOffsetSeconds: Int = 0,
-    hasDog: Boolean = true,
-): String {
-    val local = OffsetDateTime.now(ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
-    val options = stringArrayResource(mood.captionsRes(nightPartAt(local.hour), hasDog))
-    return options[local.dayOfYear % options.size]
-}
 
 /**
  * Sunny (the dog) and Misty (the cat) acting out [mood], drawn with simple shapes after the app

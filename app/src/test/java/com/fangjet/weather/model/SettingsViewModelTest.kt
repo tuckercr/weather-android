@@ -1,5 +1,6 @@
 package com.fangjet.weather.model
 
+import com.fangjet.weather.data.AppPermissions
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
 import com.fangjet.weather.domain.UnitOverride
@@ -50,7 +51,7 @@ class SettingsViewModelTest {
             every { repo.unitOverride } returns flowOf(UnitOverride.SYSTEM)
             every { repo.shareUsageStatistics } returns flowOf(true)
             every { repo.showWalkCard } returns flowOf(true)
-            val viewModel = SettingsViewModel(repo, remoteConfig())
+            val viewModel = SettingsViewModel(repo, remoteConfig(), FakePermissions())
 
             viewModel.setUnitOverride(UnitOverride.METRIC)
             mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
@@ -65,7 +66,7 @@ class SettingsViewModelTest {
             every { repo.unitOverride } returns flowOf(UnitOverride.SYSTEM)
             every { repo.shareUsageStatistics } returns flowOf(true)
             every { repo.showWalkCard } returns flowOf(true)
-            val viewModel = SettingsViewModel(repo, remoteConfig())
+            val viewModel = SettingsViewModel(repo, remoteConfig(), FakePermissions())
 
             viewModel.clearCache()
             mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
@@ -93,7 +94,7 @@ class SettingsViewModelTest {
             every { repo.unitOverride } returns flowOf(UnitOverride.SYSTEM)
             every { repo.shareUsageStatistics } returns flowOf(true)
             every { repo.showWalkCard } returns flowOf(true)
-            val viewModel = SettingsViewModel(repo, remoteConfig())
+            val viewModel = SettingsViewModel(repo, remoteConfig(), FakePermissions())
 
             viewModel.setShareUsageStatistics(false)
             mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
@@ -121,7 +122,7 @@ class SettingsViewModelTest {
             every { repo.unitOverride } returns flowOf(UnitOverride.SYSTEM)
             every { repo.shareUsageStatistics } returns flowOf(true)
             every { repo.showWalkCard } returns flowOf(true)
-            val viewModel = SettingsViewModel(repo, remoteConfig())
+            val viewModel = SettingsViewModel(repo, remoteConfig(), FakePermissions())
 
             viewModel.setShowWalkCard(false)
             mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
@@ -168,6 +169,8 @@ class SettingsViewModelTest {
         notifyWalkTime: Boolean = true,
         notifyRain: Boolean = false,
         remoteOff: Set<NotificationKind> = emptySet(),
+        permissions: AppPermissions = FakePermissions(),
+        followMyLocation: Boolean = false,
     ): SettingsViewModel {
         val repo = mockk<PreferencesRepository>(relaxed = true)
         every { repo.unitOverride } returns flowOf(unitOverride)
@@ -176,7 +179,83 @@ class SettingsViewModelTest {
         every { repo.notifyMorningBriefing } returns flowOf(notifyMorningBriefing)
         every { repo.notifyWalkTime } returns flowOf(notifyWalkTime)
         every { repo.notifyRain } returns flowOf(notifyRain)
-        return SettingsViewModel(repo, remoteConfig(remoteOff))
+        every { repo.followMyLocation } returns flowOf(followMyLocation)
+        return SettingsViewModel(repo, remoteConfig(remoteOff), permissions)
+    }
+
+    // --- Permissions and Follow my location ---
+
+    @Test
+    fun `permissions are re-read when asked, as on every resume`() {
+        val permissions = FakePermissions(notifications = false)
+        val viewModel = viewModel(permissions = permissions)
+        assertFalse(viewModel.permissionState.value.notifications)
+
+        permissions.notifications = true
+        viewModel.refreshPermissions()
+
+        assertTrue(viewModel.permissionState.value.notifications)
+    }
+
+    @Test
+    fun `follow my location explains first, then asks for what's missing`() =
+        runTest {
+            val permissions = FakePermissions(location = false, backgroundLocation = false)
+            val repo = mockk<PreferencesRepository>(relaxed = true)
+            val viewModel = SettingsViewModel(repo, remoteConfig(), permissions)
+
+            viewModel.setFollowMyLocation(true)
+            assertTrue(viewModel.explainingFollowMyLocation.value)
+            assertEquals(FollowMyLocationRequest.FOREGROUND_LOCATION, viewModel.confirmFollowMyLocation())
+            assertFalse(viewModel.explainingFollowMyLocation.value)
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+            coVerify { repo.setFollowMyLocation(true) }
+
+            permissions.location = true
+            assertEquals(FollowMyLocationRequest.BACKGROUND_LOCATION, viewModel.confirmFollowMyLocation())
+            // Android stops opening its page after two refusals.
+            viewModel.backgroundLocationAnswered(false)
+            viewModel.backgroundLocationAnswered(false)
+            assertEquals(FollowMyLocationRequest.APP_SETTINGS, viewModel.confirmFollowMyLocation())
+        }
+
+    @Test
+    fun `follow my location shows on only with all-the-time access, and needs no explaining then`() =
+        runTest {
+            val permissions = FakePermissions(backgroundLocation = true)
+            val viewModel = viewModel(permissions = permissions, followMyLocation = true)
+            val job = launch { viewModel.followsMyLocation.collect {} }
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+            assertTrue(viewModel.followsMyLocation.value)
+
+            viewModel.setFollowMyLocation(true)
+            assertFalse(viewModel.explainingFollowMyLocation.value)
+
+            permissions.backgroundLocation = false
+            viewModel.refreshPermissions()
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+            assertFalse(viewModel.followsMyLocation.value)
+            job.cancel()
+        }
+
+    private class FakePermissions(
+        var location: Boolean = true,
+        var backgroundLocation: Boolean = false,
+        var notifications: Boolean = true,
+    ) : AppPermissions {
+        private var refusals = 0
+
+        override fun location() = location
+
+        override fun backgroundLocation() = backgroundLocation
+
+        override fun notifications() = notifications
+
+        override fun backgroundLocationRefusals() = refusals
+
+        override fun noteBackgroundLocationAnswer(granted: Boolean) {
+            refusals = if (granted) 0 else refusals + 1
+        }
     }
 
     private fun remoteConfig(off: Set<NotificationKind> = emptySet()): RemoteConfigRepository {

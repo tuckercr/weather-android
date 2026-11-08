@@ -67,19 +67,19 @@ class AirQualitySource @Inject constructor(
             return h.time
                 .mapIndexedNotNull { row, time ->
                     AirQuality
-                        .from(scale) {
+                        .from(scale, h.pm25.getOrNull(row), h.pm10.getOrNull(row)) {
                             when (it) {
                                 Scale.US -> h.usAqi.at(row) to listOf(
-                                    Pollutant.FINE_PARTICLES to h.usAqiPm25.at(row),
                                     Pollutant.COARSE_PARTICLES to h.usAqiPm10.at(row),
+                                    Pollutant.FINE_PARTICLES to h.usAqiPm25.at(row),
                                     Pollutant.OZONE to h.usAqiOzone.at(row),
                                     Pollutant.NITROGEN_DIOXIDE to h.usAqiNitrogenDioxide.at(row),
                                     Pollutant.SULPHUR_DIOXIDE to h.usAqiSulphurDioxide.at(row),
                                     Pollutant.CARBON_MONOXIDE to h.usAqiCarbonMonoxide.at(row),
                                 )
                                 Scale.EUROPEAN -> h.europeanAqi.at(row) to listOf(
-                                    Pollutant.FINE_PARTICLES to h.europeanAqiPm25.at(row),
                                     Pollutant.COARSE_PARTICLES to h.europeanAqiPm10.at(row),
+                                    Pollutant.FINE_PARTICLES to h.europeanAqiPm25.at(row),
                                     Pollutant.OZONE to h.europeanAqiOzone.at(row),
                                     Pollutant.NITROGEN_DIOXIDE to h.europeanAqiNitrogenDioxide.at(row),
                                     Pollutant.SULPHUR_DIOXIDE to h.europeanAqiSulphurDioxide.at(row),

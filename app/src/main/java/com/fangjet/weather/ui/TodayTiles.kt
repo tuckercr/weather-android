@@ -57,11 +57,11 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.AirQuality
-import com.fangjet.weather.domain.CurrentWeather
-import com.fangjet.weather.domain.HourlySlot
-import com.fangjet.weather.domain.PetWeatherThresholds
-import com.fangjet.weather.domain.TodayTileSwitches
-import com.fangjet.weather.domain.WeatherUnits
+import com.fangjet.weather.model.AirTone
+import com.fangjet.weather.model.DaylightTile
+import com.fangjet.weather.model.SkyTile
+import com.fangjet.weather.model.TodayTile
+import com.fangjet.weather.model.TodayTilesState
 import com.fangjet.weather.ui.theme.PetSun
 import com.fangjet.weather.ui.theme.WalkColdBg
 import com.fangjet.weather.ui.theme.WalkColdText
@@ -81,21 +81,11 @@ import com.fangjet.weather.util.UvLine
 import com.fangjet.weather.util.VisibilityBand
 import com.fangjet.weather.util.WindForce
 import com.fangjet.weather.util.daylight
-import com.fangjet.weather.util.dewPointC
-import com.fangjet.weather.util.feelsLikeBand
-import com.fangjet.weather.util.feelsLikeBarPosition
-import com.fangjet.weather.util.feelsLikeGap
-import com.fangjet.weather.util.fluffLevel
-import com.fangjet.weather.util.gustWorthMentioning
+import com.fangjet.weather.util.formatEpochTime
 import com.fangjet.weather.util.keepUnitsTogether
-import com.fangjet.weather.util.pavementBand
 import com.fangjet.weather.util.pawScaleStep
-import com.fangjet.weather.util.skyCondition
-import com.fangjet.weather.util.uvLine
 import com.fangjet.weather.util.visibilityBand
 import com.fangjet.weather.util.visibilityDistance
-import com.fangjet.weather.util.windForce
-import com.fangjet.weather.util.windsockDroopDegrees
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -109,63 +99,38 @@ import kotlin.math.sin
  */
 @Composable
 internal fun TodayTiles(
-    weather: CurrentWeather,
-    // True when [weather] is the cached forecast's current hour standing in for an old reading:
-    // there's no cloud cover or visibility to show.
-    showingForecast: Boolean,
-    // The hour in progress's pavement estimate, in [weather]'s units; null when not forecast.
-    pavementNow: Double?,
-    // Rain or snow lately, or snow lying: below freezing the pavement tile warns of ice.
-    groundWet: Boolean,
-    // Today's UV index, or null after dark or when not forecast.
-    uvIndex: Double?,
-    // Today's hour with the highest UV, for the UV tile's peak.
-    uvPeak: HourlySlot?,
-    // Null until it's fetched, or when it can't be.
-    airQuality: AirQuality?,
-    // Air quality speaks of walks with a dog, of people without one.
-    hasDog: Boolean,
-    nowEpochSeconds: Long,
-    thresholds: PetWeatherThresholds,
+    // Which tiles show and what each says, worked out with the screen state.
+    state: TodayTilesState,
     modifier: Modifier = Modifier,
-    switches: TodayTileSwitches = TodayTileSwitches(),
 ) {
-    val units = weather.units
-    val sunrise = weather.sunriseEpoch
-    val sunset = weather.sunsetEpoch
-    val showsDaylight = switches.daylight && sunrise != null && sunset != null
-    // UV gets its own tile when switched on, or when there's no Daylight tile to carry it.
-    val showsUvTile = uvIndex != null && (switches.uv || !showsDaylight)
-    val small = buildList<@Composable (Modifier) -> Unit> {
-        if (switches.feelsLike) add { FeelsLikeTile(weather, thresholds, it) }
-        if (switches.wind) add { WindTile(weather, it) }
-        if (switches.humidity) add { HumidityTile(weather, hasDog, it) }
-        if (switches.pawCheck && pavementNow != null) {
-            add { PavementTile(pavementNow, groundWet, weather.feelsLike, units, thresholds, it) }
-        }
-        if (showsUvTile && uvIndex != null) add { UvTile(uvIndex, uvLine(uvPeak, nowEpochSeconds, hasDog), it) }
-        if (airQuality != null) add { AirQualityTile(airQuality, hasDog, it) }
-    }
     // Two tiles side by side leave too little room for large text, so it gets one per row.
     val perRow = if (LocalDensity.current.fontScale >= LARGE_FONT_SCALE) 1 else 2
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(TILE_GAP)) {
         // An odd tile out (usually Air quality, when Paw check is showing) takes the full width
         // rather than leaving a gap beside it.
+        val small = state.small
         val paired = if (small.size % perRow == 0) small.size else small.size - 1
         EqualTileGrid(columns = perRow) {
-            small.take(paired).forEach { tile -> tile(Modifier) }
+            small.take(paired).forEach { SmallTile(it, Modifier) }
         }
-        small.drop(paired).forEach { tile -> tile(Modifier.fillMaxWidth()) }
-        if (showsDaylight && sunrise != null && sunset != null) {
-            DaylightTile(
-                daylight(nowEpochSeconds, sunrise, sunset),
-                sunrise,
-                sunset,
-                weather.offsetSeconds,
-                uvIndex.takeUnless { showsUvTile },
-            )
-        }
-        if (switches.sky) SkyTile(weather, showingForecast)
+        small.drop(paired).forEach { SmallTile(it, Modifier.fillMaxWidth()) }
+        state.daylight?.let { DaylightTileCard(it) }
+        state.sky?.let { SkyTileCard(it) }
+    }
+}
+
+@Composable
+private fun SmallTile(
+    tile: TodayTile,
+    modifier: Modifier,
+) {
+    when (tile) {
+        is TodayTile.FeelsLike -> FeelsLikeTile(tile, modifier)
+        is TodayTile.Wind -> WindTile(tile, modifier)
+        is TodayTile.Fluff -> HumidityTile(tile, modifier)
+        is TodayTile.PawCheck -> PavementTile(tile, modifier)
+        is TodayTile.Uv -> UvTile(tile, modifier)
+        is TodayTile.Air -> AirQualityTile(tile, modifier)
     }
 }
 
@@ -261,29 +226,25 @@ private fun TileNote(
 /** The feels-like temperature with its band ("Hot"), the band bar, and how far it is from the actual temperature. */
 @Composable
 private fun FeelsLikeTile(
-    weather: CurrentWeather,
-    thresholds: PetWeatherThresholds,
+    tile: TodayTile.FeelsLike,
     modifier: Modifier,
 ) {
-    val feelsLikeC = weather.units.toCelsius(weather.feelsLike)
-    val band = feelsLikeBand(feelsLikeC, thresholds)
-    val gap = feelsLikeGap(weather.feelsLike, weather.temperature)
     Tile(Icons.Default.Thermostat, stringResource(R.string.label_feels_like), modifier) {
         // The same size as the other tiles' values, as Air Quality has its band beside it.
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            TileValue(formatTemperature(weather.feelsLike, weather.units), Modifier.alignByBaseline())
+            TileValue(formatTemperature(tile.feelsLike, tile.units), Modifier.alignByBaseline())
             Text(
-                stringResource(band.nameRes()),
+                stringResource(tile.band.nameRes()),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = feelsLikeTint(band),
+                color = feelsLikeTint(tile.band),
                 maxLines = 1,
                 modifier = Modifier.alignByBaseline(),
             )
         }
         BandBar(
             bands = feelsLikeBands(),
-            position = feelsLikeBarPosition(feelsLikeC, thresholds).toFloat(),
+            position = tile.barPosition.toFloat(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 2.dp)
@@ -291,8 +252,8 @@ private fun FeelsLikeTile(
         )
         TileNote(
             when {
-                gap > 0 -> stringResource(R.string.feels_like_warmer, gap)
-                gap < 0 -> stringResource(R.string.feels_like_cooler, -gap)
+                tile.gap > 0 -> stringResource(R.string.feels_like_warmer, tile.gap)
+                tile.gap < 0 -> stringResource(R.string.feels_like_cooler, -tile.gap)
                 else -> stringResource(R.string.feels_like_same)
             },
         )
@@ -337,30 +298,24 @@ private fun FeelsLikeBand.nameRes(): Int =
 /** The speed beside a windsock whose droop shows the strength, with where the wind comes from and any gusts that stand out underneath. */
 @Composable
 private fun WindTile(
-    weather: CurrentWeather,
+    tile: TodayTile.Wind,
     modifier: Modifier,
 ) {
-    val force = windForce(weather.windSpeed, weather.units)
-    val calm = force == WindForce.CALM || isCalmWind(weather.windSpeed, weather.units)
     Tile(Icons.Default.Air, stringResource(R.string.label_wind), modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TileValue(formatWind(weather.windSpeed, weather.units))
+            TileValue(formatWind(tile.speed, tile.units))
             Spacer(Modifier.weight(1f))
-            Windsock(
-                droopDegrees = windsockDroopDegrees(weather.windSpeed, weather.units),
-                modifier = Modifier.size(40.dp),
-            )
+            Windsock(droopDegrees = tile.droopDegrees, modifier = Modifier.size(40.dp))
         }
-        if (calm) {
+        if (tile.calm) {
             TileNote(stringResource(R.string.wind_calm))
         } else {
             // The windsock shows how strong it is, so the note gives where it comes from; TalkBack
             // also hears the wind's name.
-            val direction = windDirectionIndex(weather.windDeg)
-            val from = stringArrayResource(R.array.compass_points)[direction]
-            val fromSpoken = stringArrayResource(R.array.compass_points_spoken)[direction]
-            val name = stringResource(force.nameRes()).lowercase()
-            val gust = gustWorthMentioning(weather.windSpeed, weather.windGust, weather.units)?.let { formatWind(it, weather.units) }
+            val from = stringArrayResource(R.array.compass_points)[tile.directionIndex]
+            val fromSpoken = stringArrayResource(R.array.compass_points_spoken)[tile.directionIndex]
+            val name = stringResource(tile.force.nameRes()).lowercase()
+            val gust = tile.gust?.let { formatWind(it, tile.units) }
             TileNote(
                 if (gust == null) {
                     stringResource(R.string.today_wind_from, from)
@@ -432,35 +387,29 @@ private val WINDSOCK_SEAM = Color(0xFFB3621C)
 
 @Composable
 private fun HumidityTile(
-    weather: CurrentWeather,
-    hasDog: Boolean,
+    tile: TodayTile.Fluff,
     modifier: Modifier,
 ) {
-    val dewC = dewPointC(weather.units.toCelsius(weather.temperature), weather.humidityPercent)
-    val level = fluffLevel(dewC, weather.humidityPercent)
     Tile(Icons.Default.WaterDrop, stringResource(R.string.label_fluff_factor), modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                val spoken = stringResource(R.string.format_humidity_spoken, weather.humidityPercent)
+                val spoken = stringResource(R.string.format_humidity_spoken, tile.humidityPercent)
                 TileValue(
-                    stringResource(R.string.format_percent, weather.humidityPercent),
+                    stringResource(R.string.format_percent, tile.humidityPercent),
                     modifier = Modifier.clearAndSetSemantics { contentDescription = spoken },
                 )
-                if (dewC != null) {
+                if (tile.dewPoint != null) {
                     Text(
-                        stringResource(
-                            R.string.today_dew_point,
-                            formatTemperature(weather.units.fromCelsius(dewC), weather.units, unitShown = false),
-                        ),
+                        stringResource(R.string.today_dew_point, formatTemperature(tile.dewPoint, tile.units, unitShown = false)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                     )
                 }
             }
-            FluffyMisty(level, Modifier.size(width = 48.dp, height = 42.dp))
+            FluffyMisty(tile.level, Modifier.size(width = 48.dp, height = 42.dp))
         }
-        TileNote(stringResource(fluffLineRes(level, hasDog)))
+        TileNote(stringResource(fluffLineRes(tile.level, tile.hasDog)))
     }
 }
 
@@ -567,17 +516,13 @@ private fun FluffyMisty(
 
 @Composable
 private fun PavementTile(
-    pavement: Double,
-    groundWet: Boolean,
-    feelsLike: Double,
-    units: WeatherUnits,
-    thresholds: PetWeatherThresholds,
+    tile: TodayTile.PawCheck,
     modifier: Modifier,
 ) {
-    val band = pavementBand(units.toCelsius(pavement), groundWet, units.toCelsius(feelsLike), thresholds)
+    val band = tile.band
     Tile(Icons.Default.Pets, stringResource(R.string.label_pavement), modifier) {
         // An estimate for dark asphalt in direct sun, so a whole number, and said to be one.
-        TileValue(stringResource(R.string.format_about_temperature, formatTemperature(pavement, units)))
+        TileValue(stringResource(R.string.format_about_temperature, formatTemperature(tile.pavement, tile.units)))
         PawScale(step = band.pawScaleStep)
         TileNote(
             text = stringResource(
@@ -651,14 +596,14 @@ private fun petLineTint(): Color = if (MaterialTheme.colorScheme.surface.luminan
 
 @Composable
 private fun AirQualityTile(
-    air: AirQuality,
-    hasDog: Boolean,
+    tile: TodayTile.Air,
     modifier: Modifier,
 ) {
+    val air = tile.air
     val bandName = stringArrayResource(
         if (air.scale == AirQuality.Scale.EUROPEAN) R.array.air_quality_bands_european else R.array.air_quality_bands_us,
     )[air.band]
-    val line = stringArrayResource(if (hasDog) R.array.air_quality_lines_dog else R.array.air_quality_lines)[air.band]
+    val line = stringArrayResource(if (tile.hasDog) R.array.air_quality_lines_dog else R.array.air_quality_lines)[tile.lineIndex]
     val pollutant = air.mainPollutant?.let {
         stringResource(
             R.string.air_quality_mostly,
@@ -686,7 +631,7 @@ private fun AirQualityTile(
         )
         // The pollutant behind it is for TalkBack only: another line would stretch every tile in
         // the grid, which all take the tallest one's height.
-        TileNote(line, color = airTint(air.band), spoken = listOfNotNull(pollutant, line).joinToString(". "))
+        TileNote(line, color = airTint(tile.tone), spoken = listOfNotNull(pollutant, line).joinToString(". "))
     }
 }
 
@@ -743,23 +688,24 @@ private val AIR_QUALITY_BANDS = listOf(
     Color(0xFF7A2230),
 )
 
-/** The walk card's shades again: green for good air, amber for so-so, red from unhealthy up. */
+/** The walk card's shades again: green for good air, amber for so-so, red for bad. */
 @Composable
-private fun airTint(band: Int): Color {
+private fun airTint(tone: AirTone): Color {
     val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    return when (band) {
-        0 -> if (dark) WalkGreatBg else WalkGreatText
-        1, 2 -> if (dark) WalkOkayBg else WalkOkayText
-        else -> if (dark) WalkHotBg else WalkHotText
+    return when (tone) {
+        AirTone.BAD -> if (dark) WalkHotBg else WalkHotText
+        AirTone.GOOD -> if (dark) WalkGreatBg else WalkGreatText
+        AirTone.SO_SO -> if (dark) WalkOkayBg else WalkOkayText
     }
 }
 
 @Composable
 private fun UvTile(
-    uv: Double,
-    line: UvLine?,
+    tile: TodayTile.Uv,
     modifier: Modifier,
 ) {
+    val uv = tile.uvIndex
+    val line = tile.line
     Tile(Icons.Default.LightMode, stringResource(R.string.label_uv_index), modifier) {
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             TileValue(uv.roundToInt().toString())
@@ -780,13 +726,12 @@ private fun UvTile(
 }
 
 @Composable
-private fun DaylightTile(
-    state: Daylight,
-    sunrise: Long,
-    sunset: Long,
-    utcOffsetSeconds: Int,
-    uvIndex: Double?,
-) {
+private fun DaylightTileCard(tile: DaylightTile) {
+    val state = tile.daylight
+    val sunrise = tile.sunrise
+    val sunset = tile.sunset
+    val utcOffsetSeconds = tile.utcOffsetSeconds
+    val uvIndex = tile.uvIndex
     val uvNote = uvIndex?.let { stringResource(R.string.today_uv, it.roundToInt(), stringResource(uvLevelRes(it))) }
     Tile(Icons.Default.WbSunny, stringResource(R.string.label_daylight), trailing = uvNote) {
         SunArc(
@@ -868,13 +813,10 @@ private fun lerp(
 ): Offset = Offset(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
 
 @Composable
-private fun SkyTile(
-    weather: CurrentWeather,
-    showingForecast: Boolean,
-) {
-    val sky = skyCondition(weather.conditionMain, weather.cloudPercent.takeUnless { showingForecast }, weather.iconCode)
-    val visibility = weather.visibilityMeters.takeUnless { showingForecast }
-    val band = visibility?.let(::visibilityBand)
+private fun SkyTileCard(tile: SkyTile) {
+    val sky = tile.sky
+    val visibility = tile.visibilityMeters
+    val band = tile.visibilityBand
     Tile(Icons.Default.Visibility, stringResource(R.string.label_sky)) {
         val skyText = stringResource(sky.nameRes())
         Text(

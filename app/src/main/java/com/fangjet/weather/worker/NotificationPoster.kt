@@ -13,7 +13,6 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.fangjet.weather.MainActivity
 import com.fangjet.weather.R
-import com.fangjet.weather.WeatherApplication
 import com.fangjet.weather.ui.pets.petSceneIcon
 
 /** Whether the app may post notifications (always below Android 13, which has no permission for it). */
@@ -28,17 +27,17 @@ internal fun Context.canPostNotifications(): Boolean =
 internal fun Context.createNotificationChannel(kind: NotificationKind) {
     val (id, name, description) = when (kind) {
         NotificationKind.MORNING_BRIEFING -> Triple(
-            WeatherApplication.CHANNEL_MORNING_BRIEFING,
+            NotificationChannels.CHANNEL_MORNING_BRIEFING,
             R.string.notif_channel_briefing_name,
             R.string.notif_channel_briefing_description,
         )
         NotificationKind.WALK_TIME -> Triple(
-            WeatherApplication.CHANNEL_WALK_TIME,
+            NotificationChannels.CHANNEL_WALK_TIME,
             R.string.notif_channel_walk_name,
             R.string.notif_channel_walk_description,
         )
         NotificationKind.RAIN -> Triple(
-            WeatherApplication.CHANNEL_RAIN,
+            NotificationChannels.CHANNEL_RAIN,
             R.string.notif_channel_rain_name,
             R.string.notif_channel_rain_description,
         )
@@ -68,9 +67,9 @@ internal fun Context.postWeatherNotification(notification: WeatherNotification) 
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
     val (channel, id) = when (notification.kind) {
-        NotificationKind.MORNING_BRIEFING -> WeatherApplication.CHANNEL_MORNING_BRIEFING to 1000
-        NotificationKind.WALK_TIME -> WeatherApplication.CHANNEL_WALK_TIME to 1001
-        NotificationKind.RAIN -> WeatherApplication.CHANNEL_RAIN to 1002
+        NotificationKind.MORNING_BRIEFING -> NotificationChannels.CHANNEL_MORNING_BRIEFING to 1000
+        NotificationKind.WALK_TIME -> NotificationChannels.CHANNEL_WALK_TIME to 1001
+        NotificationKind.RAIN -> NotificationChannels.CHANNEL_RAIN to 1002
     }
     val iconSize = resources.getDimensionPixelSize(android.R.dimen.notification_large_icon_width)
     val built = NotificationCompat

@@ -1,6 +1,7 @@
 package com.fangjet.weather.worker
 
 import androidx.work.ListenableWorker.Result
+import com.fangjet.weather.data.testLocationWeatherRepository
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.SavedLocation
@@ -28,7 +29,7 @@ class UpdateWorkerLogicTest {
     fun `returns success when only current weather succeeds`() =
         runTest {
             val logic = logic(
-                fetchForecast = { _, _, _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
+                fetchForecast = { _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
             )
 
             assertEquals(Result.success(), logic.doWork())
@@ -38,7 +39,7 @@ class UpdateWorkerLogicTest {
     fun `returns success when only forecast succeeds`() =
         runTest {
             val logic = logic(
-                fetchCurrentWeather = { _, _, _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
+                fetchCurrentWeather = { _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
             )
 
             assertEquals(Result.success(), logic.doWork())
@@ -48,8 +49,8 @@ class UpdateWorkerLogicTest {
     fun `returns retry when both fetches fail`() =
         runTest {
             val logic = logic(
-                fetchCurrentWeather = { _, _, _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
-                fetchForecast = { _, _, _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
+                fetchCurrentWeather = { _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
+                fetchForecast = { _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
             )
 
             assertEquals(Result.retry(), logic.doWork())
@@ -80,8 +81,8 @@ class UpdateWorkerLogicTest {
             val cachedWeather = mutableListOf<String>()
             val cachedForecast = mutableListOf<String>()
             val logic = logic(
-                fetchCurrentWeather = { _, _, _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
-                fetchForecast = { _, _, _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
+                fetchCurrentWeather = { _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
+                fetchForecast = { _, _ -> kotlin.Result.failure(RuntimeException("offline")) },
                 cacheCurrentWeather = { k, _ -> cachedWeather += k },
                 cacheForecast = { k, _ -> cachedForecast += k },
             )
@@ -104,11 +105,11 @@ class UpdateWorkerLogicTest {
             var forecastUnits: WeatherUnits? = null
             val logic = logic(
                 units = WeatherUnits.METRIC,
-                fetchCurrentWeather = { units, _, _, _ ->
+                fetchCurrentWeather = { units, _ ->
                     currentUnits = units
                     kotlin.Result.success(weather(units = units))
                 },
-                fetchForecast = { units, _, _, _ ->
+                fetchForecast = { units, _ ->
                     forecastUnits = units
                     kotlin.Result.success(listOf(forecast(units = units)))
                 },
@@ -129,9 +130,9 @@ class UpdateWorkerLogicTest {
             var capturedLon: Double? = 99.0
             val logic = logic(
                 savedLocations = listOf(london),
-                fetchCurrentWeather = { _, _, lat, lon ->
-                    capturedLat = lat
-                    capturedLon = lon
+                fetchCurrentWeather = { _, loc ->
+                    capturedLat = loc.latitude
+                    capturedLon = loc.longitude
                     kotlin.Result.success(weather())
                 },
             )
@@ -150,10 +151,10 @@ class UpdateWorkerLogicTest {
             var capturedLabel: String? = null
             val logic = logic(
                 savedLocations = listOf(cityByName),
-                fetchCurrentWeather = { _, label, lat, lon ->
-                    capturedLat = lat
-                    capturedLon = lon
-                    capturedLabel = label
+                fetchCurrentWeather = { _, loc ->
+                    capturedLat = loc.latitude
+                    capturedLon = loc.longitude
+                    capturedLabel = loc.label
                     kotlin.Result.success(weather(cityName = "Austin"))
                 },
             )
@@ -174,8 +175,8 @@ class UpdateWorkerLogicTest {
             fun logicFor(locations: List<SavedLocation>) =
                 logic(
                     savedLocations = locations,
-                    fetchCurrentWeather = { _, _, lat, _ ->
-                        capturedLats += lat
+                    fetchCurrentWeather = { _, loc ->
+                        capturedLats += loc.latitude
                         kotlin.Result.success(weather())
                     },
                 )
@@ -214,7 +215,7 @@ class UpdateWorkerLogicTest {
             val logic = logic(
                 savedLocations = listOf(london, cityByName),
                 activeIndex = 0,
-                fetchCurrentWeather = { u, _, _, _ ->
+                fetchCurrentWeather = { u, _ ->
                     fetches++
                     kotlin.Result.success(weather(units = u))
                 },
@@ -234,11 +235,11 @@ class UpdateWorkerLogicTest {
                 logic(
                     savedLocations = listOf(london, cityByName),
                     activeIndex = 1,
-                    fetchCurrentWeather = { u, label, _, _ ->
-                        if (label == location.label) offline else kotlin.Result.success(weather(units = u))
+                    fetchCurrentWeather = { u, loc ->
+                        if (loc.label == location.label) offline else kotlin.Result.success(weather(units = u))
                     },
-                    fetchForecast = { u, label, _, _ ->
-                        if (label == location.label) offline else kotlin.Result.success(listOf(forecast(units = u)))
+                    fetchForecast = { u, loc ->
+                        if (loc.label == location.label) offline else kotlin.Result.success(listOf(forecast(units = u)))
                     },
                 )
 
@@ -265,23 +266,24 @@ class UpdateWorkerLogicTest {
         savedLocations: List<SavedLocation> = listOf(london),
         activeIndex: Int? = null,
         units: WeatherUnits = WeatherUnits.IMPERIAL,
-        fetchCurrentWeather: suspend (WeatherUnits, String, Double?, Double?) -> kotlin.Result<CurrentWeather> =
-            { u, _, _, _ -> kotlin.Result.success(weather(units = u)) },
-        fetchForecast: suspend (WeatherUnits, String, Double?, Double?) -> kotlin.Result<List<DayForecast>> =
-            { u, _, _, _ -> kotlin.Result.success(listOf(forecast(units = u))) },
+        fetchCurrentWeather: suspend (WeatherUnits, SavedLocation) -> kotlin.Result<CurrentWeather> =
+            { u, _ -> kotlin.Result.success(weather(units = u)) },
+        fetchForecast: suspend (WeatherUnits, SavedLocation) -> kotlin.Result<List<DayForecast>> =
+            { u, _ -> kotlin.Result.success(listOf(forecast(units = u))) },
         cacheCurrentWeather: suspend (String, CurrentWeather) -> Unit = { _, _ -> },
         cacheForecast: suspend (String, List<DayForecast>) -> Unit = { _, _ -> },
         afterRefresh: suspend (SavedLocation, CurrentWeather?, List<DayForecast>?) -> Unit = { _, _, _ -> },
-    ) = UpdateWorkerLogic(
-        getSavedLocations = { savedLocations },
-        getActiveIndex = { activeIndex },
-        getUnits = { units },
-        fetchCurrentWeather = fetchCurrentWeather,
-        fetchForecast = fetchForecast,
-        cacheCurrentWeather = cacheCurrentWeather,
-        cacheForecast = cacheForecast,
-        afterRefresh = afterRefresh,
-    )
+    ): UpdateWorkerLogic {
+        // The real repository over fake fetches: it resolves the units and does the caching.
+        val repository = testLocationWeatherRepository(units, fetchCurrentWeather, fetchForecast, cacheCurrentWeather, cacheForecast)
+        return UpdateWorkerLogic(
+            getSavedLocations = { savedLocations },
+            getActiveIndex = { activeIndex },
+            refreshWeather = repository::refreshWeather,
+            refreshForecast = repository::refreshForecast,
+            afterRefresh = afterRefresh,
+        )
+    }
 
     private companion object {
         val london = SavedLocation(label = "My Location", latitude = 51.5, longitude = -0.1)
