@@ -89,6 +89,9 @@
     <string name="radar_play">Play radar animation</string>
     <string name="radar_pause">Pause radar animation</string>
     <string name="radar_frame">Radar frame</string>
+    <!-- The radar's frame time: %1$s is the time, "7:50 AM". -->
+    <string name="radar_frame_now">Now · %1$s</string>
+    <string name="radar_frame_forecast">Forecast · %1$s</string>
     <string name="radar_legend_light">Light</string>
     <string name="radar_legend_heavy">Heavy</string>
     <string name="radar_credit_osm">© OpenStreetMap contributors</string>

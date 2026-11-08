@@ -35,8 +35,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -74,13 +72,11 @@ import com.fangjet.weather.data.RadarTile
 import com.fangjet.weather.domain.RadarTimeline
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.model.LoadingState
+import com.fangjet.weather.model.RadarPlayback
 import com.fangjet.weather.model.RadarViewModel
+import com.fangjet.weather.model.ShownRadarFrame
 import com.fangjet.weather.ui.theme.RadarLegendColors
-import kotlinx.coroutines.delay
-import java.time.Instant
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+import com.fangjet.weather.util.formatEpochTime
 import kotlin.math.roundToInt
 
 @Composable
@@ -149,41 +145,40 @@ private fun RadarMapCard(
 
         // Obtained here (not as a default arg) so the coordinate-less path above never needs Hilt.
         val viewModel: RadarViewModel = hiltViewModel()
-        val tileInfo = remember(location.latitude, location.longitude) {
-            RadarTile.from(location.latitude, location.longitude)
-        }
         // The view model loads the city's map and the frames' overlays.
-        LaunchedEffect(viewModel, tileInfo) { viewModel.show(tileInfo) }
+        LaunchedEffect(viewModel, location.latitude, location.longitude) { viewModel.show(location.latitude, location.longitude) }
         // Opening the screen, coming back to the app or switching city: fetch the frames if they're
-        // missing or stale, wherever the card is on screen (load() is a no-op while they're fresh).
-        // While the screen stays open, keep them current, but only while the card is in view.
-        // Lives below the coordinate-less early return, which is the path the UI tests render.
+        // missing or stale, wherever the card is on screen, then keep them current while the card is
+        // in view. Lives below the coordinate-less early return, which is the path the UI tests render.
         val lifecycleOwner = LocalLifecycleOwner.current
-        LaunchedEffect(viewModel, lifecycleOwner, tileInfo) {
-            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-                viewModel.load()
-                while (true) {
-                    delay(RadarViewModel.RECHECK_INTERVAL_MS)
-                    viewModel.recheck()
-                }
-            }
+        LaunchedEffect(viewModel, lifecycleOwner, location.latitude, location.longitude) {
+            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) { viewModel.keepCurrent() }
         }
+        LaunchedEffect(viewModel) { viewModel.play() }
+        val tileInfo by viewModel.shownTile.collectAsStateWithLifecycle()
         val timelineState by viewModel.timeline.collectAsStateWithLifecycle()
         val baseMap by viewModel.baseMap.collectAsStateWithLifecycle()
         val overlays by viewModel.overlays.collectAsStateWithLifecycle()
+        val playback by viewModel.playback.collectAsStateWithLifecycle()
+        val shownFrame by viewModel.shownFrame.collectAsStateWithLifecycle()
 
-        RadarView(
-            // The card starts below the fold on a phone. boundsInWindow() is clipped by the
-            // scrolling column, so it's empty while the card is scrolled out of sight.
-            modifier = Modifier.onGloballyPositioned { viewModel.setVisible(it.boundsInWindow().height > 0f) },
-            tileInfo = tileInfo,
-            baseMap = baseMap,
-            overlays = overlays,
-            timelineState = timelineState,
-            frameIntervalMs = viewModel.frameIntervalMs,
-            utcOffsetSeconds = utcOffsetSeconds,
-            onRetry = viewModel::retry,
-        )
+        tileInfo?.let { tile ->
+            RadarView(
+                // The card starts below the fold on a phone. boundsInWindow() is clipped by the
+                // scrolling column, so it's empty while the card is scrolled out of sight.
+                modifier = Modifier.onGloballyPositioned { viewModel.setVisible(it.boundsInWindow().height > 0f) },
+                tileInfo = tile,
+                baseMap = baseMap,
+                overlay = shownFrame?.let { overlays[it.frame.path] },
+                timelineState = timelineState,
+                playback = playback,
+                shownFrame = shownFrame,
+                utcOffsetSeconds = utcOffsetSeconds,
+                onTogglePlay = viewModel::togglePlaying,
+                onScrub = viewModel::scrub,
+                onRetry = viewModel::retry,
+            )
+        }
     }
 }
 
@@ -203,42 +198,20 @@ private fun CenteredMessage(text: String) {
 private fun RadarView(
     tileInfo: RadarTile,
     baseMap: Bitmap?,
-    overlays: Map<String, Bitmap>,
+    overlay: Bitmap?,
     timelineState: LoadingState<RadarTimeline>,
-    frameIntervalMs: Long,
+    playback: RadarPlayback,
+    shownFrame: ShownRadarFrame?,
     utcOffsetSeconds: Int,
+    onTogglePlay: () -> Unit,
+    onScrub: (Int) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val timeline = (timelineState as? LoadingState.Success)?.data
-    val frames = timeline?.frames.orEmpty()
-
-    // Start on the most recent observed frame ("now").
-    val nowIndex = remember(frames) {
-        frames.indexOfLast { !it.isForecast }.coerceAtLeast(0)
-    }
-    var frameIndex by remember(frames) { mutableIntStateOf(nowIndex) }
-    var playing by remember(frames) { mutableStateOf(true) }
-
-    LaunchedEffect(playing, frames, frameIntervalMs) {
-        if (!playing || frames.isEmpty()) return@LaunchedEffect
-        while (true) {
-            delay(frameIntervalMs)
-            frameIndex = (frameIndex + 1) % frames.size
-        }
-    }
-
+    val frames = (timelineState as? LoadingState.Success)?.data?.frames.orEmpty()
     val baseImage = remember(baseMap) { baseMap?.asImageBitmap() }
-    val overlay = frames.getOrNull(frameIndex)?.let { overlays[it.path] }
     val currentOverlay = remember(overlay) { overlay?.asImageBitmap() }
-    val frameLabel = frames.getOrNull(frameIndex)?.let { frame ->
-        frameTimeLabel(
-            epochSeconds = frame.timeEpochSeconds,
-            utcOffsetSeconds = utcOffsetSeconds,
-            isNow = frameIndex == nowIndex,
-            isForecast = frame.isForecast,
-        )
-    }
+    val frameLabel = shownFrame?.let { frameTimeLabel(it, utcOffsetSeconds) }
 
     Box(modifier = modifier.fillMaxSize()) {
         RadarCanvas(tileInfo = tileInfo, baseMap = baseImage, overlay = currentOverlay)
@@ -263,15 +236,12 @@ private fun RadarView(
             is LoadingState.Success ->
                 RadarControls(
                     modifier = Modifier.align(Alignment.BottomCenter),
-                    playing = playing,
-                    frameIndex = frameIndex,
+                    playing = playback.playing,
+                    frameIndex = playback.frameIndex,
                     frameCount = frames.size,
                     frameLabel = frameLabel,
-                    onTogglePlay = { playing = !playing },
-                    onScrub = {
-                        playing = false
-                        frameIndex = it
-                    },
+                    onTogglePlay = onTogglePlay,
+                    onScrub = onScrub,
                 )
 
             is LoadingState.Error ->
@@ -435,23 +405,16 @@ private fun RadarLegend(modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * Labels a radar frame with its wall-clock time in the selected city's timezone (via
- * [utcOffsetSeconds]), tagging the current frame as "Now" and nowcast frames as "Forecast".
- */
+/** "Now · 7:50 AM" for the latest observed frame, "Forecast · …" for nowcast frames, on the city's clock. */
+@Composable
 private fun frameTimeLabel(
-    epochSeconds: Long,
+    shown: ShownRadarFrame,
     utcOffsetSeconds: Int,
-    isNow: Boolean,
-    isForecast: Boolean,
 ): String {
-    val time = Instant
-        .ofEpochSecond(epochSeconds)
-        .atZone(ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
-        .format(DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault()))
+    val time = formatEpochTime(shown.frame.timeEpochSeconds, utcOffsetSeconds)
     return when {
-        isNow -> "Now · $time"
-        isForecast -> "Forecast · $time"
+        shown.isNow -> stringResource(R.string.radar_frame_now, time)
+        shown.frame.isForecast -> stringResource(R.string.radar_frame_forecast, time)
         else -> time
     }
 }

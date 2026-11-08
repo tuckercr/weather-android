@@ -8,6 +8,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -361,6 +362,39 @@ class RadarViewModelTest {
             assertEquals(true, viewModel.radarEnabled)
             assertEquals(LoadingState.Success(morning), viewModel.timeline.value)
             assertEquals(1, source.calls)
+        }
+
+    @Test
+    fun `playback starts on now, scrubbing pauses it, and playing steps on`() =
+        runTest {
+            val frames = RadarTimeline(
+                host = "https://tilecache.rainviewer.com",
+                frames = listOf(
+                    RadarFrame(timeEpochSeconds = 1, path = "/a", isForecast = false),
+                    RadarFrame(timeEpochSeconds = 2, path = "/b", isForecast = false),
+                    RadarFrame(timeEpochSeconds = 3, path = "/c", isForecast = true),
+                ),
+            )
+            val viewModel = viewModel(FakeSource(listOf(Result.success(frames))))
+            viewModel.show(51.5, -0.1)
+            viewModel.load()
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(RadarPlayback(frameIndex = 1, playing = true), viewModel.playback.value)
+            assertEquals(ShownRadarFrame(frames.frames[1], isNow = true), viewModel.shownFrame.value)
+            assertEquals(london, viewModel.shownTile.value)
+
+            viewModel.scrub(9)
+            assertEquals(RadarPlayback(frameIndex = 2, playing = false), viewModel.playback.value)
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals(false, viewModel.shownFrame.value?.isNow)
+
+            viewModel.togglePlaying()
+            val player = launch { viewModel.play() }
+            mainDispatcherRule.testDispatcher.scheduler.advanceTimeBy(900)
+            mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+            assertEquals(0, viewModel.playback.value.frameIndex)
+            player.cancel()
         }
 
     private fun timeline(nowPath: String) =

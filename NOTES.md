@@ -344,16 +344,8 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 - [ ] **Views still work things out (review of every view, 11-07).** Found by a pass over all
       views in both apps; none is a bug today, but each is logic a view model or the domain should
-      own. The captions, the Today tiles, app start-up and the onboarding glue are done (see Done).
-      Left, biggest first:
-  - **Location permission flows in views.** Onboarding's "Use my location" and Add location's
-    "Add My Location" choose between fetch, ask and skip in the click handlers (iOS
-    `OnboardingLocationView`, `AddLocationView`; Android `OnboardingLocationScreen`,
-    `rememberAddMyLocation`). iOS also makes a `LocationPermissionViewModel` (and its
-    `CLLocationManager`) per screen. Should be view model actions with an outcome. Medium.
-  - **Radar playback and polling in the view.** Frame index, play/pause, the playback loop, the
-    "now" frame, `RadarTile.from` and the recheck loop live in the radar views; Android's frame
-    label also hardcodes English "Now ·" and "Forecast ·". Should be `RadarViewModel`'s. Medium.
+      own. The captions, the Today tiles, app start-up, the onboarding glue, the location flows, the
+      radar and view models made in views are done (see Done). Left:
   - **Smaller rules in views.** The stale banner's text and the offline check (iOS
     `WeatherErrorViews`), "the last city can't be removed" and the "X added" toast
     (`LocationsView`), the notifications row's "Off / N on", adding a city when location is
@@ -362,10 +354,6 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
     `moonPhaseAt` in Android's ui. Small each.
   - **Clock reads in views.** `WeatherIconView`/`WeatherIcon` and the pets' default moon fall
     back to the device clock, not the screen's. Small.
-  - **View models made in views.** iOS builds `CurrentWeatherViewModel` and Add location's view
-    model in view initialisers (rebuilt on each parent re-init, only the first kept); Android
-    has several `SettingsViewModel` instances at different scopes and hand-builds
-    `CurrentWeatherViewModel`. Worth a look when the rest moves. Small to medium.
 
 ## Ideas
 
@@ -419,6 +407,15 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Location flows, radar playback and view model creation out of the views** (11-07):
+      "Use my location" and "Add My Location" go through `LocationPermissionViewModel`
+      (`useMyLocation`, iOS `canOfferMyLocation`; Android `myLocationOffered` and `addMyLocation`
+      with one-off added and failed events instead of the screen's flag and `consumeLocated`). The
+      radar's playback (frame, play/pause, the loop, scrubbing, the "now" frame), the tile maths,
+      the frame label and the recheck loop are `RadarViewModel`'s; Android's "Now ·" and
+      "Forecast ·" moved to strings.xml. iOS's RootView makes `CurrentWeatherViewModel` once and Add
+      location opens its view model on appearing; Android's weather route no longer makes a
+      `SettingsViewModel` (the weather view model gives it the distance units). All unit tested.
 - [x] **Captions, Today tiles, start-up and onboarding out of the views** (11-07): the screen state
       carries the walk card's wording (iOS `WalkCardContent`; Android `WalkCardContent` of string
       resources), Android's hero caption choice (`HeroCaption`: the walk's reason, the theme's, or

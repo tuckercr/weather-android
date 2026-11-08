@@ -68,15 +68,7 @@ fun OnboardingLocationScreen(
         actions = {
             if (state != LocationFetchState.Locating) {
                 Button(
-                    onClick = {
-                        if (viewModel.hasLocationPermission()) {
-                            Timber.d("permission already granted, fetching location")
-                            viewModel.fetchLocation()
-                        } else {
-                            Timber.d("launching permission dialog")
-                            requestPermission()
-                        }
-                    },
+                    onClick = { if (viewModel.useMyLocation()) requestPermission() },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.location_allow_button))

@@ -61,7 +61,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -107,9 +106,7 @@ import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.model.CityListViewModel
 import com.fangjet.weather.model.CurrentWeatherViewModel
 import com.fangjet.weather.model.LoadingState
-import com.fangjet.weather.model.LocationFetchState
 import com.fangjet.weather.model.LocationPermissionViewModel
-import com.fangjet.weather.model.SettingsViewModel
 import com.fangjet.weather.model.UpdatePromptViewModel
 import com.fangjet.weather.model.WeatherForecastViewModel
 import com.fangjet.weather.model.WeatherScreen
@@ -140,7 +137,6 @@ import com.fangjet.weather.util.isCalmWind
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.rainOutlook
 import com.fangjet.weather.util.readingDay
-import com.fangjet.weather.util.usesMilesForDistance
 import java.time.Instant
 import kotlin.math.roundToInt
 
@@ -157,58 +153,21 @@ internal fun rememberAddMyLocation(
     onLocated: (SavedLocation) -> Unit,
     viewModel: LocationPermissionViewModel = hiltViewModel(),
 ): (() -> Unit)? {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    val hasCurrentLocation = locations.any { it.isCurrentLocation }
-    var granted by remember { mutableStateOf(viewModel.hasLocationPermission()) }
-    // Whether the fetch under way is to add My Location.
-    var fetchingToAdd by rememberSaveable { mutableStateOf(false) }
-    val currentHasCurrentLocation by rememberUpdatedState(hasCurrentLocation)
+    val offered by viewModel.myLocationOffered.collectAsStateWithLifecycle()
     val requestPermission = rememberLocationPermissionRequest(viewModel)
-
-    val lifecycleOwner = LocalLifecycleOwner.current
-    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event != Lifecycle.Event.ON_RESUME) return@LifecycleEventObserver
-            granted = viewModel.hasLocationPermission()
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
+    OnResume(viewModel::refreshAccess)
+    val currentLocations by rememberUpdatedState(locations)
+    val currentOnLocated by rememberUpdatedState(onLocated)
     val context = LocalContext.current
-    LaunchedEffect(state) {
-        // A fix that fails to add My Location says so here.
-        if (state == LocationFetchState.Failed && fetchingToAdd) {
-            fetchingToAdd = false
-            Toast.makeText(context, R.string.add_my_location_failed, Toast.LENGTH_LONG).show()
-        }
-        val located = state as? LocationFetchState.Located ?: return@LaunchedEffect
-        // Handled once: a Located still held when this screen comes back (from another screen,
-        // or after rotation) must not re-add a My Location the user has since removed.
-        viewModel.consumeLocated()
+    LaunchedEffect(viewModel) {
         // Not when My Location turned up meanwhile, from the weather screen say.
-        if (fetchingToAdd && !currentHasCurrentLocation) onLocated(located.location)
-        fetchingToAdd = false
+        viewModel.myLocationAdded.collect { if (currentLocations.none { it.isCurrentLocation }) currentOnLocated(it) }
     }
-
-    // Re-read on recomposition, so an answer in the system dialog shows or hides it at once.
-    val canAsk = !granted && viewModel.canRequestPermission()
-    return when {
-        hasCurrentLocation -> null
-        granted -> {
-            {
-                fetchingToAdd = true
-                viewModel.fetchLocation()
-            }
-        }
-        canAsk -> {
-            {
-                fetchingToAdd = true
-                requestPermission()
-            }
-        }
-        else -> null
+    LaunchedEffect(viewModel) {
+        viewModel.addMyLocationFailed.collect { Toast.makeText(context, R.string.add_my_location_failed, Toast.LENGTH_LONG).show() }
     }
+    if (locations.any { it.isCurrentLocation } || !offered) return null
+    return { if (viewModel.addMyLocation()) requestPermission() }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -221,14 +180,10 @@ fun CurrentWeatherRoute(
     val cityListViewModel = hiltViewModel<CityListViewModel>(viewModelStoreOwner = activity)
     val weatherForecastViewModel =
         hiltViewModel<WeatherForecastViewModel>(viewModelStoreOwner = activity)
-    val settingsViewModel = hiltViewModel<SettingsViewModel>(viewModelStoreOwner = activity)
     // The activity's instance, the one that decides whether the app is blocked for an update.
     val updatePromptViewModel = hiltViewModel<UpdatePromptViewModel>(viewModelStoreOwner = activity)
     val updatePrompt by updatePromptViewModel.prompt.collectAsStateWithLifecycle()
-    val unitOverride by settingsViewModel.unitOverride.collectAsStateWithLifecycle()
-    // The user's Settings choice; Remote Config walk_card_enabled can also hide it for everyone.
-    val showWalkCard by settingsViewModel.showWalkCard.collectAsStateWithLifecycle()
-    val distanceInMiles = LocalContext.current.usesMilesForDistance(unitOverride)
+    val distanceInMiles by weatherForecastViewModel.distanceInMiles.collectAsStateWithLifecycle()
 
     val locations by cityListViewModel.locations.collectAsStateWithLifecycle()
     val activeIndex by cityListViewModel.activeIndex.collectAsStateWithLifecycle()

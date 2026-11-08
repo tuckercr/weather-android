@@ -11,12 +11,17 @@ import com.fangjet.weather.domain.RadarFrame
 import com.fangjet.weather.domain.RadarTimeline
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -97,6 +102,14 @@ class RadarViewModel internal constructor(
     val overlays: StateFlow<Map<String, Bitmap>> = _overlays.asStateFlow()
 
     init {
+        // Each new set of frames starts on "now", playing.
+        viewModelScope.launch {
+            timeline
+                .map { (it as? LoadingState.Success)?.data?.frames }
+                .filterNotNull()
+                .distinctUntilChanged()
+                .collect { frames -> _playback.value = RadarPlayback(frameIndex = nowIndex(frames)) }
+        }
         // A new city's map, loaded once per tile.
         viewModelScope.launch {
             tile.filterNotNull().collectLatest {
@@ -126,6 +139,61 @@ class RadarViewModel internal constructor(
     /** The card's city, by its map tile: loads its map and overlays. */
     fun show(tile: RadarTile) {
         this.tile.value = tile
+    }
+
+    /** The card's city, by its coordinates. */
+    fun show(
+        latitude: Double,
+        longitude: Double,
+    ) = show(RadarTile.from(latitude, longitude))
+
+    /** The map tile the card shows; null until [show]. */
+    val shownTile: StateFlow<RadarTile?> = tile.asStateFlow()
+
+    private val _playback = MutableStateFlow(RadarPlayback())
+
+    /** The frame on screen and whether it's playing. Starts on "now", playing, for each timeline. */
+    val playback: StateFlow<RadarPlayback> = _playback.asStateFlow()
+
+    /** The frame on screen, its time and what it is; null before there are frames. */
+    val shownFrame: StateFlow<ShownRadarFrame?> =
+        combine(timeline, _playback) { state, playback ->
+            val frames = (state as? LoadingState.Success)?.data?.frames.orEmpty()
+            frames.getOrNull(playback.frameIndex)?.let { frame ->
+                ShownRadarFrame(frame, isNow = playback.frameIndex == nowIndex(frames))
+            }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private val frames: List<RadarFrame> get() = (timeline.value as? LoadingState.Success)?.data?.frames.orEmpty()
+
+    /** Steps through the frames while playing, until cancelled. */
+    suspend fun play() {
+        while (true) {
+            delay(frameIntervalMs)
+            val count = frames.size
+            if (_playback.value.playing && count > 0) {
+                _playback.update { it.copy(frameIndex = (it.frameIndex + 1) % count) }
+            }
+        }
+    }
+
+    fun togglePlaying() = _playback.update { it.copy(playing = !it.playing) }
+
+    /** The slider: shows that frame, and pauses. */
+    fun scrub(index: Int) {
+        _playback.value = RadarPlayback(frameIndex = index.coerceIn(0, (frames.size - 1).coerceAtLeast(0)), playing = false)
+    }
+
+    /**
+     * While the screen is resumed: fetches the frames if they're missing or stale, then keeps them
+     * current, only while the card is in view. Until cancelled.
+     */
+    suspend fun keepCurrent() {
+        load()
+        while (true) {
+            delay(RECHECK_INTERVAL_MS)
+            recheck()
+        }
     }
 
     private suspend fun prefetchOverlays(
@@ -197,6 +265,9 @@ class RadarViewModel internal constructor(
     }
 
     companion object {
+        /** The most recent observed frame: "now". */
+        fun nowIndex(frames: List<RadarFrame>): Int = frames.indexOfLast { !it.isForecast }.coerceAtLeast(0)
+
         /** RainViewer adds a frame every 10 minutes, so a timeline older than this is out of date. */
         const val STALE_AFTER_MS = 10 * 60 * 1000L
 
@@ -207,3 +278,15 @@ class RadarViewModel internal constructor(
         private const val PARALLEL_FRAME_LOADS = 4
     }
 }
+
+/** The radar frame on screen and whether it's playing through them. */
+data class RadarPlayback(
+    val frameIndex: Int = 0,
+    val playing: Boolean = true,
+)
+
+/** The radar frame on screen: [isNow] for the latest observed one, otherwise a past or forecast frame. */
+data class ShownRadarFrame(
+    val frame: RadarFrame,
+    val isNow: Boolean,
+)
