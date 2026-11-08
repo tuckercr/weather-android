@@ -1,7 +1,6 @@
 package com.fangjet.weather.ui
 
 import android.graphics.Bitmap
-import android.graphics.Paint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -37,7 +36,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -49,7 +47,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -66,43 +63,25 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.createBitmap
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
-import coil.Coil
-import coil.request.ImageRequest
-import coil.request.SuccessResult
 import com.fangjet.weather.R
+import com.fangjet.weather.data.RADAR_TILE_PX
+import com.fangjet.weather.data.RadarTile
 import com.fangjet.weather.domain.RadarTimeline
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.model.LoadingState
 import com.fangjet.weather.model.RadarViewModel
 import com.fangjet.weather.ui.theme.RadarLegendColors
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.math.ln
-import kotlin.math.pow
 import kotlin.math.roundToInt
-import kotlin.math.tan
-import android.graphics.Canvas as AndroidCanvas
-
-// RainViewer's public radar tiles are only served up to zoom 7 (RadarTimeline.MAX_ZOOM); higher
-// zooms return a "Zoom Level Not Supported" placeholder. Regional zoom suits precipitation radar.
-private const val ZOOM = RadarTimeline.MAX_ZOOM
-private const val TILE_PX = 256
 
 @Composable
 fun RadarCard(
@@ -171,8 +150,10 @@ private fun RadarMapCard(
         // Obtained here (not as a default arg) so the coordinate-less path above never needs Hilt.
         val viewModel: RadarViewModel = hiltViewModel()
         val tileInfo = remember(location.latitude, location.longitude) {
-            TileInfo.from(location.latitude, location.longitude, ZOOM)
+            RadarTile.from(location.latitude, location.longitude)
         }
+        // The view model loads the city's map and the frames' overlays.
+        LaunchedEffect(viewModel, tileInfo) { viewModel.show(tileInfo) }
         // Opening the screen, coming back to the app or switching city: fetch the frames if they're
         // missing or stale, wherever the card is on screen (load() is a no-op while they're fresh).
         // While the screen stays open, keep them current, but only while the card is in view.
@@ -188,12 +169,16 @@ private fun RadarMapCard(
             }
         }
         val timelineState by viewModel.timeline.collectAsStateWithLifecycle()
+        val baseMap by viewModel.baseMap.collectAsStateWithLifecycle()
+        val overlays by viewModel.overlays.collectAsStateWithLifecycle()
 
         RadarView(
             // The card starts below the fold on a phone. boundsInWindow() is clipped by the
             // scrolling column, so it's empty while the card is scrolled out of sight.
             modifier = Modifier.onGloballyPositioned { viewModel.setVisible(it.boundsInWindow().height > 0f) },
             tileInfo = tileInfo,
+            baseMap = baseMap,
+            overlays = overlays,
             timelineState = timelineState,
             frameIntervalMs = viewModel.frameIntervalMs,
             utcOffsetSeconds = utcOffsetSeconds,
@@ -216,34 +201,17 @@ private fun CenteredMessage(text: String) {
 
 @Composable
 private fun RadarView(
-    tileInfo: TileInfo,
+    tileInfo: RadarTile,
+    baseMap: Bitmap?,
+    overlays: Map<String, Bitmap>,
     timelineState: LoadingState<RadarTimeline>,
     frameIntervalMs: Long,
     utcOffsetSeconds: Int,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-
-    // Base OpenStreetMap layer, stitched once per location.
-    var baseMap by remember(tileInfo) { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(tileInfo) {
-        baseMap = stitchTilesWithRetry(context, tileInfo) { x, y ->
-            "https://tile.openstreetmap.org/$ZOOM/$x/$y.png"
-        }
-    }
-
     val timeline = (timelineState as? LoadingState.Success)?.data
     val frames = timeline?.frames.orEmpty()
-
-    // Radar overlays are stitched lazily per frame and cached so replays are smooth. The cache
-    // outlives a timeline refresh (most frames carry over), but frames that have dropped out of
-    // the timeline are evicted so it doesn't grow.
-    val overlays = remember(tileInfo) { mutableStateMapOf<String, ImageBitmap>() }
-    LaunchedEffect(overlays, frames) {
-        val live = frames.mapTo(HashSet()) { it.path }
-        overlays.keys.filterNot { it in live }.forEach { overlays.remove(it) }
-    }
 
     // Start on the most recent observed frame ("now").
     val nowIndex = remember(frames) {
@@ -251,28 +219,6 @@ private fun RadarView(
     }
     var frameIndex by remember(frames) { mutableIntStateOf(nowIndex) }
     var playing by remember(frames) { mutableStateOf(true) }
-
-    // Prefetch every frame's overlay, keyed on the tile/timeline rather than frameIndex, so
-    // autoplay advancing the frame never cancels an in-flight stitch (which would otherwise leave
-    // the radar layer blank during the first loop). Frames closest to "now" start first so the
-    // initial view paints quickly, a few run in parallel, and each retries if tiles fail.
-    LaunchedEffect(tileInfo, timeline) {
-        val tl = timeline ?: return@LaunchedEffect
-        val permits = Semaphore(PARALLEL_FRAME_LOADS)
-        frames.indices
-            .sortedBy { kotlin.math.abs(it - nowIndex) }
-            .map { frames[it] }
-            .filterNot { overlays.containsKey(it.path) }
-            .forEach { frame ->
-                launch {
-                    permits.withPermit {
-                        stitchTilesWithRetry(context, tileInfo) { x, y ->
-                            tl.tileUrl(frame, ZOOM, x, y)
-                        }?.let { overlays[frame.path] = it }
-                    }
-                }
-            }
-    }
 
     LaunchedEffect(playing, frames, frameIntervalMs) {
         if (!playing || frames.isEmpty()) return@LaunchedEffect
@@ -282,7 +228,9 @@ private fun RadarView(
         }
     }
 
-    val currentOverlay = frames.getOrNull(frameIndex)?.let { overlays[it.path] }
+    val baseImage = remember(baseMap) { baseMap?.asImageBitmap() }
+    val overlay = frames.getOrNull(frameIndex)?.let { overlays[it.path] }
+    val currentOverlay = remember(overlay) { overlay?.asImageBitmap() }
     val frameLabel = frames.getOrNull(frameIndex)?.let { frame ->
         frameTimeLabel(
             epochSeconds = frame.timeEpochSeconds,
@@ -293,7 +241,7 @@ private fun RadarView(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        RadarCanvas(tileInfo = tileInfo, baseMap = baseMap, overlay = currentOverlay)
+        RadarCanvas(tileInfo = tileInfo, baseMap = baseImage, overlay = currentOverlay)
 
         // Timestamp chip (top-start), rendered in the selected city's local time (via its UTC
         // offset) rather than the device's timezone.
@@ -358,7 +306,7 @@ private fun RadarView(
 
 @Composable
 private fun RadarCanvas(
-    tileInfo: TileInfo,
+    tileInfo: RadarTile,
     baseMap: ImageBitmap?,
     overlay: ImageBitmap?,
 ) {
@@ -367,12 +315,12 @@ private fun RadarCanvas(
             .fillMaxSize()
             .clip(MaterialTheme.shapes.medium),
     ) {
-        val bitmapTotalPx = (3 * TILE_PX).toFloat()
+        val bitmapTotalPx = (3 * RADAR_TILE_PX).toFloat()
         val tileDisplayPx = maxOf(size.width, size.height) / 2f
-        val scale = tileDisplayPx / TILE_PX
+        val scale = tileDisplayPx / RADAR_TILE_PX
 
-        val locBmpX = (1 + tileInfo.subFracX.toFloat()) * TILE_PX
-        val locBmpY = (1 + tileInfo.subFracY.toFloat()) * TILE_PX
+        val locBmpX = (1 + tileInfo.subFracX.toFloat()) * RADAR_TILE_PX
+        val locBmpY = (1 + tileInfo.subFracY.toFloat()) * RADAR_TILE_PX
 
         val offsetX = size.width / 2f - locBmpX * scale
         val offsetY = size.height / 2f - locBmpY * scale
@@ -507,107 +455,3 @@ private fun frameTimeLabel(
         else -> time
     }
 }
-
-/**
- * Stitches the 3x3 tile grid, retrying with backoff while any tile fails so a network blip
- * doesn't leave permanent holes. Coil caches the tiles that did load, so a retry only refetches
- * the missing ones. After the last attempt a partial image beats none.
- */
-private suspend fun stitchTilesWithRetry(
-    context: android.content.Context,
-    tileInfo: TileInfo,
-    urlBuilder: (x: Int, y: Int) -> String,
-): ImageBitmap? {
-    repeat(STITCH_ATTEMPTS - 1) { attempt ->
-        stitchTiles(context, tileInfo, requireAll = true, urlBuilder)?.let { return it }
-        delay(STITCH_RETRY_BASE_MS shl attempt)
-    }
-    return stitchTiles(context, tileInfo, requireAll = false, urlBuilder)
-}
-
-/** Returns null when every tile failed, or when [requireAll] and any tile failed. */
-private suspend fun stitchTiles(
-    context: android.content.Context,
-    tileInfo: TileInfo,
-    requireAll: Boolean,
-    urlBuilder: (x: Int, y: Int) -> String,
-): ImageBitmap? =
-    withContext(Dispatchers.IO) {
-        val sizeP = 3 * TILE_PX
-        val stitched = createBitmap(sizeP, sizeP)
-        val canvas = AndroidCanvas(stitched)
-        val paint = Paint()
-
-        val jobs = (-1..1).flatMap { row ->
-            (-1..1).map { col ->
-                async {
-                    val x = tileInfo.tileX + col
-                    val y = tileInfo.tileY + row
-                    val bmp = loadTileBitmap(context, urlBuilder(x, y))
-                    Triple(col + 1, row + 1, bmp)
-                }
-            }
-        }
-
-        val results = jobs.awaitAll()
-        if (results.all { it.third == null }) return@withContext null
-        if (requireAll && results.any { it.third == null }) return@withContext null
-
-        results.forEach { (col, row, bmp) ->
-            if (bmp != null) {
-                canvas.drawBitmap(bmp, (col * TILE_PX).toFloat(), (row * TILE_PX).toFloat(), paint)
-            }
-        }
-
-        stitched.asImageBitmap()
-    }
-
-private suspend fun loadTileBitmap(
-    context: android.content.Context,
-    url: String,
-): Bitmap? {
-    val request = ImageRequest
-        .Builder(context)
-        .data(url)
-        .allowHardware(false)
-        .build()
-    val result = Coil.imageLoader(context).execute(request)
-    return (result as? SuccessResult)?.drawable?.let {
-        (it as? android.graphics.drawable.BitmapDrawable)?.bitmap
-    }
-}
-
-/** Pre-computed tile coordinates and sub-tile fractional position for a lat/lon. */
-data class TileInfo(
-    val tileX: Int,
-    val tileY: Int,
-    /** Fractional position within the tile (0.0–1.0) in the X direction. */
-    val subFracX: Double,
-    /** Fractional position within the tile (0.0–1.0) in the Y direction. */
-    val subFracY: Double,
-) {
-    companion object {
-        fun from(
-            lat: Double,
-            lon: Double,
-            zoom: Int,
-        ): TileInfo {
-            val n = 2.0.pow(zoom.toDouble())
-            val exactX = (lon + 180.0) / 360.0 * n
-            val latRad = Math.toRadians(lat)
-            val exactY = (1.0 - ln(tan(latRad) + 1.0 / kotlin.math.cos(latRad)) / Math.PI) / 2.0 * n
-            val tileX = exactX.toInt()
-            val tileY = exactY.toInt()
-            return TileInfo(
-                tileX = tileX,
-                tileY = tileY,
-                subFracX = exactX - tileX,
-                subFracY = exactY - tileY,
-            )
-        }
-    }
-}
-
-private const val PARALLEL_FRAME_LOADS = 4
-private const val STITCH_ATTEMPTS = 4
-private const val STITCH_RETRY_BASE_MS = 1_000L

@@ -1,7 +1,10 @@
 package com.fangjet.weather.model
 
+import android.graphics.Bitmap
+import com.fangjet.weather.data.RadarTile
 import com.fangjet.weather.domain.RadarFrame
 import com.fangjet.weather.domain.RadarTimeline
+import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -46,12 +49,79 @@ class RadarViewModelTest {
     private fun viewModel(
         source: FakeSource,
         radarEnabled: Boolean = true,
+        loadBaseMap: suspend (RadarTile) -> Bitmap? = { null },
+        loadOverlay: suspend (RadarTile, RadarTimeline, RadarFrame) -> Bitmap? = { _, _, _ -> null },
     ) = RadarViewModel(
         getTimeline = source::fetch,
         frameIntervalMs = 850,
         radarEnabled = radarEnabled,
         nowMillis = { now },
+        loadBaseMap = loadBaseMap,
+        loadOverlay = loadOverlay,
     )
+
+    // --- the city's images ---
+
+    private val london = RadarTile.from(51.5, -0.1)
+    private val tokyo = RadarTile.from(35.7, 139.7)
+
+    @Test
+    fun `the map and every frame's overlay load for the city on screen, nearest now first`() =
+        runTest {
+            val image = mockk<Bitmap>()
+            val asked = mutableListOf<String>()
+            val viewModel = viewModel(
+                FakeSource(listOf(Result.success(morning))),
+                loadBaseMap = { image },
+                loadOverlay = { _, _, frame ->
+                    asked += frame.path
+                    image
+                },
+            )
+            viewModel.load()
+            viewModel.show(london)
+            settle()
+
+            assertEquals(image, viewModel.baseMap.value)
+            assertEquals(setOf("/v2/radar/0750-past", "/v2/radar/0750"), viewModel.overlays.value.keys)
+            assertEquals("/v2/radar/0750", asked.first())
+            // Shown again, nothing is loaded twice.
+            viewModel.show(london)
+            settle()
+            assertEquals(2, asked.size)
+        }
+
+    @Test
+    fun `a refreshed timeline keeps the overlays it shares and a new city starts from scratch`() =
+        runTest {
+            val image = mockk<Bitmap>()
+            val asked = mutableListOf<String>()
+            val shared = RadarTimeline(
+                host = morning.host,
+                frames = listOf(morning.frames.last(), RadarFrame(timeEpochSeconds = 3, path = "/v2/radar/0800", isForecast = false)),
+            )
+            val viewModel = viewModel(
+                FakeSource(listOf(Result.success(morning), Result.success(shared))),
+                loadOverlay = { _, _, frame ->
+                    asked += frame.path
+                    image
+                },
+            )
+            viewModel.load()
+            viewModel.show(london)
+            settle()
+            now += RadarViewModel.STALE_AFTER_MS
+            viewModel.load()
+            settle()
+
+            assertEquals(setOf("/v2/radar/0750", "/v2/radar/0800"), viewModel.overlays.value.keys)
+            assertEquals(listOf("/v2/radar/0750", "/v2/radar/0750-past", "/v2/radar/0800"), asked)
+
+            viewModel.show(tokyo)
+            settle()
+            assertEquals(5, asked.size)
+            assertEquals(setOf("/v2/radar/0750", "/v2/radar/0800"), viewModel.overlays.value.keys)
+        }
 
     private fun settle() = mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
 

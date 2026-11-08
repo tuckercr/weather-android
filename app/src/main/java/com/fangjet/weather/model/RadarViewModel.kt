@@ -1,16 +1,28 @@
 package com.fangjet.weather.model
 
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fangjet.weather.data.RadarRepository
+import com.fangjet.weather.data.RadarTile
+import com.fangjet.weather.data.RadarTileLoader
 import com.fangjet.weather.data.RemoteConfigRepository
+import com.fangjet.weather.domain.RadarFrame
 import com.fangjet.weather.domain.RadarTimeline
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import javax.inject.Inject
+import kotlin.math.abs
 
 /**
  * Holds the RainViewer radar timeline. The frame list is global (not per-city), so it is fetched
@@ -25,6 +37,10 @@ import javax.inject.Inject
  *
  * While the screen stays open, [recheck] only refreshes while the radar is in view ([setVisible]),
  * so a radar scrolled out of sight doesn't keep fetching frames nobody watches.
+ *
+ * It also holds the images for the city on screen ([show]): the map behind the radar ([baseMap])
+ * and each frame's overlay ([overlays]), loaded through [RadarTileLoader]. Same as iOS's
+ * `RadarViewModel`.
  */
 @HiltViewModel
 class RadarViewModel internal constructor(
@@ -38,16 +54,21 @@ class RadarViewModel internal constructor(
     val radarEnabled: Boolean = true,
     // Monotonic clock in milliseconds; injectable for tests.
     private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000 },
+    private val loadBaseMap: suspend (RadarTile) -> Bitmap? = { null },
+    private val loadOverlay: suspend (RadarTile, RadarTimeline, RadarFrame) -> Bitmap? = { _, _, _ -> null },
 ) : ViewModel() {
 
     @Inject
     constructor(
         radarRepository: RadarRepository,
         remoteConfigRepository: RemoteConfigRepository,
+        tileLoader: RadarTileLoader,
     ) : this(
         getTimeline = radarRepository::getTimeline,
         frameIntervalMs = remoteConfigRepository.radarFrameIntervalMs(),
         radarEnabled = remoteConfigRepository.radarEnabled(),
+        loadBaseMap = tileLoader::baseMap,
+        loadOverlay = { tile, timeline, frame -> tileLoader.overlay(frame, timeline, tile) },
     )
 
     private val _timeline = MutableStateFlow<LoadingState<RadarTimeline>>(LoadingState.Idle)
@@ -62,6 +83,69 @@ class RadarViewModel internal constructor(
     private var loadedAtMillis: Long? = null
 
     private fun isStale(): Boolean = loadedAtMillis?.let { nowMillis() - it >= STALE_AFTER_MS } ?: true
+
+    private val tile = MutableStateFlow<RadarTile?>(null)
+
+    private val _baseMap = MutableStateFlow<Bitmap?>(null)
+
+    /** The OpenStreetMap tiles around the city on screen; null until they load. */
+    val baseMap: StateFlow<Bitmap?> = _baseMap.asStateFlow()
+
+    private val _overlays = MutableStateFlow<Map<String, Bitmap>>(emptyMap())
+
+    /** Each frame's stitched overlay by frame path, kept so replays are smooth. */
+    val overlays: StateFlow<Map<String, Bitmap>> = _overlays.asStateFlow()
+
+    init {
+        // A new city's map, loaded once per tile.
+        viewModelScope.launch {
+            tile.filterNotNull().collectLatest {
+                _baseMap.value = null
+                _baseMap.value = loadBaseMap(it)
+            }
+        }
+        // Every frame's overlay, prefetched once per tile and timeline (a change cancels the old
+        // prefetch), frames nearest "now" first, a few at a time. A new tile starts from scratch; a
+        // refreshed timeline keeps the overlays it shares with the old one and drops the rest.
+        viewModelScope.launch {
+            var overlaysTile: RadarTile? = null
+            combine(tile.filterNotNull(), timeline) { tile, state -> tile to (state as? LoadingState.Success)?.data }
+                .collectLatest { (tile, timeline) ->
+                    if (tile != overlaysTile) {
+                        _overlays.value = emptyMap()
+                        overlaysTile = tile
+                    }
+                    timeline ?: return@collectLatest
+                    val live = timeline.frames.mapTo(HashSet()) { it.path }
+                    _overlays.update { cached -> cached.filterKeys { it in live } }
+                    prefetchOverlays(tile, timeline)
+                }
+        }
+    }
+
+    /** The card's city, by its map tile: loads its map and overlays. */
+    fun show(tile: RadarTile) {
+        this.tile.value = tile
+    }
+
+    private suspend fun prefetchOverlays(
+        tile: RadarTile,
+        timeline: RadarTimeline,
+    ) = coroutineScope {
+        val permits = Semaphore(PARALLEL_FRAME_LOADS)
+        val now = timeline.frames.indexOfLast { !it.isForecast }.coerceAtLeast(0)
+        timeline.frames.indices
+            .sortedBy { abs(it - now) }
+            .map { timeline.frames[it] }
+            .filterNot { _overlays.value.containsKey(it.path) }
+            .forEach { frame ->
+                launch {
+                    permits.withPermit {
+                        loadOverlay(tile, timeline, frame)?.let { image -> _overlays.update { it + (frame.path to image) } }
+                    }
+                }
+            }
+    }
 
     fun load() {
         if (!radarEnabled) return
@@ -118,5 +202,8 @@ class RadarViewModel internal constructor(
 
         /** How often the radar card checks for staleness while the screen is open. */
         const val RECHECK_INTERVAL_MS = 60 * 1000L
+
+        /** Radar frames stitched at once; each one fetches 9 tiles. */
+        private const val PARALLEL_FRAME_LOADS = 4
     }
 }
