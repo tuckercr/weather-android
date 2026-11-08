@@ -52,14 +52,19 @@ class LocationWeatherRepository internal constructor(
 
     /**
      * Fetches [location]'s current reading and caches it. A fetch the screen has since moved on from
-     * is still cached: it's that location's weather.
+     * is still cached (it's that location's weather), unless the units changed while it was fetched.
      */
-    suspend fun refreshWeather(location: SavedLocation): Result<CurrentWeather> =
-        fetchCurrentWeather(location, units()).onSuccess { writeCachedWeather(location.cacheKey, it) }
+    suspend fun refreshWeather(location: SavedLocation): Result<CurrentWeather> {
+        val units = units()
+        // Not cached if the units changed while it was fetched: the cache stays in the new ones.
+        return fetchCurrentWeather(location, units).onSuccess { if (units() == units) writeCachedWeather(location.cacheKey, it) }
+    }
 
-    /** Fetches [location]'s forecast and caches it. */
-    suspend fun refreshForecast(location: SavedLocation): Result<List<DayForecast>> =
-        fetchForecast(location, units()).onSuccess { writeCachedForecast(location.cacheKey, it) }
+    /** Fetches [location]'s forecast and caches it, unless the units changed meanwhile. */
+    suspend fun refreshForecast(location: SavedLocation): Result<List<DayForecast>> {
+        val units = units()
+        return fetchForecast(location, units).onSuccess { if (units() == units) writeCachedForecast(location.cacheKey, it) }
+    }
 
     /** Keeps the city last shown, which the city list falls back to when it has none. */
     suspend fun rememberShownCity(cityName: String) = setLastCity(cityName)

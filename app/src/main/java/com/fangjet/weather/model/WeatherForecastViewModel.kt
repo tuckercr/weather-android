@@ -1,6 +1,5 @@
 package com.fangjet.weather.model
 
-import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fangjet.weather.analytics.AnalyticsRepository
@@ -14,7 +13,7 @@ import com.fangjet.weather.domain.RainOutlookSettings
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.TodayTileSwitches
-import com.fangjet.weather.util.usesMilesForDistance
+import com.fangjet.weather.domain.UnitOverride
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +22,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -51,8 +49,8 @@ class WeatherForecastViewModel internal constructor(
     isRadarEnabled: () -> Boolean = { true },
     // Settings' Dog walking switch.
     showWalkCard: Flow<Boolean> = flowOf(true),
-    // Visibility in miles rather than kilometres: the user's units, or the device's.
-    distanceInMiles: Flow<Boolean> = flowOf(false),
+    // Settings' units: miles or kilometres follow it, or the device's region with System.
+    unitOverride: Flow<UnitOverride> = flowOf(UnitOverride.SYSTEM),
     // Remote Config foreground_refresh_min_minutes, read on every foreground resume. 0 = never throttle.
     private val foregroundRefreshMinMinutes: () -> Long = { 0L },
     // Monotonic clock in milliseconds; injectable for tests. Fetch times only live in this process.
@@ -63,7 +61,6 @@ class WeatherForecastViewModel internal constructor(
 
     @Inject
     constructor(
-        application: Application,
         locationWeatherRepository: LocationWeatherRepository,
         preferencesRepository: PreferencesRepository,
         analyticsRepository: AnalyticsRepository,
@@ -84,7 +81,7 @@ class WeatherForecastViewModel internal constructor(
         readPetWeatherThresholds = remoteConfigRepository::petWeatherThresholds,
         isRadarEnabled = remoteConfigRepository::radarEnabled,
         showWalkCard = preferencesRepository.showWalkCard,
-        distanceInMiles = preferencesRepository.unitOverride.map(application::usesMilesForDistance),
+        unitOverride = preferencesRepository.unitOverride,
         foregroundRefreshMinMinutes = remoteConfigRepository::foregroundRefreshMinMinutes,
     )
 
@@ -108,9 +105,12 @@ class WeatherForecastViewModel internal constructor(
         todayTiles = readTodayTiles(),
     )
 
-    /** Visibility in miles rather than kilometres, for Misty's View. */
-    val distanceInMiles: StateFlow<Boolean> =
-        distanceInMiles.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    /**
+     * Settings' units, for miles or kilometres in Misty's View. The screen applies the device's
+     * region with System, so a region change (which recreates the activity) applies at once.
+     */
+    val unitOverride: StateFlow<UnitOverride> =
+        unitOverride.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UnitOverride.SYSTEM)
 
     private val _now = MutableStateFlow(clock())
 

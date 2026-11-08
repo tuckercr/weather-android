@@ -76,6 +76,26 @@ class LocationWeatherRepositoryTest {
             assertNull(repository.cachedWeather(SavedLocation(label = "Paris", latitude = 48.9, longitude = 2.4)))
         }
 
+    @Test
+    fun `a fetch made in units since changed isn't cached`() =
+        runTest {
+            var units = WeatherUnits.IMPERIAL
+            val cached = mutableListOf<String>()
+            val repository = testLocationWeatherRepository(
+                fetchCurrentWeather = { u, _ ->
+                    // The user switches to metric while the imperial fetch is out.
+                    units = WeatherUnits.METRIC
+                    Result.success(weather(u))
+                },
+                fetchForecast = { u, _ -> Result.success(listOf(day(u))) },
+                cacheCurrentWeather = { key, _ -> cached += key },
+                resolveUnits = { units },
+            )
+
+            repository.refreshWeather(london)
+            assertEquals(emptyList<String>(), cached)
+        }
+
     private fun weather(units: WeatherUnits) =
         CurrentWeather(
             cityName = "London",

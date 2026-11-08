@@ -154,7 +154,11 @@ private fun RadarMapCard(
         LaunchedEffect(viewModel, lifecycleOwner, location.latitude, location.longitude) {
             lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) { viewModel.keepCurrent() }
         }
-        LaunchedEffect(viewModel) { viewModel.play() }
+        // Playing only while the screen is resumed; back on screen it starts again on "now".
+        LaunchedEffect(viewModel) { viewModel.restartPlayback() }
+        LaunchedEffect(viewModel, lifecycleOwner) {
+            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) { viewModel.play() }
+        }
         val tileInfo by viewModel.shownTile.collectAsStateWithLifecycle()
         val timelineState by viewModel.timeline.collectAsStateWithLifecycle()
         val baseMap by viewModel.baseMap.collectAsStateWithLifecycle()

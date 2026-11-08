@@ -131,7 +131,8 @@ fun walkAdviceFor(
     if (slots.isEmpty()) return null
     var check = walkCheckFor(slots.first(), thresholds, currentFeelsLikeC, conditionNow, windForceNow, gustForceNow, darkNow, hasDog)
     val hurricaneSoon = slots.any { slot ->
-        (slot.epochSeconds ?: 0L) <= nowEpochSeconds + DANGER_AHEAD_SECONDS &&
+        // An hour without a time (a forecast cached before they were kept) isn't counted as soon.
+        (slot.epochSeconds ?: Long.MAX_VALUE) <= nowEpochSeconds + DANGER_AHEAD_SECONDS &&
             windForce(slot.windSpeed, slot.units) == WindForce.HURRICANE
     }
     if (check.level < WalkLevel.DANGER && hurricaneSoon) {

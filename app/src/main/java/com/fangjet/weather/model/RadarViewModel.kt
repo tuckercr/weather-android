@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -169,12 +170,20 @@ class RadarViewModel internal constructor(
     /** Steps through the frames while playing, until cancelled. */
     suspend fun play() {
         while (true) {
+            // Asleep while paused or before there are frames.
+            _playback.first { it.playing }
+            timeline.first { (it as? LoadingState.Success)?.data?.frames?.isNotEmpty() == true }
             delay(frameIntervalMs)
             val count = frames.size
             if (_playback.value.playing && count > 0) {
                 _playback.update { it.copy(frameIndex = (it.frameIndex + 1) % count) }
             }
         }
+    }
+
+    /** The card came back on screen: playback starts again on "now", as it did before the card left. */
+    fun restartPlayback() {
+        _playback.value = RadarPlayback(frameIndex = nowIndex(frames))
     }
 
     fun togglePlaying() = _playback.update { it.copy(playing = !it.playing) }

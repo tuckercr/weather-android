@@ -151,10 +151,13 @@ class CurrentWeatherViewModel(
      *   It waits for the saved cities to load: before then the empty list would read as "none yet".
      */
     private fun updateMyLocation() {
+        // While a read is under way this check is skipped whole, so a grant made meanwhile is still
+        // "newly granted" next time.
+        if (locating) return
         val granted = position.hasLocationPermission()
         val newlyGranted = granted && locationWasGranted == false
         locationWasGranted = granted
-        if (!granted || locating) return
+        if (!granted) return
         locating = true
         viewModelScope.launch {
             try {

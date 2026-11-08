@@ -137,6 +137,7 @@ import com.fangjet.weather.util.isCalmWind
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.rainOutlook
 import com.fangjet.weather.util.readingDay
+import com.fangjet.weather.util.usesMilesForDistance
 import java.time.Instant
 import kotlin.math.roundToInt
 
@@ -183,7 +184,8 @@ fun CurrentWeatherRoute(
     // The activity's instance, the one that decides whether the app is blocked for an update.
     val updatePromptViewModel = hiltViewModel<UpdatePromptViewModel>(viewModelStoreOwner = activity)
     val updatePrompt by updatePromptViewModel.prompt.collectAsStateWithLifecycle()
-    val distanceInMiles by weatherForecastViewModel.distanceInMiles.collectAsStateWithLifecycle()
+    val unitOverride by weatherForecastViewModel.unitOverride.collectAsStateWithLifecycle()
+    val distanceInMiles = LocalContext.current.usesMilesForDistance(unitOverride)
 
     val locations by cityListViewModel.locations.collectAsStateWithLifecycle()
     val activeIndex by cityListViewModel.activeIndex.collectAsStateWithLifecycle()
