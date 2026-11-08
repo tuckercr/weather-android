@@ -1,5 +1,6 @@
 package com.fangjet.weather.ui
 
+import com.fangjet.weather.util.displayedRainChance
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

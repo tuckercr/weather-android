@@ -8,8 +8,8 @@ import androidx.work.ListenableWorker
 import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
 import com.fangjet.weather.data.PreferencesRepository
+import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.notificationLocation
-import com.fangjet.weather.ui.pets.PetMood
 import com.fangjet.weather.util.NextRain
 import com.fangjet.weather.worker.NotificationKind
 import com.fangjet.weather.worker.WalkTimeWorker

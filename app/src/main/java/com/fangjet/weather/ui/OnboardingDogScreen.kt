@@ -19,7 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.fangjet.weather.R
-import com.fangjet.weather.ui.pets.PetMood
+import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.ui.pets.PetScene
 import com.fangjet.weather.ui.pets.skyColor
 import com.fangjet.weather.ui.theme.CatsDogsTheme

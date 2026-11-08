@@ -337,21 +337,18 @@ noted. Checked against the code, not fixed yet.
 
 ## Architecture (MVVM review, 11-07)
 
-Since 11-07 the weather view model in both apps holds the screen's clock and builds what the
-weather screen shows, the notifications share the screen's data layer and rules, and a screen
-view model runs the refresh and My Location steps, and views go through their view models for
-settings and permissions (see Done). Still to do:
+The review's main items were done on 11-07 (see Done): the weather view model holds the screen's
+clock and builds what the screen shows; the notifications share the screen's data layer and rules;
+a screen view model runs the refresh and My Location steps; views go through their view models for
+settings and permissions; and the domain rules are out of the UI layer. Still to do:
 
 - [ ] **Two Android workers have no wiring tests.** `WalkTimeWorker` and
       `WeatherUpdateWorker` are wired by hand like `WeatherNotificationWorker`, which has a
       wiring test; they don't. (11-07)
-- [ ] **Layers depend on each other the wrong way.** On Android the worker imports from ui
-      (`petMoodFor`, formatting), and data and model import the worker's
-      `NotificationKind`. The weather screen state (`model/WeatherScreen.kt`) uses `petMoodFor`,
-      `walkCardShown` and `heroHighLow` from ui. On iOS `PetMood` and `SeasonalTheme` hand out
-      SwiftUI colours yet are used by the notification planner, and the scheduler draws a SwiftUI
-      pet icon. Domain types should be split from their colours and moved out of ui. Both apps.
-      (11-07)
+- [ ] **Android's notification text names bad air in code.** `badAirPhrase` in
+      `NotificationWorkerLogic.kt` spells out "Smoky air today" and the rest, while the hero's
+      caption takes the names from `strings.xml` (`airNameRes`); iOS shares `WalkReason.airName`.
+      The worker's text is all in Kotlin, so moving it to resources is a bigger change. (11-07)
 
 ## Ideas
 
@@ -405,6 +402,14 @@ settings and permissions (see Done). Still to do:
 
 ## Done
 
+- [x] **Domain rules out of the UI layer** (11-07): the pets' moods, the walk advisor and check,
+      the thresholds and the seasonal themes live in iOS's `Domain/` and Android's `domain/`, with
+      no UI in them; their colours are view extensions (iOS `PetMood+Colors`,
+      `SeasonalTheme+Colors`; Android's were already in `PetScene.kt`), and only iOS's `Views/`
+      imports SwiftUI. "Is the walk card shown" is a domain rule (`WalkAdvice.showsCard`,
+      `walkCardShown`), Android's shared formatting moved to `util/Formatting.kt`, and the
+      notification picture is drawn by the pets' view on request (`PetSceneIcon.png`,
+      `petSceneIcon`), the one place notification code touches the view layer.
 - [x] **Views go through their view models** (11-07): on iOS, notification onboarding's text and
       "Allow notifications" are `WelcomeViewModel`'s; Follow my location (with its explanation),
       the debug samples and the link from iOS Settings are `SettingsViewModel`'s; `RootView` owns

@@ -30,7 +30,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import com.fangjet.weather.R
+import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.SceneDecoration
+import com.fangjet.weather.domain.WalkCheck
+import com.fangjet.weather.domain.WalkLevel
+import com.fangjet.weather.domain.WalkReason
 import com.fangjet.weather.ui.LocalSouthernHemisphere
 import com.fangjet.weather.ui.MoonPhase
 import com.fangjet.weather.ui.moonPhaseAt

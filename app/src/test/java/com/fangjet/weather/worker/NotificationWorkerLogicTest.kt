@@ -7,13 +7,13 @@ import com.fangjet.weather.domain.AirQuality
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
+import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.QuarterHour
 import com.fangjet.weather.domain.SavedLocation
+import com.fangjet.weather.domain.WalkAdvice
+import com.fangjet.weather.domain.WalkRating
 import com.fangjet.weather.domain.WeatherUnits
-import com.fangjet.weather.ui.pets.PetMood
-import com.fangjet.weather.ui.pets.WalkAdvice
-import com.fangjet.weather.ui.pets.WalkRating
 import com.fangjet.weather.util.NextRain
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals

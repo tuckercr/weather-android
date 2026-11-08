@@ -1,9 +1,5 @@
-package com.fangjet.weather.ui.pets
+package com.fangjet.weather.domain
 
-import com.fangjet.weather.domain.AirQuality
-import com.fangjet.weather.domain.HourlySlot
-import com.fangjet.weather.domain.PetWeatherThresholds
-import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.util.PavementBand
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

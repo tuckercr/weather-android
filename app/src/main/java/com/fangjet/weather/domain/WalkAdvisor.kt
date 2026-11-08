@@ -1,9 +1,5 @@
-package com.fangjet.weather.ui.pets
+package com.fangjet.weather.domain
 
-import com.fangjet.weather.domain.CurrentWeather
-import com.fangjet.weather.domain.DayForecast
-import com.fangjet.weather.domain.HourlySlot
-import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.util.WindForce
 import com.fangjet.weather.util.fromCurrentSlot
 import com.fangjet.weather.util.isDarkAt
@@ -263,3 +259,9 @@ private fun isNextDay(
     val today = Instant.ofEpochSecond(nowEpochSeconds).atOffset(zone).toLocalDate()
     return Instant.ofEpochSecond(epochSeconds).atOffset(zone).toLocalDate() == today.plusDays(1)
 }
+
+/** With a dog, when Remote Config allows the card ([walkCardEnabled] covers both); a danger warning shows for everyone. */
+internal fun walkCardShown(
+    advice: WalkAdvice,
+    walkCardEnabled: Boolean,
+): Boolean = walkCardEnabled || advice.rating == WalkRating.DANGER

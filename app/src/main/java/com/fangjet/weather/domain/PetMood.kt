@@ -1,7 +1,5 @@
-package com.fangjet.weather.ui.pets
+package com.fangjet.weather.domain
 
-import com.fangjet.weather.domain.CurrentWeather
-import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.util.FeelsLikeBand
 import com.fangjet.weather.util.feelsLikeBand
 import com.fangjet.weather.util.iconCodeAt

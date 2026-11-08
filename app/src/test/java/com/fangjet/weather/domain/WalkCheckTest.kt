@@ -1,13 +1,16 @@
-package com.fangjet.weather.ui.pets
+package com.fangjet.weather.domain
 
 import com.fangjet.weather.R
-import com.fangjet.weather.domain.AirQuality
-import com.fangjet.weather.domain.CurrentWeather
-import com.fangjet.weather.domain.DayForecast
-import com.fangjet.weather.domain.HourlySlot
-import com.fangjet.weather.domain.PetWeatherThresholds
-import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.ui.airQualityDogLine
+import com.fangjet.weather.ui.pets.WALK_SUGGESTIONS
+import com.fangjet.weather.ui.pets.WalkText
+import com.fangjet.weather.ui.pets.airNameRes
+import com.fangjet.weather.ui.pets.captionOptions
+import com.fangjet.weather.ui.pets.heroWalkCaptions
+import com.fangjet.weather.ui.pets.pickHeroCaption
+import com.fangjet.weather.ui.pets.rulesOutWalkNow
+import com.fangjet.weather.ui.pets.walkCaption
+import com.fangjet.weather.ui.pets.walkDetail
 import com.fangjet.weather.util.PavementBand
 import com.fangjet.weather.util.WindForce
 import org.junit.Assert.assertEquals

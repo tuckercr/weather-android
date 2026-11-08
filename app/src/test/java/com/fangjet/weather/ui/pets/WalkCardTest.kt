@@ -1,6 +1,14 @@
 package com.fangjet.weather.ui.pets
 
 import com.fangjet.weather.R
+import com.fangjet.weather.domain.WalkAdvice
+import com.fangjet.weather.domain.WalkChange
+import com.fangjet.weather.domain.WalkCheck
+import com.fangjet.weather.domain.WalkFactor
+import com.fangjet.weather.domain.WalkLevel
+import com.fangjet.weather.domain.WalkOutlook
+import com.fangjet.weather.domain.WalkRating
+import com.fangjet.weather.domain.WalkReason
 import com.fangjet.weather.util.PavementBand
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

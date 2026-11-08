@@ -1,8 +1,7 @@
-package com.fangjet.weather.ui.pets
+package com.fangjet.weather.domain
 
-import com.fangjet.weather.domain.CurrentWeather
-import com.fangjet.weather.domain.PetWeatherThresholds
-import com.fangjet.weather.domain.WeatherUnits
+import com.fangjet.weather.ui.pets.NightPart
+import com.fangjet.weather.ui.pets.nightPartAt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

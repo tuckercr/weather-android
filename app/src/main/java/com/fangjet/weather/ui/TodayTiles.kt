@@ -61,9 +61,9 @@ import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.TodayTileSwitches
+import com.fangjet.weather.domain.WalkLevel
 import com.fangjet.weather.domain.WeatherUnits
-import com.fangjet.weather.ui.pets.WalkLevel
-import com.fangjet.weather.ui.pets.airWalkLevel
+import com.fangjet.weather.domain.airWalkLevel
 import com.fangjet.weather.ui.theme.PetSun
 import com.fangjet.weather.ui.theme.WalkColdBg
 import com.fangjet.weather.ui.theme.WalkColdText
@@ -88,6 +88,7 @@ import com.fangjet.weather.util.feelsLikeBand
 import com.fangjet.weather.util.feelsLikeBarPosition
 import com.fangjet.weather.util.feelsLikeGap
 import com.fangjet.weather.util.fluffLevel
+import com.fangjet.weather.util.formatEpochTime
 import com.fangjet.weather.util.gustWorthMentioning
 import com.fangjet.weather.util.keepUnitsTogether
 import com.fangjet.weather.util.pavementBand

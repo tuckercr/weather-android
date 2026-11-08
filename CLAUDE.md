@@ -52,12 +52,13 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
   Firebase: `ForecastSourcePolicy` carries the `open_meteo_enabled` switch in from the app. `:app`
   has everything else.
 - **`:app` layout.** `data/` (`PreferencesRepository` on DataStore: cities, settings and the
-  per-city cache; `RemoteConfigRepository`), `domain/` (`PetWeatherThresholds`, `SeasonalTheme`),
+  per-city cache; `RemoteConfigRepository`), `domain/` (rules with no UI: `PetMood`, `WalkAdvisor`,
+  `WalkCheck`, `PetWeatherThresholds`, `SeasonalTheme`),
   `model/` (the ViewModels, exposing `StateFlow`; `WeatherForecastViewModel` holds the screen's
   clock, moved on by `tick()`, and builds the `WeatherScreen` the weather screen draws;
   `CurrentWeatherViewModel` runs the screen's refresh and My Location steps), `ui/`
   (Compose screens; `navigation/WeatherNavHost`
-  routes onboarding and screens; `ui/pets/` has the moods, the scene and `WalkAdvisor`), `util/`
+  routes onboarding and screens; `ui/pets/` draws the pets and the walk card and words the captions), `util/`
   (`StaleWeather`, `NextRain`, `TodayDetails` and other pure rules), `worker/`, `analytics/`, `di/`
   (Hilt).
 - **Forecasts.** Cities with coordinates get their current reading and forecast from Open-Meteo

@@ -101,6 +101,7 @@ import com.fangjet.weather.R
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
+import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.model.CityListViewModel
@@ -116,7 +117,6 @@ import com.fangjet.weather.model.WeatherScreenConfig
 import com.fangjet.weather.model.WeatherScreenState
 import com.fangjet.weather.model.WeekSection
 import com.fangjet.weather.model.weatherScreen
-import com.fangjet.weather.ui.pets.PetMood
 import com.fangjet.weather.ui.pets.PetScene
 import com.fangjet.weather.ui.pets.WalkCard
 import com.fangjet.weather.ui.pets.heroWalkCaption
@@ -135,6 +135,8 @@ import com.fangjet.weather.util.ReadingDay
 import com.fangjet.weather.util.SunEvent
 import com.fangjet.weather.util.UpdatePrompt
 import com.fangjet.weather.util.besideRainChance
+import com.fangjet.weather.util.displayedRainChance
+import com.fangjet.weather.util.formatEpochTime
 import com.fangjet.weather.util.hourlyStrip
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.rainOutlook
@@ -907,12 +909,6 @@ internal fun PrecipChance(
     }
 }
 
-/**
- * A chance of rain as shown: nothing under 10%, where it's noise (most dry hours forecast 1%), and
- * otherwise to the nearest 10%, like Apple and Google Weather, since the forecast isn't more precise.
- */
-internal fun displayedRainChance(percent: Int): Int? = if (percent < 10) null else (percent + 5) / 10 * 10
-
 /** The WHO exposure category for a UV index, e.g. "High" for 6. */
 @androidx.annotation.StringRes
 internal fun uvLevelRes(uv: Double): Int {
@@ -1100,20 +1096,6 @@ internal fun isCalmWind(
     speed: Double,
     units: WeatherUnits,
 ): Boolean = speed < (if (units == WeatherUnits.IMPERIAL) 0.5 else 0.05)
-
-internal fun formatEpochTime(
-    epochSeconds: Long,
-    utcOffsetSeconds: Int,
-): String {
-    val localTime = java.time.Instant
-        .ofEpochSecond(epochSeconds)
-        .atZone(java.time.ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
-        .toLocalTime()
-    return localTime.format(
-        java.time.format.DateTimeFormatter
-            .ofPattern("h:mm a"),
-    )
-}
 
 /** "6:50" in the city's time, without AM or PM: the hours either side of a sun marker say which. */
 internal fun formatShortEpochTime(
