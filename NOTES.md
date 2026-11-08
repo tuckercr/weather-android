@@ -116,6 +116,10 @@ Finished items move to Done at the bottom.
       have already turned the text size up. Options: let both apps wrap to two lines; shorten the
       lines that run long; or shrink only a little, with a floor. Decide, then make both apps the
       same. (11-06)
+- [ ] **Misty's View at night.** Its line ignores the dark: "The end of the street looks fuzzy" or
+      "Misty can see the whole street" shows in the middle of the night and reads wrong. After dark
+      it could say what Misty sees by the streetlights, or the stars on a clear night. Both apps.
+      (11-07)
 
 ## More tiles to consider (10-30)
 
@@ -361,12 +365,6 @@ Since 11-07 the walk verdict comes from the weather view model in both apps. Sti
       switch drives `MyLocationFollower.shared`. Android's notification settings screen reads and
       writes SharedPreferences, and Settings checks permissions in the UI. These should go through
       the view models. (11-07)
-- [ ] **Data work outside the data layer.** Fetching by coordinates or by name, the labels and the
-      cache encoding are in the weather view models and again in the background refresher (iOS) and
-      the update worker (Android); they belong in the repository. Radar fetches and caches map tiles
-      in the view in both apps, which belongs in the radar view model and a repository. iOS's Add
-      location view holds the rules for what gets added and its label, which belong in its view
-      model. (11-07)
 - [ ] **Layers depend on each other the wrong way.** On Android the worker imports from ui
       (`petMoodFor`, formatting), data and model import the worker's `NotificationKind`, and
       `rainOutlook` takes a string resolved in the UI. On iOS `PetMood` and `SeasonalTheme` hand out
@@ -426,6 +424,15 @@ Since 11-07 the walk verdict comes from the weather view model in both apps. Sti
 
 ## Done
 
+- [x] **Data work in the data layer** (11-07): fetching a saved location (its coordinates, its name
+      to fall back on, and an empty label for My Location so the phone names it) is one rule in the
+      data layer, iOS's `WeatherRepository.fetchCurrentWeather(for:units:)` and Android's
+      `SavedLocation.weatherRequest`, which the screen, the background refresh and the notifications
+      all use. Android's background update had passed My Location's own label, so it cached a
+      reading named "My Location". Android's cache is encoded in `PreferencesRepository`, not in the
+      view model and the worker. The radar's map and overlay tiles load in the data layer
+      (`RadarTileLoader`) and the images live in `RadarViewModel`, in both apps. iOS's Add location
+      takes its choices from `GeoLocationViewModel`.
 - [x] **One walk verdict** (11-07): `WalkConditions.check` judges an hour once, and the hero's
       caption, the walk card, the Air Quality tile and the notifications all read it, on a scale
       from Great through Fine, Wait, Potty breaks only and Stay in to Danger, with the reason's
