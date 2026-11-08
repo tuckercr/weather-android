@@ -17,6 +17,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Rule
@@ -500,6 +501,7 @@ class WeatherForecastViewModelTest {
         readPetWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
         foregroundRefreshMinMinutes: () -> Long = { 0L },
         nowMillis: () -> Long = { 0L },
+        clock: () -> Long = { 1_000L },
     ) = WeatherForecastViewModel(
         resolveWeatherUnits = resolveWeatherUnits,
         fetchCurrentWeather = fetchCurrentWeather,
@@ -518,7 +520,33 @@ class WeatherForecastViewModelTest {
         readPetWeatherThresholds = readPetWeatherThresholds,
         foregroundRefreshMinMinutes = foregroundRefreshMinMinutes,
         nowMillis = nowMillis,
+        clock = clock,
     )
+
+    @Test
+    fun `the clock only moves on with tick`() {
+        var clock = 1_000L
+        val vm = viewModel(clock = { clock })
+        clock = 4_600L
+        assertEquals(1_000L, vm.now.value)
+        vm.tick()
+        assertEquals(4_600L, vm.now.value)
+    }
+
+    @Test
+    fun `the screen loads then shows the reading at the clock`() =
+        runTest {
+            val vm = viewModel()
+            assertEquals(WeatherScreen.Loading, vm.screen.value)
+
+            vm.refreshCurrent(SavedLocation(label = "Austin", latitude = 30.27, longitude = -97.74))
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+
+            val state = (vm.screen.value as WeatherScreen.Weather).state
+            assertEquals(1_000L, state.nowEpochSeconds)
+            assertEquals("Austin", state.weather.cityName)
+            assertNull(state.stale)
+        }
 
     @Test
     fun `walk advice comes from the loaded forecast and is null until then`() =
@@ -540,21 +568,25 @@ class WeatherForecastViewModelTest {
             val vm = viewModel(fetchForecast = { units, _ ->
                 Result.success(listOf(dayForecast(units).copy(hourlySlots = listOf(hour))))
             })
-            val reading = currentWeather(cityName = "Austin")
-            assertNull(vm.walkAdvice(reading, 1_000L, hasDog = true))
+            val austin = SavedLocation(label = "Austin", latitude = 30.27, longitude = -97.74)
+            vm.refreshCurrent(austin)
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+            val before = (vm.screen.value as WeatherScreen.Weather).state
+            assertNull(before.walkAdvice)
+            assertFalse(before.showsWalkCard)
 
-            vm.refreshForecast(SavedLocation(label = "Austin", latitude = 30.27, longitude = -97.74))
+            vm.refreshForecast(austin)
             mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
 
-            assertNotNull(vm.walkAdvice(reading, 1_000L, hasDog = true))
+            assertNotNull((vm.screen.value as WeatherScreen.Weather).state.walkAdvice)
         }
 
     @Test
     fun `pet weather thresholds come from Remote Config`() {
         val custom = PetWeatherThresholds.validated(petHotC = 25.0)
 
-        assertEquals(PetWeatherThresholds.DEFAULT, viewModel().petWeatherThresholds)
-        assertEquals(custom, viewModel(readPetWeatherThresholds = { custom }).petWeatherThresholds)
+        assertEquals(PetWeatherThresholds.DEFAULT, viewModel().screenConfig.thresholds)
+        assertEquals(custom, viewModel(readPetWeatherThresholds = { custom }).screenConfig.thresholds)
     }
 
     // --- foreground_refresh_min_minutes ---
@@ -704,27 +736,27 @@ class WeatherForecastViewModelTest {
 
     @Test
     fun `walk card is shown by default and hidden when Remote Config turns it off`() {
-        assertEquals(true, viewModel().walkCardEnabled)
-        assertEquals(false, viewModel(isWalkCardEnabled = { false }).walkCardEnabled)
+        assertEquals(true, viewModel().screenConfig.walkCardEnabled)
+        assertEquals(false, viewModel(isWalkCardEnabled = { false }).screenConfig.walkCardEnabled)
     }
 
     @Test
     fun `hourly strip, next-rain line and week list are shown by default and each can be turned off`() {
         val defaults = viewModel()
-        assertEquals(true, defaults.hourlyForecastEnabled)
-        assertEquals(true, defaults.nextRainEnabled)
-        assertEquals(true, defaults.weekForecastEnabled)
+        assertEquals(true, defaults.screenConfig.hourlyForecastEnabled)
+        assertEquals(true, defaults.screenConfig.nextRainEnabled)
+        assertEquals(true, defaults.screenConfig.weekForecastEnabled)
 
-        assertEquals(false, viewModel(isHourlyForecastEnabled = { false }).hourlyForecastEnabled)
-        assertEquals(false, viewModel(isNextRainEnabled = { false }).nextRainEnabled)
-        assertEquals(false, viewModel(isWeekForecastEnabled = { false }).weekForecastEnabled)
+        assertEquals(false, viewModel(isHourlyForecastEnabled = { false }).screenConfig.hourlyForecastEnabled)
+        assertEquals(false, viewModel(isNextRainEnabled = { false }).screenConfig.nextRainEnabled)
+        assertEquals(false, viewModel(isWeekForecastEnabled = { false }).screenConfig.weekForecastEnabled)
     }
 
     @Test
     fun `rain outlook settings come from Remote Config`() {
-        assertEquals(RainOutlookSettings(), viewModel().rainOutlookSettings)
+        assertEquals(RainOutlookSettings(), viewModel().screenConfig.rainOutlookSettings)
         val remote = RainOutlookSettings(enabled = false, hours = 6, minChance = 40)
-        assertEquals(remote, viewModel(readRainOutlookSettings = { remote }).rainOutlookSettings)
+        assertEquals(remote, viewModel(readRainOutlookSettings = { remote }).screenConfig.rainOutlookSettings)
     }
 
     @Test

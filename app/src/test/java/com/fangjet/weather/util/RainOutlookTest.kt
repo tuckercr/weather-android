@@ -43,8 +43,8 @@ class RainOutlookTest {
         slots: List<HourlySlot>,
         settings: RainOutlookSettings = defaults,
         units: WeatherUnits = WeatherUnits.METRIC,
-        nextRainText: String? = null,
-    ) = rainOutlook(slots, settings, units, nextRainText, Locale.US)
+        nextRain: NextRain? = null,
+    ) = rainOutlook(slots, settings, units, nextRain, Locale.US)
 
     // --- when it shows ---
 
@@ -104,8 +104,9 @@ class RainOutlookTest {
 
     @Test
     fun `the next-rain line's words are the headline when it shows`() {
-        val outlook = outlook(slots(10, 80, 20), nextRainText = "Rain starting around 3:15 PM")
-        assertEquals(RainOutlookHeadline.NextRain("Rain starting around 3:15 PM"), outlook?.headline)
+        val starting = NextRain.Starting(epochSeconds = 1_000L, snow = false)
+        val outlook = outlook(slots(10, 80, 20), nextRain = starting)
+        assertEquals(RainOutlookHeadline.NextRain(starting), outlook?.headline)
     }
 
     // --- drying out ---

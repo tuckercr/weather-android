@@ -329,45 +329,28 @@ noted. Checked against the code, not fixed yet.
 
 ## Architecture (MVVM review, 11-07)
 
-Since 11-07 the walk verdict comes from the weather view model in both apps. Still to do:
+Since 11-07 the weather view model in both apps holds the screen's clock and builds what the
+weather screen shows (see Done). Still to do:
 
-- [ ] **The weather screen works out its own state.** Mood, today's forecast, the hours from now on,
-      the high and low, next rain and the rain outlook, the seasonal theme, the hourly strip, which
-      tiles show and what they're given (UV by day, wet ground, the pavement and air quality
-      switches) are all derived in the view (`CurrentWeatherContent` in both apps). They belong in
-      one screen state built by the weather view model, which the view only draws. Both apps. Large.
-      (11-07)
-- [ ] **The stale-data decision is made in the view.** Whether the reading is too old to show as
-      now, and the forecast hour that stands in for it, are decided in the view (iOS's `body`,
-      Android's `produceState` loop). The view model should say what to show: the reading, the
-      forecast hour, or the error. Both apps. (11-07)
-- [ ] **No single clock.** iOS keeps `now` in the view, moved by three loops, while the weather view
-      model has its own `now()`, and `PetScene`, `PetMood`, `WeatherIconView` and the stale banner
-      default to `Date()`. Android reads the time in several composables, with a second resume and
-      half-hour timer, and in `petCaption`, the moon phase and `WeatherIcon`. One injectable clock
-      in the view model that ticks would replace them. Both apps. (11-07)
-- [ ] **Today's forecast is found by its display label, and Android loses it after midnight.** Both
-      apps compare "EEE, MMM d" labels to find today. Android remembers the label once per city
-      (`remember(weather.offsetSeconds)`), so on a screen left open past midnight today's forecast
-      is lost. One shared "is this the city's today" function would fix both. (11-07)
 - [ ] **The screen and the notifications disagree.** The hero's high and low take in the temperature
       now (`TodayDetails.highLow`, `heroHighLow`); the briefing's don't. Android's briefing picks
-      the pets' mood from the reading's icon, the screen by the clock's day or night. One shared
-      function for each. Both apps. (11-07)
+      the pets' mood from the reading's icon, the screen by the clock's day or night. Android's
+      worker still finds today's forecast by its "EEE, MMM d" label; the screen now uses
+      `isDayOf` (iOS `isDay(of:in:)`). One shared function for each. Both apps. (11-07)
 - [ ] **Refresh and location steps live in the view.** Refreshing on a city change, on resume and
       every half hour, pull to refresh reading My Location first, adding My Location after
       permission is given, and on iOS rescheduling the notifications, are all in the screen (iOS's
       `CurrentWeatherView`, Android's `CurrentWeatherRoute` and `rememberAddMyLocation`). They
       belong in a view model as actions the screen calls. Both apps. Large. (11-07)
-- [ ] **Views read settings and singletons directly.** iOS's weather screen reads
-      `RemoteConfigRepository.shared` for which sections show, `OnboardingNotificationView` reads
+- [ ] **Views read settings and singletons directly.** iOS's `OnboardingNotificationView` reads
       `PreferencesStore` and asks for notification permission itself, and the Follow my location
       switch drives `MyLocationFollower.shared`. Android's notification settings screen reads and
       writes SharedPreferences, and Settings checks permissions in the UI. These should go through
       the view models. (11-07)
 - [ ] **Layers depend on each other the wrong way.** On Android the worker imports from ui
-      (`petMoodFor`, formatting), data and model import the worker's `NotificationKind`, and
-      `rainOutlook` takes a string resolved in the UI. On iOS `PetMood` and `SeasonalTheme` hand out
+      (`petMoodFor`, formatting), and data and model import the worker's
+      `NotificationKind`. The weather screen state (`model/WeatherScreen.kt`) uses `petMoodFor`,
+      `walkCardShown` and `heroHighLow` from ui. On iOS `PetMood` and `SeasonalTheme` hand out
       SwiftUI colours yet are used by the notification planner, and the scheduler draws a SwiftUI
       pet icon. Domain types should be split from their colours and moved out of ui. Both apps.
       (11-07)
@@ -424,6 +407,17 @@ Since 11-07 the walk verdict comes from the weather view model in both apps. Sti
 
 ## Done
 
+- [x] **One clock and the screen state in the view model** (11-07): the weather view model holds
+      the screen's clock (`now`, moved on by `tick()` on refreshes, returning to the app, the
+      half-hour timer and the stale recheck) and builds a `WeatherScreen` from it: loading, an
+      error, or the state the screen draws (the reading or the forecast hour standing in for an
+      old one, today, the hero's mood, theme and caption, the high and low, the hourly strip, next
+      rain and the rain outlook, the walk verdict and card, the tiles' inputs, and which sections
+      show). The views only draw it, and it's unit tested in both apps. Today is found by its
+      hours' dates in the city's time zone, so Android no longer loses it after midnight. On
+      Android the hero caption's words still come from string resources, so the state holds the
+      choice and the screen picks the words; `petCaption`, `heroWalkCaption` and the moon take the
+      screen's clock, and the rain outlook takes the next rain rather than its words.
 - [x] **Data work in the data layer** (11-07): fetching a saved location (its coordinates, its name
       to fall back on, and an empty label for My Location so the phone names it) is one rule in the
       data layer, iOS's `WeatherRepository.fetchCurrentWeather(for:units:)` and Android's

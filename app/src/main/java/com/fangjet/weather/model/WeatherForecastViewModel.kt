@@ -17,19 +17,20 @@ import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.WeatherUnits
-import com.fangjet.weather.ui.pets.WalkAdvice
-import com.fangjet.weather.ui.pets.walkAdviceForReading
 import com.fangjet.weather.util.resolveWeatherUnits
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -58,10 +59,15 @@ class WeatherForecastViewModel internal constructor(
     readTodayTiles: () -> TodayTileSwitches = { TodayTileSwitches() },
     readSeasonalThemes: () -> List<SeasonalTheme> = { emptyList() },
     readPetWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
+    isRadarEnabled: () -> Boolean = { true },
+    // Settings' Dog walking switch.
+    showWalkCard: Flow<Boolean> = flowOf(true),
     // Remote Config foreground_refresh_min_minutes, read on every foreground resume. 0 = never throttle.
     private val foregroundRefreshMinMinutes: () -> Long = { 0L },
     // Monotonic clock in milliseconds; injectable for tests. Fetch times only live in this process.
     private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000 },
+    // The wall clock in epoch seconds, for the screen's "now"; injectable for tests.
+    private val clock: () -> Long = { Instant.now().epochSecond },
 ) : ViewModel() {
 
     @Inject
@@ -95,62 +101,49 @@ class WeatherForecastViewModel internal constructor(
         readTodayTiles = remoteConfigRepository::todayTiles,
         readSeasonalThemes = remoteConfigRepository::seasonalThemes,
         readPetWeatherThresholds = remoteConfigRepository::petWeatherThresholds,
+        isRadarEnabled = remoteConfigRepository::radarEnabled,
+        showWalkCard = preferencesRepository.showWalkCard,
         foregroundRefreshMinMinutes = remoteConfigRepository::foregroundRefreshMinMinutes,
     )
-
-    /** Remote Config `walk_card_enabled`: false hides the "time to walk the dog" card. */
-    val walkCardEnabled: Boolean = isWalkCardEnabled()
-
-    /** Remote Config `hourly_forecast_enabled`: false hides the HOURLY section. */
-    val hourlyForecastEnabled: Boolean = isHourlyForecastEnabled()
-
-    /** Remote Config `next_rain_enabled`: false hides the "Rain starting around 3:15 PM" line. */
-    val nextRainEnabled: Boolean = isNextRainEnabled()
-
-    /** Remote Config `week_forecast_enabled`: false hides the rest-of-the-week section. */
-    val weekForecastEnabled: Boolean = isWeekForecastEnabled()
-
-    /** Remote Config `rain_outlook_*` (validated): whether the rain outlook card shows, and what it charts. */
-    val rainOutlookSettings: RainOutlookSettings = readRainOutlookSettings()
 
     /** Remote Config `temperature_units_shown`: false shows temperatures as "89°", without the unit. */
     val temperatureUnitsShown: Boolean = isTemperatureUnitsShown()
 
     /**
-     * Remote Config `air_quality_enabled`. The fetch checks it too; this hides a reading in a
-     * forecast cached before it went off.
+     * The Remote Config switches and settings the screen goes by, read once. Air quality: the fetch
+     * checks `air_quality_enabled` too; this hides a reading in a forecast cached before it went off.
      */
-    val airQualityEnabled: Boolean = isAirQualityEnabled()
+    val screenConfig = WeatherScreenConfig(
+        thresholds = readPetWeatherThresholds(),
+        seasonalThemes = readSeasonalThemes(),
+        nextRainEnabled = isNextRainEnabled(),
+        rainOutlookSettings = readRainOutlookSettings(),
+        airQualityEnabled = isAirQualityEnabled(),
+        hourlyForecastEnabled = isHourlyForecastEnabled(),
+        radarEnabled = isRadarEnabled(),
+        weekForecastEnabled = isWeekForecastEnabled(),
+        walkCardEnabled = isWalkCardEnabled(),
+        todayTiles = readTodayTiles(),
+    )
 
-    /** Remote Config `tile_*_enabled`: which Today tiles show. */
-    val todayTiles: TodayTileSwitches = readTodayTiles()
+    private val _now = MutableStateFlow(clock())
 
-    /** Remote Config `seasonal_themes` (or the shipped list); the screen picks today's by the city's date. */
-    val seasonalThemes: List<SeasonalTheme> = readSeasonalThemes()
+    /**
+     * The screen's clock: what "now" is for everything shown. It moves on with [tick] (on refreshes,
+     * returning to the app and a regular timer), so past hours drop off together.
+     */
+    val now: StateFlow<Long> = _now.asStateFlow()
 
-    /** Remote Config pet-mood and walk-advice thresholds (validated; Celsius). */
-    val petWeatherThresholds: PetWeatherThresholds = readPetWeatherThresholds()
+    /** Moves the screen's clock on to the time now. */
+    fun tick() {
+        _now.value = clock()
+    }
 
     private val _currentWeather = MutableStateFlow<LoadingState<CurrentWeather>>(LoadingState.Idle)
     val currentWeather: StateFlow<LoadingState<CurrentWeather>> = _currentWeather.asStateFlow()
 
     private val _forecast = MutableStateFlow<LoadingState<List<DayForecast>>>(LoadingState.Idle)
     val forecast: StateFlow<LoadingState<List<DayForecast>>> = _forecast.asStateFlow()
-
-    /**
-     * The walk verdict for [weather] (the reading on screen, or the forecast hour standing in for an
-     * old one) at the screen's [nowEpochSeconds], from the forecast's hours. Null while the forecast
-     * is loading or failed, which hides the walk card rather than advising on nothing. The hero's
-     * caption and the walk card both read it.
-     */
-    fun walkAdvice(
-        weather: CurrentWeather,
-        nowEpochSeconds: Long,
-        hasDog: Boolean,
-    ): WalkAdvice? {
-        val days = (forecast.value as? LoadingState.Success)?.data ?: return null
-        return walkAdviceForReading(weather, days, petWeatherThresholds, nowEpochSeconds, hasDog)
-    }
 
     // Set when a refresh fails while weather is already on screen, so the screen can say the data is
     // old and why; null once a refresh succeeds or the user moves to another city.
@@ -162,6 +155,16 @@ class WeatherForecastViewModel internal constructor(
     val isRefreshing: StateFlow<Boolean> =
         combine(currentRefreshing, forecastRefreshing) { a, b -> a || b }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /**
+     * What the screen shows for the active city at the screen's clock: the reading (or the forecast
+     * hour standing in for an old one), the hero, the walk verdict, the tiles and the sections the
+     * settings switch on.
+     */
+    val screen: StateFlow<WeatherScreen> =
+        combine(_currentWeather, _forecast, _staleErrorKey, _now, showWalkCard) { current, forecast, stale, now, hasDog ->
+            weatherScreen(current, forecast, stale, now, hasDog, screenConfig)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, WeatherScreen.Loading)
 
     private val currentWeatherFetchGeneration = AtomicInteger(0)
     private val forecastFetchGeneration = AtomicInteger(0)
@@ -222,6 +225,9 @@ class WeatherForecastViewModel internal constructor(
      * replaces with fresh data. Shows an error only when there is no cached data to fall back to.
      */
     fun refreshCurrent(location: SavedLocation) {
+        // A refresh also moves "now" on, so the hourly strip and captions update even when the
+        // weather itself hasn't changed.
+        tick()
         if (currentTargetKey.value != location.cacheKey) _staleErrorKey.value = null
         currentTargetKey.value = location.cacheKey
         val fetchId = currentWeatherFetchGeneration.incrementAndGet()
@@ -262,6 +268,7 @@ class WeatherForecastViewModel internal constructor(
     }
 
     fun refreshForecast(location: SavedLocation) {
+        tick()
         forecastTargetKey.value = location.cacheKey
         val fetchId = forecastFetchGeneration.incrementAndGet()
         forecastRefreshing.value = true

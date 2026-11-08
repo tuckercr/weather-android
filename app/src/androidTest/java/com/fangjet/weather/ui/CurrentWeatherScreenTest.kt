@@ -17,6 +17,8 @@ import com.fangjet.weather.domain.RainOutlookSettings
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.model.LoadingState
+import com.fangjet.weather.model.WeatherScreenConfig
+import com.fangjet.weather.model.weatherScreen
 import com.fangjet.weather.ui.theme.CatsDogsTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -41,7 +43,9 @@ class CurrentWeatherScreenTest {
                 CurrentWeatherScreen(
                     locations = emptyList(),
                     activeIndex = 0,
-                    weatherState = LoadingState.Idle,
+                    screen = screen(
+                        weatherState = LoadingState.Idle,
+                    ),
                     onTabSelected = {},
                     onAddCityClick = { addClicks++ },
                     onRetry = {},
@@ -63,7 +67,9 @@ class CurrentWeatherScreenTest {
                 CurrentWeatherScreen(
                     locations = listOf(london),
                     activeIndex = 0,
-                    weatherState = LoadingState.Error("offline", canRetry = true),
+                    screen = screen(
+                        weatherState = LoadingState.Error("offline", canRetry = true),
+                    ),
                     onTabSelected = {},
                     onAddCityClick = {},
                     onRetry = { retries++ },
@@ -90,10 +96,12 @@ class CurrentWeatherScreenTest {
                 CurrentWeatherScreen(
                     locations = listOf(london),
                     activeIndex = 0,
-                    weatherState = LoadingState.Success(
-                        weather().copy(observedAtEpochSeconds = observedAt, utcOffsetSeconds = offset),
+                    screen = screen(
+                        weatherState = LoadingState.Success(
+                            weather().copy(observedAtEpochSeconds = observedAt, utcOffsetSeconds = offset),
+                        ),
+                        staleErrorKey = "offline",
                     ),
-                    staleErrorKey = "offline",
                     onTabSelected = {},
                     onAddCityClick = {},
                     onRetry = {},
@@ -118,12 +126,14 @@ class CurrentWeatherScreenTest {
                 CurrentWeatherScreen(
                     locations = listOf(london),
                     activeIndex = 0,
-                    weatherState = LoadingState.Success(
-                        weather().copy(observedAtEpochSeconds = observedAt, utcOffsetSeconds = 0),
+                    screen = screen(
+                        weatherState = LoadingState.Success(
+                            weather().copy(observedAtEpochSeconds = observedAt, utcOffsetSeconds = 0),
+                        ),
+                        forecastState = LoadingState.Success(listOf(dayForecast("Today", listOf(thisHour)))),
+                        staleErrorKey = "offline",
+                        radarEnabled = false,
                     ),
-                    forecastState = LoadingState.Success(listOf(dayForecast("Today", listOf(thisHour)))),
-                    staleErrorKey = "offline",
-                    radarEnabled = false,
                     onTabSelected = {},
                     onAddCityClick = {},
                     onRetry = {},
@@ -149,10 +159,12 @@ class CurrentWeatherScreenTest {
                 CurrentWeatherScreen(
                     locations = listOf(london),
                     activeIndex = 0,
-                    weatherState = LoadingState.Success(
-                        weather().copy(observedAtEpochSeconds = observedAt, utcOffsetSeconds = 0),
+                    screen = screen(
+                        weatherState = LoadingState.Success(
+                            weather().copy(observedAtEpochSeconds = observedAt, utcOffsetSeconds = 0),
+                        ),
+                        staleErrorKey = "offline",
                     ),
-                    staleErrorKey = "offline",
                     onTabSelected = {},
                     onAddCityClick = {},
                     onRetry = {},
@@ -195,8 +207,10 @@ class CurrentWeatherScreenTest {
                     // Null coordinates keep RadarCard in its static branch (no animation loop).
                     locations = listOf(london),
                     activeIndex = 0,
-                    weatherState = LoadingState.Success(weather()),
-                    forecastState = LoadingState.Error("offline", canRetry = true),
+                    screen = screen(
+                        weatherState = LoadingState.Success(weather()),
+                        forecastState = LoadingState.Error("offline", canRetry = true),
+                    ),
                     onTabSelected = {},
                     onAddCityClick = {},
                     onRetry = { retries++ },
@@ -216,8 +230,10 @@ class CurrentWeatherScreenTest {
                 CurrentWeatherScreen(
                     locations = listOf(london),
                     activeIndex = 0,
-                    weatherState = LoadingState.Success(weather()),
-                    forecastState = LoadingState.Success(listOf(dayForecast(dateLabel = "Mon, Jan 1"))),
+                    screen = screen(
+                        weatherState = LoadingState.Success(weather()),
+                        forecastState = LoadingState.Success(listOf(dayForecast(dateLabel = "Mon, Jan 1"))),
+                    ),
                     onTabSelected = {},
                     onAddCityClick = {},
                     onRetry = {},
@@ -235,12 +251,14 @@ class CurrentWeatherScreenTest {
                 CurrentWeatherScreen(
                     locations = listOf(london),
                     activeIndex = 0,
-                    weatherState = LoadingState.Success(weather()),
-                    forecastState = LoadingState.Success(
-                        listOf(
-                            dayForecast(
-                                dateLabel = "Mon, Jan 1",
-                                hourlySlots = listOf(hourlySlot(timeLabel = "9 AM")),
+                    screen = screen(
+                        weatherState = LoadingState.Success(weather()),
+                        forecastState = LoadingState.Success(
+                            listOf(
+                                dayForecast(
+                                    dateLabel = "Mon, Jan 1",
+                                    hourlySlots = listOf(hourlySlot(timeLabel = "9 AM")),
+                                ),
                             ),
                         ),
                     ),
@@ -261,13 +279,15 @@ class CurrentWeatherScreenTest {
                 CurrentWeatherScreen(
                     locations = listOf(london),
                     activeIndex = 0,
-                    weatherState = LoadingState.Success(weather()),
-                    forecastState = LoadingState.Success(
-                        listOf(
-                            dayForecast(
-                                dateLabel = "Mon, Jan 1",
-                                hourlySlots = listOf(
-                                    hourlySlot(timeLabel = "9 AM", precipitationChance = 80),
+                    screen = screen(
+                        weatherState = LoadingState.Success(weather()),
+                        forecastState = LoadingState.Success(
+                            listOf(
+                                dayForecast(
+                                    dateLabel = "Mon, Jan 1",
+                                    hourlySlots = listOf(
+                                        hourlySlot(timeLabel = "9 AM", precipitationChance = 80),
+                                    ),
                                 ),
                             ),
                         ),
@@ -302,17 +322,19 @@ class CurrentWeatherScreenTest {
                 CurrentWeatherScreen(
                     locations = listOf(london),
                     activeIndex = 0,
-                    weatherState = LoadingState.Success(weather()),
-                    forecastState = LoadingState.Success(
-                        listOf(
-                            dayForecast(
-                                dateLabel = "Mon, Jan 1",
-                                hourlySlots = listOf(hourlySlot(timeLabel = "9 AM", precipitationChance = 80)),
+                    screen = screen(
+                        weatherState = LoadingState.Success(weather()),
+                        forecastState = LoadingState.Success(
+                            listOf(
+                                dayForecast(
+                                    dateLabel = "Mon, Jan 1",
+                                    hourlySlots = listOf(hourlySlot(timeLabel = "9 AM", precipitationChance = 80)),
+                                ),
                             ),
                         ),
+                        radarEnabled = false,
+                        rainOutlookSettings = settings,
                     ),
-                    radarEnabled = false,
-                    rainOutlookSettings = settings,
                     onTabSelected = {},
                     onAddCityClick = {},
                     onRetry = {},
@@ -344,8 +366,10 @@ class CurrentWeatherScreenTest {
                 CurrentWeatherScreen(
                     locations = listOf(london),
                     activeIndex = 0,
-                    weatherState = LoadingState.Success(weather()),
-                    radarEnabled = radarEnabled,
+                    screen = screen(
+                        weatherState = LoadingState.Success(weather()),
+                        radarEnabled = radarEnabled,
+                    ),
                     onTabSelected = {},
                     onAddCityClick = {},
                     onRetry = {},
@@ -355,6 +379,22 @@ class CurrentWeatherScreenTest {
     }
 
     private companion object {
+        /** The screen the weather view model would build for these states, at the time now. */
+        fun screen(
+            weatherState: LoadingState<CurrentWeather>,
+            forecastState: LoadingState<List<DayForecast>> = LoadingState.Idle,
+            staleErrorKey: String? = null,
+            radarEnabled: Boolean = true,
+            rainOutlookSettings: RainOutlookSettings = RainOutlookSettings(),
+        ) = weatherScreen(
+            current = weatherState,
+            forecast = forecastState,
+            staleErrorKey = staleErrorKey,
+            nowEpochSeconds = Instant.now().epochSecond,
+            hasDog = true,
+            config = WeatherScreenConfig(radarEnabled = radarEnabled, rainOutlookSettings = rainOutlookSettings),
+        )
+
         // No coordinates: keeps the radar tile static so the screen reaches idle for assertions.
         val london = SavedLocation(label = "London, GB", latitude = null, longitude = null)
 

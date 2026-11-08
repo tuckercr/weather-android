@@ -82,7 +82,7 @@ import com.fangjet.weather.ui.theme.PetTongue
 import com.fangjet.weather.ui.theme.PetUmbrella
 import com.fangjet.weather.ui.theme.PetWitchHat
 import com.fangjet.weather.util.WindForce
-import java.time.OffsetDateTime
+import java.time.Instant
 import java.time.ZoneOffset
 import kotlin.math.abs
 import kotlin.math.cos
@@ -153,11 +153,13 @@ private fun PetMood.captionsRes(
 @Composable
 fun petCaption(
     mood: PetMood,
+    // The screen's clock.
+    nowEpochSeconds: Long,
     utcOffsetSeconds: Int = 0,
     hasDog: Boolean = true,
     walk: WalkCheck? = null,
 ): String {
-    val local = OffsetDateTime.now(ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
+    val local = Instant.ofEpochSecond(nowEpochSeconds).atOffset(ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
     val nightPart = nightPartAt(local.hour)
     val suggestions = WALK_SUGGESTIONS.map { stringResource(it) }.toSet()
     val options = captionOptions(
@@ -239,11 +241,13 @@ internal fun heroWalkCaptions(
 @Composable
 fun heroWalkCaption(
     walk: WalkCheck,
+    // The screen's clock.
+    nowEpochSeconds: Long,
     utcOffsetSeconds: Int = 0,
     hasDog: Boolean = true,
 ): String? {
     val options = heroWalkCaptions(walk, hasDog) ?: return null
-    val local = OffsetDateTime.now(ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
+    val local = Instant.ofEpochSecond(nowEpochSeconds).atOffset(ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
     return options[local.dayOfYear % options.size].resolve()
 }
 
