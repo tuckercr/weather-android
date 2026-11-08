@@ -1369,18 +1369,3 @@ private fun CurrentWeatherSuccessPreview() {
 }
 
 private val TEMP_TOP_TRIM = 18.dp
-
-/**
- * The hero's "H … · L …": today's forecast high and low, widened to take in the temperature now.
- * OpenWeather's current `temp_max`/`temp_min` are the spread across nearby stations at this moment,
- * not the day's range, so they're only the fallback until today's forecast is in.
- */
-internal fun heroHighLow(
-    weather: CurrentWeather,
-    today: DayForecast?,
-): Pair<Double, Double> =
-    if (today == null) {
-        weather.tempMax to weather.tempMin
-    } else {
-        maxOf(today.tempMax, weather.temperature) to minOf(today.tempMin, weather.temperature)
-    }

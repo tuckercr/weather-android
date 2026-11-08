@@ -7,7 +7,6 @@ import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.SavedLocation
-import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.domain.notificationLocation
 import com.fangjet.weather.ui.displayedRainChance
 import com.fangjet.weather.ui.formatEpochTime
@@ -16,16 +15,16 @@ import com.fangjet.weather.ui.pets.WalkAdvice
 import com.fangjet.weather.ui.pets.WalkRating
 import com.fangjet.weather.ui.pets.hasBadAirForWalking
 import com.fangjet.weather.ui.pets.isPrecipitating
-import com.fangjet.weather.ui.pets.petMoodFor
+import com.fangjet.weather.ui.pets.petMoodAt
 import com.fangjet.weather.ui.pets.walkAdviceForReading
 import com.fangjet.weather.util.NextRain
 import com.fangjet.weather.util.SkyCondition
+import com.fangjet.weather.util.dayOf
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.skyCondition
+import com.fangjet.weather.util.todayHighLow
 import java.time.Instant
-import java.time.OffsetDateTime
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -52,10 +51,9 @@ private const val MIN_WALK_LEAD_SECONDS = 30 * 60L
  */
 internal class NotificationWorkerLogic(
     private val getSavedLocations: suspend () -> List<SavedLocation>,
-    private val getUnits: suspend () -> WeatherUnits,
-    // A saved location's weather, by the data layer's rule (WeatherRepository.fetchCurrentWeather(location)).
-    private val fetchCurrentWeather: suspend (units: WeatherUnits, location: SavedLocation) -> kotlin.Result<CurrentWeather>,
-    private val fetchForecast: suspend (units: WeatherUnits, location: SavedLocation) -> kotlin.Result<List<DayForecast>>,
+    // Fetches and caches a location's weather: LocationWeatherRepository.refreshWeather and refreshForecast.
+    private val refreshWeather: suspend (location: SavedLocation) -> kotlin.Result<CurrentWeather>,
+    private val refreshForecast: suspend (location: SavedLocation) -> kotlin.Result<List<DayForecast>>,
     private val hasNotificationPermission: () -> Boolean,
     private val postNotification: (WeatherNotification) -> Unit,
     // Remote Config daily_weather_notifications_enabled: switches the briefing off for everyone.
@@ -64,11 +62,6 @@ internal class NotificationWorkerLogic(
     private val isWalkTimeRemotelyEnabled: () -> Boolean = { true },
     // Remote Config pet-mood and walk thresholds: the same mood and walk advice as the app.
     private val petWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
-    // Same label format as ForecastAggregator produces, in the city's local date (its UTC offset)
-    // so it matches the city-local forecast labels. Overridable so tests are date-independent.
-    private val todayLabel: (utcOffsetSeconds: Int) -> String = { offset ->
-        OffsetDateTime.now(ZoneOffset.ofTotalSeconds(offset)).format(DAY_LABEL_FORMATTER)
-    },
     // The user's switches in Settings.
     private val isBriefingEnabled: suspend () -> Boolean = { true },
     private val isWalkTimeEnabled: suspend () -> Boolean = { false },
@@ -80,16 +73,13 @@ internal class NotificationWorkerLogic(
     suspend fun doWork(): Result {
         val location = getSavedLocations().notificationLocation() ?: return Result.success()
 
-        val units = getUnits()
-
         // My Location is named by the phone ("57° in Mountain View"), as on the app's own screen.
-        val weather = fetchCurrentWeather(units, location).getOrNull() ?: return Result.retry()
-
-        val forecast = fetchForecast(units, location).getOrNull()
-        // Only an entry that is actually today may supply the high/low.
-        val todayForecast = forecast?.firstOrNull { it.dateLabel == todayLabel(weather.offsetSeconds) }
-        val thresholds = runCatching { petWeatherThresholds() }.getOrDefault(PetWeatherThresholds.DEFAULT)
+        val weather = refreshWeather(location).getOrNull() ?: return Result.retry()
+        val forecast = refreshForecast(location).getOrNull()
         val now = nowEpochSeconds()
+        // Today by the city's date, as on the screen.
+        val todayForecast = forecast?.dayOf(now, weather.offsetSeconds)
+        val thresholds = runCatching { petWeatherThresholds() }.getOrDefault(PetWeatherThresholds.DEFAULT)
         val walk = forecast?.let { walkAdviceForReading(weather, it, thresholds, now) }
 
         val briefingOn = hasNotificationPermission() &&
@@ -118,15 +108,11 @@ internal class NotificationWorkerLogic(
                 NotificationKind.MORNING_BRIEFING,
                 title,
                 body,
-                moodFor(weather, thresholds),
+                weather.petMoodAt(now, thresholds),
                 southernHemisphere = (location.latitude ?: 0.0) < 0,
             ),
         )
         return Result.success()
-    }
-
-    private companion object {
-        val DAY_LABEL_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE, MMM d")
     }
 }
 
@@ -136,10 +122,9 @@ internal class NotificationWorkerLogic(
  */
 internal class WalkTimeLogic(
     private val getSavedLocations: suspend () -> List<SavedLocation>,
-    private val getUnits: suspend () -> WeatherUnits,
-    // A saved location's weather, by the data layer's rule (WeatherRepository.fetchCurrentWeather(location)).
-    private val fetchCurrentWeather: suspend (units: WeatherUnits, location: SavedLocation) -> kotlin.Result<CurrentWeather>,
-    private val fetchForecast: suspend (units: WeatherUnits, location: SavedLocation) -> kotlin.Result<List<DayForecast>>,
+    // Fetches and caches a location's weather: LocationWeatherRepository.refreshWeather and refreshForecast.
+    private val refreshWeather: suspend (location: SavedLocation) -> kotlin.Result<CurrentWeather>,
+    private val refreshForecast: suspend (location: SavedLocation) -> kotlin.Result<List<DayForecast>>,
     private val hasNotificationPermission: () -> Boolean,
     private val postNotification: (WeatherNotification) -> Unit,
     private val isWalkTimeEnabled: suspend () -> Boolean,
@@ -149,30 +134,25 @@ internal class WalkTimeLogic(
     suspend fun doWork(): Result {
         if (!isWalkTimeEnabled() || !hasNotificationPermission()) return Result.success()
         val location = getSavedLocations().notificationLocation() ?: return Result.success()
-        val units = getUnits()
-        val weather = fetchCurrentWeather(units, location).getOrNull() ?: return Result.retry()
-        val forecast = fetchForecast(units, location).getOrNull() ?: return Result.retry()
+        val weather = refreshWeather(location).getOrNull() ?: return Result.retry()
+        val forecast = refreshForecast(location).getOrNull() ?: return Result.retry()
         val thresholds = runCatching { petWeatherThresholds() }.getOrDefault(PetWeatherThresholds.DEFAULT)
-        val walk = walkAdviceForReading(weather, forecast, thresholds, nowEpochSeconds())
+        val now = nowEpochSeconds()
+        val walk = walkAdviceForReading(weather, forecast, thresholds, now)
         if (walk?.rating != WalkRating.GREAT) return Result.success()
-        val (title, body) = buildWalkTimeContent(weather, badAirPhrase(forecast, weather.offsetSeconds, nowEpochSeconds(), thresholds))
+        val (title, body) = buildWalkTimeContent(weather, badAirPhrase(forecast, weather.offsetSeconds, now, thresholds))
         postNotification(
             WeatherNotification(
                 NotificationKind.WALK_TIME,
                 title,
                 body,
-                moodFor(weather, thresholds),
+                weather.petMoodAt(now, thresholds),
                 southernHemisphere = (location.latitude ?: 0.0) < 0,
             ),
         )
         return Result.success()
     }
 }
-
-private fun moodFor(
-    weather: CurrentWeather,
-    thresholds: PetWeatherThresholds,
-): PetMood = petMoodFor(weather.conditionMain, weather.iconCode, weather.units.toCelsius(weather.feelsLike), thresholds)
 
 /** Below this, the day's rain chance isn't worth a mention in the briefing. */
 private const val BRIEFING_RAIN_CHANCE = 40
@@ -215,8 +195,8 @@ internal fun buildBriefingContent(
     walk: WalkAdvice?,
     badAir: String? = null,
 ): Pair<String, String> {
-    val high = (todayForecast?.tempMax ?: weather.tempMax).roundToInt()
-    val low = (todayForecast?.tempMin ?: weather.tempMin).roundToInt()
+    // As on the hero: today's forecast high and low, taking in the temperature now.
+    val (high, low) = todayHighLow(weather, todayForecast).let { (h, l) -> h.roundToInt() to l.roundToInt() }
     val title = "${weather.temperature.roundToInt()}° and ${conditionPhrase(weather)} in ${weather.cityName}"
     val body = buildString {
         append("High $high°, low $low°")
@@ -308,4 +288,31 @@ internal fun buildRainAlertContent(
     val time = formatEpochTime(rain.epochSeconds, utcOffsetSeconds)
     val advice = if (hasDog) "Walk now or wait it out." else "Misty's staying in."
     return "$what starting around $time" to "$what on the way in $cityName. $advice"
+}
+
+/**
+ * After a background refresh of the notification city, alerts about rain or snow starting within
+ * the hour ([rainAlertFor]), once per shower. Extracted from [WeatherUpdateWorker] for tests.
+ */
+internal class RainAlertLogic(
+    // Remote Config rain_notifications_enabled, the user's Rain switch and notification permission.
+    private val isEnabled: suspend () -> Boolean,
+    private val hasDog: suspend () -> Boolean,
+    private val lastAlertStart: suspend () -> Long?,
+    private val setLastAlertStart: suspend (epochSeconds: Long) -> Unit,
+    private val postNotification: (WeatherNotification) -> Unit,
+    private val nowEpochSeconds: () -> Long = { Instant.now().epochSecond },
+) {
+    suspend fun check(
+        location: SavedLocation,
+        weather: CurrentWeather?,
+        forecast: List<DayForecast>?,
+    ) {
+        if (weather == null || forecast == null || !isEnabled()) return
+        val rain = rainAlertFor(forecast, nowEpochSeconds(), weather.offsetSeconds, lastAlertStart()) ?: return
+        val (title, body) = buildRainAlertContent(rain, weather.cityName, weather.offsetSeconds, hasDog())
+        val mood = if (rain.snow) PetMood.SNOW else PetMood.RAIN
+        postNotification(WeatherNotification(NotificationKind.RAIN, title, body, mood, (location.latitude ?: 0.0) < 0))
+        setLastAlertStart(rain.epochSeconds)
+    }
 }

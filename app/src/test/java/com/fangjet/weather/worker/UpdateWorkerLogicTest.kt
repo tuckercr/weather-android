@@ -1,6 +1,7 @@
 package com.fangjet.weather.worker
 
 import androidx.work.ListenableWorker.Result
+import com.fangjet.weather.data.testLocationWeatherRepository
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.SavedLocation
@@ -272,16 +273,17 @@ class UpdateWorkerLogicTest {
         cacheCurrentWeather: suspend (String, CurrentWeather) -> Unit = { _, _ -> },
         cacheForecast: suspend (String, List<DayForecast>) -> Unit = { _, _ -> },
         afterRefresh: suspend (SavedLocation, CurrentWeather?, List<DayForecast>?) -> Unit = { _, _, _ -> },
-    ) = UpdateWorkerLogic(
-        getSavedLocations = { savedLocations },
-        getActiveIndex = { activeIndex },
-        getUnits = { units },
-        fetchCurrentWeather = fetchCurrentWeather,
-        fetchForecast = fetchForecast,
-        cacheCurrentWeather = cacheCurrentWeather,
-        cacheForecast = cacheForecast,
-        afterRefresh = afterRefresh,
-    )
+    ): UpdateWorkerLogic {
+        // The real repository over fake fetches: it resolves the units and does the caching.
+        val repository = testLocationWeatherRepository(units, fetchCurrentWeather, fetchForecast, cacheCurrentWeather, cacheForecast)
+        return UpdateWorkerLogic(
+            getSavedLocations = { savedLocations },
+            getActiveIndex = { activeIndex },
+            refreshWeather = repository::refreshWeather,
+            refreshForecast = repository::refreshForecast,
+            afterRefresh = afterRefresh,
+        )
+    }
 
     private companion object {
         val london = SavedLocation(label = "My Location", latitude = 51.5, longitude = -0.1)

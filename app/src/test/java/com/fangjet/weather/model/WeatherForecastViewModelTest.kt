@@ -1,5 +1,6 @@
 package com.fangjet.weather.model
 
+import com.fangjet.weather.data.LocationWeatherRepository
 import com.fangjet.weather.data.weatherRequest
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
@@ -503,14 +504,16 @@ class WeatherForecastViewModelTest {
         nowMillis: () -> Long = { 0L },
         clock: () -> Long = { 1_000L },
     ) = WeatherForecastViewModel(
-        resolveWeatherUnits = resolveWeatherUnits,
-        fetchCurrentWeather = fetchCurrentWeather,
-        fetchForecast = fetchForecast,
-        setLastCity = setLastCity,
-        getCachedCurrentWeather = getCachedCurrentWeather,
-        getCachedForecast = getCachedForecast,
-        setCachedCurrentWeather = setCachedCurrentWeather,
-        setCachedForecast = setCachedForecast,
+        repository = LocationWeatherRepository(
+            resolveUnits = resolveWeatherUnits,
+            fetchCurrentWeather = { location, units -> fetchCurrentWeather(units, location) },
+            fetchForecast = { location, units -> fetchForecast(units, location) },
+            readCachedWeather = getCachedCurrentWeather,
+            readCachedForecast = getCachedForecast,
+            writeCachedWeather = setCachedCurrentWeather,
+            writeCachedForecast = setCachedForecast,
+            setLastCity = setLastCity,
+        ),
         isWalkCardEnabled = isWalkCardEnabled,
         isHourlyForecastEnabled = isHourlyForecastEnabled,
         isNextRainEnabled = isNextRainEnabled,

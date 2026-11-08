@@ -228,6 +228,14 @@ noted. Checked against the code, not fixed yet.
 
 ## Walk planner and pet safety
 
+- [ ] **Paw Check's orange paw is too mild for 115 °F.** A pavement estimate of about 115 °F
+      (46 °C) shows the orange "Getting hot" paw, though that's already too hot for paws. The bands
+      are Remote Config `walk_*_pavement_c`: green below 45 °C (113 °F), orange "Getting hot" from
+      45, red "Too hot for paws" from 52 (126 °F), maroon "Dangerously hot" from 57.2 (135 °F),
+      blue below 0. Common advice is that asphalt can burn paws from about 120 °F (49 °C), so
+      `walk_hot_pavement_c` should probably come down to about 49 and `walk_warm_pavement_c` to
+      about 43, with the walk advice following. Change the defaults in both apps and the template
+      together; a console change would do it without a release, but ask first. (11-07)
 - [ ] Retune the pavement heat model after an outdoor check of your own. (10-27)
 - [ ] **Hurricane warnings ahead are faked as now.** When hurricane force is forecast in the next 6
       hours, the walk verdict on now gets a force-12 wind factor, so the card says "Hurricane force
@@ -330,18 +338,17 @@ noted. Checked against the code, not fixed yet.
 ## Architecture (MVVM review, 11-07)
 
 Since 11-07 the weather view model in both apps holds the screen's clock and builds what the
-weather screen shows (see Done). Still to do:
+weather screen shows, and the notifications share the screen's data layer and rules (see Done).
+Still to do:
 
-- [ ] **The screen and the notifications disagree.** The hero's high and low take in the temperature
-      now (`TodayDetails.highLow`, `heroHighLow`); the briefing's don't. Android's briefing picks
-      the pets' mood from the reading's icon, the screen by the clock's day or night. Android's
-      worker still finds today's forecast by its "EEE, MMM d" label; the screen now uses
-      `isDayOf` (iOS `isDay(of:in:)`). One shared function for each. Both apps. (11-07)
 - [ ] **Refresh and location steps live in the view.** Refreshing on a city change, on resume and
       every half hour, pull to refresh reading My Location first, adding My Location after
-      permission is given, and on iOS rescheduling the notifications, are all in the screen (iOS's
+      permission is given, and replanning when the notification city changes, are all in the screen (iOS's
       `CurrentWeatherView`, Android's `CurrentWeatherRoute` and `rememberAddMyLocation`). They
       belong in a view model as actions the screen calls. Both apps. Large. (11-07)
+- [ ] **Two Android workers have no wiring tests.** `WalkTimeWorker` and
+      `WeatherUpdateWorker` are wired by hand like `WeatherNotificationWorker`, which has a
+      wiring test; they don't. (11-07)
 - [ ] **Views read settings and singletons directly.** iOS's `OnboardingNotificationView` reads
       `PreferencesStore` and asks for notification permission itself, and the Follow my location
       switch drives `MyLocationFollower.shared`. Android's notification settings screen reads and
@@ -407,6 +414,19 @@ weather screen shows (see Done). Still to do:
 
 ## Done
 
+- [x] **The notifications share the screen's data and rules** (11-07): `LocationWeatherRepository`
+      in both apps is the one way to a saved location's weather, its cache and refreshes that
+      fetch in the user's units and cache what comes back. The weather view model, the background
+      refresh and the notifications all go through it; before, fetch-then-cache and the units were
+      written out in the view model, iOS's background refresh (twice) and Android's three workers,
+      and the morning and walk-time runs on Android didn't cache what they fetched. The briefing
+      finds today by the city's date (`isDay(of:in:)`, `isDayOf`; Android's had matched labels, and
+      its "today" came from the device clock), gives the hero's high and low (taking in the
+      temperature now, or at 8:30 for iOS's planned briefings), and Android's briefing and walk
+      nudge show the pets by the clock's day or night, as the hero does (`petMoodAt`, iOS
+      `PetMood.forReading`; iOS's briefing picture is the 8:30 forecast hour, `PetMood.forHour`).
+      iOS replans the notifications from the weather view model when new weather is in, not from
+      the view. Android's rain alert moved out of `WeatherUpdateWorker` into tested `RainAlertLogic`.
 - [x] **One clock and the screen state in the view model** (11-07): the weather view model holds
       the screen's clock (`now`, moved on by `tick()` on refreshes, returning to the app, the
       half-hour timer and the stale recheck) and builds a `WeatherScreen` from it: loading, an

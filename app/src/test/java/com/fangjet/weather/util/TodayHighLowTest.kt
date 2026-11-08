@@ -1,4 +1,4 @@
-package com.fangjet.weather.ui
+package com.fangjet.weather.util
 
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
@@ -6,7 +6,7 @@ import com.fangjet.weather.domain.WeatherUnits
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class HeroHighLowTest {
+class TodayHighLowTest {
     // OpenWeather's current min and max are the spread across nearby stations right now.
     private val weather =
         CurrentWeather(
@@ -34,17 +34,17 @@ class HeroHighLowTest {
 
     @Test
     fun `uses today's forecast high and low`() {
-        assertEquals(68.0 to 52.0, heroHighLow(weather, today(high = 68.0, low = 52.0)))
+        assertEquals(68.0 to 52.0, todayHighLow(weather, today(high = 68.0, low = 52.0)))
     }
 
     @Test
     fun `widens the range to take in the temperature now`() {
-        assertEquals(66.0 to 55.0, heroHighLow(weather, today(high = 65.0, low = 55.0)))
-        assertEquals(74.0 to 66.0, heroHighLow(weather, today(high = 74.0, low = 67.0)))
+        assertEquals(66.0 to 55.0, todayHighLow(weather, today(high = 65.0, low = 55.0)))
+        assertEquals(74.0 to 66.0, todayHighLow(weather, today(high = 74.0, low = 67.0)))
     }
 
     @Test
     fun `falls back to the current reading's range without today's forecast`() {
-        assertEquals(70.0 to 64.0, heroHighLow(weather, null))
+        assertEquals(70.0 to 64.0, todayHighLow(weather, null))
     }
 }

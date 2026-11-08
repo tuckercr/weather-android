@@ -3,6 +3,7 @@ package com.fangjet.weather.worker
 import android.content.Context
 import androidx.work.ListenableWorker.Result
 import androidx.work.WorkerParameters
+import com.fangjet.weather.data.LocationWeatherRepository
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
 import com.fangjet.weather.data.WeatherRepository
@@ -11,9 +12,11 @@ import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.UnitOverride
 import com.fangjet.weather.domain.WeatherUnits
+import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.flow.flowOf
@@ -22,7 +25,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * The worker's wiring: which saved city and which units, fetched by the data layer's rule
+ * The worker's wiring: which saved city and which units, fetched (through
+ * [LocationWeatherRepository]) by the data layer's rule
  * (`SavedLocation.weatherRequest`: coordinates when there are any, the name as the fallback query,
  * and an empty label for My Location).
  * The notification content, gating and walk planning are covered by [NotificationWorkerLogicTest];
@@ -52,11 +56,15 @@ class WeatherNotificationWorkerTest {
         coEvery { weather.fetchCurrentWeather(any(), any(), any(), any(), any()) } returns
             kotlin.Result.success(currentWeather)
         coEvery { weather.fetchForecast(any(), any(), any(), any()) } returns kotlin.Result.success(emptyList())
+        // What's fetched is cached, by the repository.
+        coEvery { preferences.setCachedWeather(any(), any()) } just Runs
+        coEvery { preferences.setCachedForecast(any(), any()) } just Runs
+        val context = mockk<Context>(relaxed = true)
         return WeatherNotificationWorker(
-            mockk<Context>(relaxed = true),
+            context,
             mockk<WorkerParameters>(relaxed = true),
             preferences,
-            weather,
+            LocationWeatherRepository(context, preferences, weather),
             remoteConfig,
             scheduler,
         )

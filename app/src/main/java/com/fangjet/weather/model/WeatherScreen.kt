@@ -9,11 +9,10 @@ import com.fangjet.weather.domain.RainOutlookSettings
 import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.SeasonalThemes
 import com.fangjet.weather.domain.TodayTileSwitches
-import com.fangjet.weather.ui.heroHighLow
 import com.fangjet.weather.ui.pets.PetMood
 import com.fangjet.weather.ui.pets.WalkAdvice
 import com.fangjet.weather.ui.pets.isPrecipitating
-import com.fangjet.weather.ui.pets.petMoodFor
+import com.fangjet.weather.ui.pets.petMoodAt
 import com.fangjet.weather.ui.pets.walkAdviceForReading
 import com.fangjet.weather.ui.pets.walkCardShown
 import com.fangjet.weather.util.HourlyStripItem
@@ -23,15 +22,14 @@ import com.fangjet.weather.util.forecastAsCurrent
 import com.fangjet.weather.util.fromCurrentSlot
 import com.fangjet.weather.util.hourlyStrip
 import com.fangjet.weather.util.iconCodeAt
+import com.fangjet.weather.util.isDayOf
 import com.fangjet.weather.util.isTooOldToShowAsNow
+import com.fangjet.weather.util.localDate
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.rainOutlook
 import com.fangjet.weather.util.sunEvents
+import com.fangjet.weather.util.todayHighLow
 import com.fangjet.weather.util.withSunTimesToday
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 /** The Remote Config switches and settings the weather screen goes by. Same as iOS's `WeatherScreenConfig`. */
@@ -215,10 +213,10 @@ private fun weatherScreenState(
     val offset = weather.offsetSeconds
     val weatherToday = weather.withSunTimesToday(nowEpochSeconds)
     val iconCodeNow = weather.iconCodeAt(nowEpochSeconds)
-    val mood = petMoodFor(weather.conditionMain, iconCodeNow, weather.units.toCelsius(weather.feelsLike), config.thresholds)
+    val mood = weather.petMoodAt(nowEpochSeconds, config.thresholds)
     val seasonalTheme = SeasonalThemes.themeOn(nowEpochSeconds, offset, config.seasonalThemes)
     val today = forecastDays.firstOrNull()?.takeIf { it.isDayOf(nowEpochSeconds, offset) }
-    val (high, low) = heroHighLow(weather, today)
+    val (high, low) = todayHighLow(weather, today)
 
     // From the hour in progress on, however old the forecast on screen is.
     val upcomingSlots = forecastDays.flatMap { it.hourlySlots }.fromCurrentSlot(nowEpochSeconds)
@@ -274,29 +272,3 @@ private fun weatherScreenState(
         },
     )
 }
-
-/**
- * Whether this is the day of [epochSeconds] in the city's time ([utcOffsetSeconds]): by its hours'
- * timestamps, or by its label for a forecast cached before they were recorded.
- */
-fun DayForecast.isDayOf(
-    epochSeconds: Long,
-    utcOffsetSeconds: Int,
-): Boolean {
-    val date = localDate(epochSeconds, utcOffsetSeconds)
-    val start = hourlySlots.firstNotNullOfOrNull { it.epochSeconds }
-    return if (start != null) {
-        localDate(start, utcOffsetSeconds) == date
-    } else {
-        dateLabel == date.format(DateTimeFormatter.ofPattern("EEE, MMM d"))
-    }
-}
-
-private fun localDate(
-    epochSeconds: Long,
-    utcOffsetSeconds: Int,
-): LocalDate =
-    Instant
-        .ofEpochSecond(epochSeconds)
-        .atOffset(ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
-        .toLocalDate()

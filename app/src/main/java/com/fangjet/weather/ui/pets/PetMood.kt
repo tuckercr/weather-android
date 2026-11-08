@@ -1,14 +1,26 @@
 package com.fangjet.weather.ui.pets
 
+import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.util.FeelsLikeBand
 import com.fangjet.weather.util.feelsLikeBand
+import com.fangjet.weather.util.iconCodeAt
 
 /**
  * How the cat and dog react on the home screen, derived from the current conditions. [FAIR] is a
  * clear day that's chilly or mild, [SUNNY] a clear day that's warm (sunglasses on).
  */
 enum class PetMood { FAIR, SUNNY, CLOUDY, RAIN, STORM, SNOW, HOT, COLD, NIGHT }
+
+/**
+ * The pets' mood for [this] reading at [nowEpochSeconds]: day or night by the clock, so a reading
+ * cached before sunset doesn't show the daytime pets. What the hero and the notifications show.
+ * Same as iOS's `PetMood.forReading`.
+ */
+fun CurrentWeather.petMoodAt(
+    nowEpochSeconds: Long,
+    thresholds: PetWeatherThresholds = PetWeatherThresholds.DEFAULT,
+): PetMood = petMoodFor(conditionMain, iconCodeAt(nowEpochSeconds), units.toCelsius(feelsLike), thresholds)
 
 /**
  * Picks the pet mood. Precipitation and storms win over temperature, temperature extremes win over

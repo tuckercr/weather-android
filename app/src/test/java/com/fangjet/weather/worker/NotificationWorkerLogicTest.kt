@@ -1,6 +1,7 @@
 package com.fangjet.weather.worker
 
 import androidx.work.ListenableWorker.Result
+import com.fangjet.weather.data.testLocationWeatherRepository
 import com.fangjet.weather.data.weatherRequest
 import com.fangjet.weather.domain.AirQuality
 import com.fangjet.weather.domain.CurrentWeather
@@ -471,9 +472,8 @@ class NotificationWorkerLogicTest {
             fun walkLogic(slots: List<HourlySlot>) =
                 WalkTimeLogic(
                     getSavedLocations = { listOf(london) },
-                    getUnits = { WeatherUnits.IMPERIAL },
-                    fetchCurrentWeather = { _, _ -> kotlin.Result.success(weather(cityName = "London")) },
-                    fetchForecast = { _, _ -> kotlin.Result.success(listOf(forecast(slots = slots))) },
+                    refreshWeather = { kotlin.Result.success(weather(cityName = "London")) },
+                    refreshForecast = { kotlin.Result.success(listOf(forecast(slots = slots))) },
                     hasNotificationPermission = { true },
                     postNotification = { posted += it },
                     isWalkTimeEnabled = { true },
@@ -510,6 +510,37 @@ class NotificationWorkerLogicTest {
     }
 
     @Test
+    fun `the rain alert is posted once per shower, only when it's switched on`() =
+        runTest {
+            val posted = mutableListOf<WeatherNotification>()
+            var lastStart: Long? = null
+
+            fun rainLogic(enabled: Boolean) =
+                RainAlertLogic(
+                    isEnabled = { enabled },
+                    hasDog = { true },
+                    lastAlertStart = { lastStart },
+                    setLastAlertStart = { lastStart = it },
+                    postNotification = { posted += it },
+                    nowEpochSeconds = { NOW },
+                )
+
+            rainLogic(enabled = false).check(london, weather(), rainFrom(3))
+            assertTrue(posted.isEmpty())
+
+            rainLogic(enabled = true).check(london, weather(), rainFrom(3))
+            rainLogic(enabled = true).check(london, weather(), rainFrom(3))
+            assertEquals(NotificationKind.RAIN, posted.single().kind)
+            assertEquals(PetMood.RAIN, posted.single().mood)
+            assertEquals(NOW + 3 * 900, lastStart)
+
+            // Nothing to go on without the refreshed weather and forecast.
+            lastStart = null
+            rainLogic(enabled = true).check(london, null, rainFrom(3))
+            assertEquals(1, posted.size)
+        }
+
+    @Test
     fun `rain alert text names the time and the city, and mentions the walk only with a dog`() {
         val rain = NextRain.Starting(DAY_START + 15 * HOUR + 900, snow = false)
         val (title, body) = buildRainAlertContent(rain, "Knoxville", 0, hasDog = true)
@@ -525,28 +556,34 @@ class NotificationWorkerLogicTest {
     }
 
     @Test
-    fun `today matching uses the city's utc offset`() =
+    fun `today is the city's date, not the device's`() =
         runTest {
-            var capturedOffset: Int? = null
-            val logic = NotificationWorkerLogic(
-                getSavedLocations = { listOf(london) },
-                getUnits = { WeatherUnits.IMPERIAL },
-                fetchCurrentWeather = { _, _ ->
-                    kotlin.Result.success(weather(utcOffsetSeconds = -21600))
-                },
-                fetchForecast = { _, _ -> kotlin.Result.success(listOf(forecast())) },
-                hasNotificationPermission = { true },
-                postNotification = {},
-                todayLabel = { offset ->
-                    capturedOffset = offset
-                    TODAY_LABEL
-                },
-            )
+            val posted = mutableListOf<WeatherNotification>()
+            // A forecast day whose hours start at noon UTC on Monday: 2 AM Monday at UTC-10. At 8:30 AM
+            // UTC it's still Sunday evening there, so for that city it isn't today yet, and the
+            // reading's own high and low stand in.
+            val monday = listOf(forecast(tempMin = 55.0, tempMax = 85.0, slots = (12..16).map { slot(it, rain = 0) }))
+            logic(fetchForecast = { _, _ -> kotlin.Result.success(monday) }, postNotification = { posted += it }).doWork()
+            logic(
+                fetchCurrentWeather = { _, _ -> kotlin.Result.success(weather(utcOffsetSeconds = -10 * 3600)) },
+                fetchForecast = { _, _ -> kotlin.Result.success(monday) },
+                postNotification = { posted += it },
+            ).doWork()
 
-            logic.doWork()
+            assertTrue(posted[0].body.startsWith("High 85°, low 55°"))
+            assertTrue(posted[1].body.startsWith("High 80°, low 60°"))
+        }
 
-            // The city's offset (Mountain Daylight, UTC-6h) is used to resolve "today", not the device's.
-            assertEquals(-21600, capturedOffset)
+    @Test
+    fun `the briefing's high and low take in the temperature now, as the hero's do`() =
+        runTest {
+            val posted = mutableListOf<WeatherNotification>()
+            logic(
+                fetchCurrentWeather = { _, _ -> kotlin.Result.success(weather(temperature = 90.0)) },
+                postNotification = { posted += it },
+            ).doWork()
+
+            assertTrue(posted.single().body.startsWith("High 90°, low 55°"))
         }
 
     @Test
@@ -594,7 +631,6 @@ class NotificationWorkerLogicTest {
             { _, _ -> kotlin.Result.success(listOf(forecast())) },
         hasNotificationPermission: () -> Boolean = { true },
         postNotification: (WeatherNotification) -> Unit = {},
-        todayLabel: String = TODAY_LABEL,
         isDailyWeatherNotificationEnabled: () -> Boolean = { true },
         isBriefingEnabled: Boolean = true,
         isWalkTimeEnabled: Boolean = false,
@@ -603,13 +639,11 @@ class NotificationWorkerLogicTest {
         scheduleWalkTime: (Long) -> Unit = {},
     ) = NotificationWorkerLogic(
         getSavedLocations = { savedLocations },
-        getUnits = { units },
-        fetchCurrentWeather = fetchCurrentWeather,
-        fetchForecast = fetchForecast,
+        refreshWeather = testLocationWeatherRepository(units, fetchCurrentWeather, fetchForecast)::refreshWeather,
+        refreshForecast = testLocationWeatherRepository(units, fetchCurrentWeather, fetchForecast)::refreshForecast,
         hasNotificationPermission = hasNotificationPermission,
         postNotification = postNotification,
         isDailyWeatherNotificationEnabled = isDailyWeatherNotificationEnabled,
-        todayLabel = { _ -> todayLabel },
         isBriefingEnabled = { isBriefingEnabled },
         isWalkTimeEnabled = { isWalkTimeEnabled },
         isWalkTimeRemotelyEnabled = { isWalkTimeRemotelyEnabled },
