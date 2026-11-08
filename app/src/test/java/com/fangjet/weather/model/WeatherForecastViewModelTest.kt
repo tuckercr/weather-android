@@ -1,6 +1,8 @@
 package com.fangjet.weather.model
 
+import com.fangjet.weather.data.FakePosition
 import com.fangjet.weather.data.LocationWeatherRepository
+import com.fangjet.weather.data.testCityRepository
 import com.fangjet.weather.data.weatherRequest
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
@@ -514,6 +516,8 @@ class WeatherForecastViewModelTest {
             writeCachedForecast = setCachedForecast,
             setLastCity = setLastCity,
         ),
+        cities = testCityRepository(),
+        position = FakePosition(),
         isWalkCardEnabled = isWalkCardEnabled,
         isHourlyForecastEnabled = isHourlyForecastEnabled,
         isNextRainEnabled = isNextRainEnabled,

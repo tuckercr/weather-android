@@ -1,8 +1,11 @@
 package com.fangjet.weather.model
 
-import android.app.Application
+import com.fangjet.weather.data.BackgroundAnswerStore
+import com.fangjet.weather.data.DeviceLocation
+import com.fangjet.weather.data.LocationDenialStore
+import com.fangjet.weather.data.LocationFetcher
+import com.fangjet.weather.data.LocationRepository
 import com.fangjet.weather.domain.SavedLocation
-import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -89,7 +92,7 @@ class LocationPermissionViewModelTest {
     fun `the known position is the last one, or a fresh fix without one, and forgets earlier refusals`() =
         runTest {
             val denials = FakeDenialStore(deniedBefore = true, permanentlyDenied = true)
-            val last = viewModel(
+            val last = repository(
                 locationFetcher = FakeLocationFetcher(
                     lastLocation = DeviceLocation(latitude = 30.2672, longitude = -97.7431),
                     currentLocation = DeviceLocation(latitude = 39.7392, longitude = -104.9903),
@@ -97,16 +100,14 @@ class LocationPermissionViewModelTest {
                 denials = denials,
             )
             val fresh =
-                viewModel(
+                repository(
                     locationFetcher = FakeLocationFetcher(currentLocation = DeviceLocation(latitude = 39.7392, longitude = -104.9903)),
                 )
 
             assertEquals(30.2672, last.knownPosition()?.latitude)
             assertEquals(39.7392, fresh.knownPosition()?.latitude)
-            assertEquals(null, viewModel(hasLocationPermission = false).knownPosition())
+            assertEquals(null, repository(hasLocationPermission = false).knownPosition())
             assertEquals(false, denials.deniedBefore || denials.permanentlyDenied)
-            // It leaves the state for the Add location screen alone.
-            assertEquals(LocationFetchState.Idle, last.state.value)
         }
 
     @Test
@@ -181,19 +182,16 @@ class LocationPermissionViewModelTest {
         }
 
     @Test
-    fun `currentPosition asks for a fresh fix, not the last known one, and leaves the state alone`() =
+    fun `currentPosition asks for a fresh fix, not the last known one`() =
         runTest {
             val fetcher = FakeLocationFetcher(
                 lastLocation = DeviceLocation(35.96, -83.92),
                 currentLocation = DeviceLocation(36.03, -84.1),
             )
-            val viewModel = viewModel(locationFetcher = fetcher)
-
-            val here = viewModel.currentPosition()
+            val here = repository(locationFetcher = fetcher).currentPosition()
 
             assertEquals(SavedLocation("My Location", 36.03, -84.1, isCurrentLocation = true), here)
             assertEquals(0, fetcher.lastLocationCallCount)
-            assertEquals(LocationFetchState.Idle, viewModel.state.value)
         }
 
     @Test
@@ -201,9 +199,9 @@ class LocationPermissionViewModelTest {
         runTest {
             val fetcher = FakeLocationFetcher(currentLocation = DeviceLocation(36.03, -84.1))
 
-            assertNull(viewModel(hasLocationPermission = false, locationFetcher = fetcher).currentPosition())
+            assertNull(repository(hasLocationPermission = false, locationFetcher = fetcher).currentPosition())
             assertEquals(0, fetcher.currentLocationCallCount)
-            assertNull(viewModel(locationFetcher = FakeLocationFetcher()).currentPosition())
+            assertNull(repository(locationFetcher = FakeLocationFetcher()).currentPosition())
         }
 
     @Test
@@ -304,11 +302,20 @@ class LocationPermissionViewModelTest {
         hasLocationPermission: Boolean = true,
         locationFetcher: LocationFetcher = FakeLocationFetcher(),
         denials: LocationDenialStore = FakeDenialStore(),
-    ) = LocationPermissionViewModel(
-        application = mockk<Application>(relaxed = true),
-        hasLocationPermissionProvider = { hasLocationPermission },
-        locationFetcher = locationFetcher,
+    ) = LocationPermissionViewModel(repository(hasLocationPermission, locationFetcher, denials))
+
+    private fun repository(
+        hasLocationPermission: Boolean = true,
+        locationFetcher: LocationFetcher = FakeLocationFetcher(),
+        denials: LocationDenialStore = FakeDenialStore(),
+    ) = LocationRepository(
+        hasPermissionProvider = { hasLocationPermission },
+        hasBackgroundPermissionProvider = { false },
+        fetcher = locationFetcher,
         denials = denials,
+        backgroundAnswers = object : BackgroundAnswerStore {
+            override var refusals = 0
+        },
     )
 
     private class FakeDenialStore(

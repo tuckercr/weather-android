@@ -1,10 +1,6 @@
 package com.fangjet.weather.data
 
 import android.content.Context
-import com.fangjet.weather.model.backgroundLocationRefusals
-import com.fangjet.weather.model.hasBackgroundLocationPermission
-import com.fangjet.weather.model.hasLocationPermission
-import com.fangjet.weather.model.noteBackgroundLocationAnswer
 import com.fangjet.weather.worker.canPostNotifications
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -32,14 +28,15 @@ class DevicePermissions
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
+        private val locationRepository: LocationRepository,
     ) : AppPermissions {
-        override fun location() = context.hasLocationPermission()
+        override fun location() = locationRepository.hasLocationPermission()
 
-        override fun backgroundLocation() = context.hasBackgroundLocationPermission()
+        override fun backgroundLocation() = locationRepository.hasBackgroundLocationPermission()
 
         override fun notifications() = context.canPostNotifications()
 
-        override fun backgroundLocationRefusals() = context.backgroundLocationRefusals()
+        override fun backgroundLocationRefusals() = locationRepository.backgroundLocationRefusals()
 
-        override fun noteBackgroundLocationAnswer(granted: Boolean) = context.noteBackgroundLocationAnswer(granted)
+        override fun noteBackgroundLocationAnswer(granted: Boolean) = locationRepository.noteBackgroundLocationAnswer(granted)
     }

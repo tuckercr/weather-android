@@ -3,6 +3,9 @@ package com.fangjet.weather.model
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fangjet.weather.analytics.AnalyticsRepository
+import com.fangjet.weather.data.CityRepository
+import com.fangjet.weather.data.DevicePositioning
+import com.fangjet.weather.data.LocationRepository
 import com.fangjet.weather.data.LocationWeatherRepository
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
@@ -15,13 +18,18 @@ import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.UnitOverride
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -29,11 +37,23 @@ import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.minutes
 
+/**
+ * The weather screen: what it shows for the city on screen, and what it does and in what order.
+ * It refreshes that city when it changes, on returning to the app and every half hour; moves My
+ * Location to where the phone is (or adds it once location access turns up); and works out the
+ * screen state from the cache and what comes back. The screen only tells it what happened. Same
+ * as iOS's `WeatherForecastViewModel`.
+ */
 @HiltViewModel
 class WeatherForecastViewModel internal constructor(
     // The saved locations' weather: the cache, and refreshes that fill it.
     private val repository: LocationWeatherRepository,
+    // The saved cities and which one is on screen.
+    private val cities: CityRepository,
+    // Where the phone is, for My Location.
+    private val position: DevicePositioning,
     private val onError: (errorKey: String) -> Unit = {},
     private val onSettingsOpened: () -> Unit = {},
     isWalkCardEnabled: () -> Boolean = { true },
@@ -62,11 +82,15 @@ class WeatherForecastViewModel internal constructor(
     @Inject
     constructor(
         locationWeatherRepository: LocationWeatherRepository,
+        cityRepository: CityRepository,
+        locationRepository: LocationRepository,
         preferencesRepository: PreferencesRepository,
         analyticsRepository: AnalyticsRepository,
         remoteConfigRepository: RemoteConfigRepository,
     ) : this(
         repository = locationWeatherRepository,
+        cities = cityRepository,
+        position = locationRepository,
         onError = { key -> analyticsRepository.logWeatherError(key) },
         onSettingsOpened = { analyticsRepository.logSettingsOpened() },
         isWalkCardEnabled = remoteConfigRepository::walkCardEnabled,
@@ -138,9 +162,29 @@ class WeatherForecastViewModel internal constructor(
 
     private val currentRefreshing = MutableStateFlow(false)
     private val forecastRefreshing = MutableStateFlow(false)
+    private val pullLocating = MutableStateFlow(false)
+
+    /** A fetch is under way, or pull to refresh is still waiting for the phone's position. */
     val isRefreshing: StateFlow<Boolean> =
-        combine(currentRefreshing, forecastRefreshing) { a, b -> a || b }
+        combine(currentRefreshing, forecastRefreshing, pullLocating) { current, forecast, locating -> current || forecast || locating }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** The saved cities, for the tabs. */
+    val locations: StateFlow<List<SavedLocation>> = cities.locations
+
+    /** The tab on screen. */
+    val activeIndex: StateFlow<Int> = cities.activeIndex
+
+    private val addFailures = Channel<Unit>(Channel.CONFLATED)
+
+    /** Adding My Location found no position, for the screen to say so. */
+    val addMyLocationFailed: Flow<Unit> = addFailures.receiveAsFlow()
+
+    /** Location access at the last check, to spot it being granted later in system settings. */
+    private var locationWasGranted: Boolean? = null
+
+    /** A position is being read, so another check doesn't start one too. */
+    private var locating = false
 
     /**
      * What the screen shows for the active city at the screen's clock: the reading (or the forecast
@@ -167,8 +211,135 @@ class WeatherForecastViewModel internal constructor(
     private val lastCurrentFetchMillis = ConcurrentHashMap<String, Long>()
     private val lastForecastFetchMillis = ConcurrentHashMap<String, Long>()
 
+    // --- What happened on screen ---
+
+    /**
+     * The screen comes back to the foreground (and first shows): the clock moves on, the city on
+     * screen is quietly refreshed, My Location follows the phone, and cities added by name get their
+     * coordinates.
+     */
+    fun becameActive() {
+        tick()
+        quietlyRefreshActiveCity()
+        updateMyLocation()
+        cities.fillInMissingCoordinates()
+    }
+
+    /** A city tab was picked. */
+    fun selectCity(index: Int) = cities.setActiveIndex(index)
+
+    /** The retry buttons. */
+    fun retry() = refreshActiveCity()
+
+    /**
+     * Pull to refresh. On My Location the phone's position is read first, whatever the 15-minute
+     * limit, so My Location moves (by the usual 1 km rule) before its weather is fetched: a drive with
+     * the screen on never resumes the app, so this is how to catch up by hand.
+     */
+    fun pulledToRefresh() {
+        viewModelScope.launch {
+            if (cities.activeLocation.value?.isCurrentLocation == true) {
+                pullLocating.value = true
+                val here = position.currentPosition()
+                pullLocating.value = false
+                if (here != null) {
+                    cities.noteMyLocationChecked()
+                    // A move changes the active city, which refreshes it.
+                    if (cities.updateCurrentLocation(here)) return@launch
+                }
+            }
+            refreshActiveCity()
+        }
+    }
+
+    // --- While the screen is up ---
+
+    /** The quiet refresh every half hour, run by the screen while it's resumed, until cancelled. */
+    suspend fun refreshWhileActive() {
+        while (true) {
+            delay(AUTO_REFRESH_INTERVAL)
+            tick()
+            quietlyRefreshActiveCity()
+        }
+    }
+
+    /**
+     * While refreshes keep failing, the clock is re-read every few minutes so old weather gives way
+     * to the forecast once it passes the cutoff. Run by the screen while there's an error.
+     */
+    suspend fun recheckWhileStale() {
+        if (staleErrorKey.value == null) return
+        while (true) {
+            delay(STALE_RECHECK_INTERVAL)
+            tick()
+        }
+    }
+
+    // --- Steps ---
+
+    private fun refreshActiveCity() {
+        // A refresh moves "now" on too, so the hourly strip and captions update even when the
+        // weather itself hasn't changed.
+        val location = cities.activeLocation.value
+        if (location == null) {
+            tick()
+            return
+        }
+        refreshCurrent(location)
+        refreshForecast(location)
+    }
+
+    private fun quietlyRefreshActiveCity() {
+        val location = cities.activeLocation.value ?: return
+        backgroundRefreshCurrent(location)
+        backgroundRefreshForecast(location)
+    }
+
+    /**
+     * Each time the screen resumes, with location access on:
+     * - re-reads the position while My Location is saved (at most every 15 minutes), so it follows
+     *   the device rather than staying where it was added;
+     * - otherwise adds it once access turns up after onboarding went without it (granted later in
+     *   system settings, say). Only when there are no cities yet, or access has just changed to
+     *   granted, so someone who removed My Location on purpose doesn't get it back every launch.
+     *   It waits for the saved cities to load: before then the empty list would read as "none yet".
+     */
+    private fun updateMyLocation() {
+        // While a read is under way this check is skipped whole, so a grant made meanwhile is still
+        // "newly granted" next time.
+        if (locating) return
+        val granted = position.hasLocationPermission()
+        val newlyGranted = granted && locationWasGranted == false
+        locationWasGranted = granted
+        if (!granted) return
+        locating = true
+        viewModelScope.launch {
+            try {
+                cities.locationsLoaded.first { it }
+                val adding = when {
+                    hasMyLocation() -> if (cities.claimMyLocationCheck()) false else return@launch
+                    newlyGranted || cities.locations.value.isEmpty() -> true
+                    else -> return@launch
+                }
+                val here = position.knownPosition()
+                when {
+                    here == null -> if (adding) addFailures.trySend(Unit)
+                    hasMyLocation() -> cities.updateCurrentLocation(here)
+                    // A position read only to move My Location, arriving after it was removed, adds nothing.
+                    adding -> cities.addLocation(here)
+                }
+            } finally {
+                locating = false
+            }
+        }
+    }
+
+    private fun hasMyLocation() = cities.locations.value.any { it.isCurrentLocation }
+
+    // --- Fetching ---
+
     /** Silent background refresh (foreground return). Updates data if fetch succeeds; never shows loading or errors. */
-    fun backgroundRefreshCurrent(location: SavedLocation) {
+    internal fun backgroundRefreshCurrent(location: SavedLocation) {
         if (fetchedRecently(lastCurrentFetchMillis, location)) return
         viewModelScope.launch {
             val result = repository.refreshWeather(location)
@@ -187,7 +358,7 @@ class WeatherForecastViewModel internal constructor(
         }
     }
 
-    fun backgroundRefreshForecast(location: SavedLocation) {
+    internal fun backgroundRefreshForecast(location: SavedLocation) {
         if (fetchedRecently(lastForecastFetchMillis, location)) return
         viewModelScope.launch {
             val result = repository.refreshForecast(location)
@@ -206,7 +377,7 @@ class WeatherForecastViewModel internal constructor(
      * Shows cached data immediately if available (no loading flash), then silently
      * replaces with fresh data. Shows an error only when there is no cached data to fall back to.
      */
-    fun refreshCurrent(location: SavedLocation) {
+    internal fun refreshCurrent(location: SavedLocation) {
         // A refresh also moves "now" on, so the hourly strip and captions update even when the
         // weather itself hasn't changed.
         tick()
@@ -247,7 +418,7 @@ class WeatherForecastViewModel internal constructor(
         }
     }
 
-    fun refreshForecast(location: SavedLocation) {
+    internal fun refreshForecast(location: SavedLocation) {
         tick()
         forecastTargetKey.value = location.cacheKey
         val fetchId = forecastFetchGeneration.incrementAndGet()
@@ -316,6 +487,20 @@ class WeatherForecastViewModel internal constructor(
             "missing_api_key", "bad_api_key", "city_not_found", "empty_query" -> false
             else -> true
         }
+
+    init {
+        // Another city on screen (a tab, an added city, My Location moving, the saved cities
+        // loading): a real refetch. Last in the class, so everything a refresh uses is set up.
+        viewModelScope.launch { cities.activeLocation.filterNotNull().collect { refreshActiveCity() } }
+    }
+
+    companion object {
+        /** The quiet refresh while the screen stays open, so a screen left on overnight keeps up. */
+        val AUTO_REFRESH_INTERVAL = 30.minutes
+
+        /** How often old weather is re-checked against the cutoff while refreshes keep failing. */
+        val STALE_RECHECK_INTERVAL = 5.minutes
+    }
 }
 
 private const val MILLIS_PER_MINUTE = 60_000L

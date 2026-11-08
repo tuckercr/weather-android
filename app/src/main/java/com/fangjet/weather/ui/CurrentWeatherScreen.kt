@@ -95,7 +95,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
@@ -103,8 +102,6 @@ import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WeatherUnits
-import com.fangjet.weather.model.CityListViewModel
-import com.fangjet.weather.model.CurrentWeatherViewModel
 import com.fangjet.weather.model.LoadingState
 import com.fangjet.weather.model.LocationPermissionViewModel
 import com.fangjet.weather.model.UpdatePromptViewModel
@@ -146,7 +143,7 @@ import kotlin.math.roundToInt
  * action, or null when it's already in the list or the system won't ask for location any more. Without
  * access it asks first, so "Only this time" / "Ask every time" users can still add it. Access is
  * re-read on every resume, so changing it in system settings shows or hides the action on return.
- * The weather screen adds and moves My Location by itself: see [CurrentWeatherViewModel].
+ * The weather screen adds and moves My Location by itself: see [WeatherForecastViewModel].
  */
 @Composable
 internal fun rememberAddMyLocation(
@@ -178,28 +175,19 @@ fun CurrentWeatherRoute(
     onAddLocation: () -> Unit = {},
 ) {
     val activity = LocalActivity.current as ComponentActivity
-    val cityListViewModel = hiltViewModel<CityListViewModel>(viewModelStoreOwner = activity)
-    val weatherForecastViewModel =
-        hiltViewModel<WeatherForecastViewModel>(viewModelStoreOwner = activity)
+    // What the screen shows and does when: refreshes and My Location. It only gets told what happened.
+    val viewModel = hiltViewModel<WeatherForecastViewModel>(viewModelStoreOwner = activity)
     // The activity's instance, the one that decides whether the app is blocked for an update.
     val updatePromptViewModel = hiltViewModel<UpdatePromptViewModel>(viewModelStoreOwner = activity)
     val updatePrompt by updatePromptViewModel.prompt.collectAsStateWithLifecycle()
-    val unitOverride by weatherForecastViewModel.unitOverride.collectAsStateWithLifecycle()
+    val unitOverride by viewModel.unitOverride.collectAsStateWithLifecycle()
     val distanceInMiles = LocalContext.current.usesMilesForDistance(unitOverride)
 
-    val locations by cityListViewModel.locations.collectAsStateWithLifecycle()
-    val activeIndex by cityListViewModel.activeIndex.collectAsStateWithLifecycle()
-    val activeLocation by cityListViewModel.activeLocation.collectAsStateWithLifecycle()
-    val screen by weatherForecastViewModel.screen.collectAsStateWithLifecycle()
-    val staleErrorKey by weatherForecastViewModel.staleErrorKey.collectAsStateWithLifecycle()
-    val locationPermissionViewModel = hiltViewModel<LocationPermissionViewModel>()
-    // What the screen does when: refreshes and My Location. It only gets told what happened.
-    val viewModel = viewModel {
-        CurrentWeatherViewModel(cityListViewModel, weatherForecastViewModel, locationPermissionViewModel)
-    }
+    val locations by viewModel.locations.collectAsStateWithLifecycle()
+    val activeIndex by viewModel.activeIndex.collectAsStateWithLifecycle()
+    val screen by viewModel.screen.collectAsStateWithLifecycle()
+    val staleErrorKey by viewModel.staleErrorKey.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
-
-    LaunchedEffect(activeLocation) { viewModel.activeCityChanged() }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
@@ -225,16 +213,16 @@ fun CurrentWeatherRoute(
 
     CompositionLocalProvider(
         LocalDistanceInMiles provides distanceInMiles,
-        LocalTemperatureUnitsShown provides weatherForecastViewModel.temperatureUnitsShown,
+        LocalTemperatureUnitsShown provides viewModel.temperatureUnitsShown,
     ) {
         CurrentWeatherScreen(
             locations = locations,
             activeIndex = activeIndex,
             screen = screen,
             isRefreshing = isRefreshing,
-            onTabSelected = cityListViewModel::setActiveIndex,
+            onTabSelected = viewModel::selectCity,
             onOpenSettings = {
-                weatherForecastViewModel.logSettingsOpened()
+                viewModel.logSettingsOpened()
                 onOpenSettings()
             },
             onAddCityClick = onAddLocation,

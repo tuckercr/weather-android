@@ -3,6 +3,7 @@ package com.fangjet.weather.worker
 import android.content.Context
 import androidx.work.ListenableWorker.Result
 import androidx.work.WorkerParameters
+import com.fangjet.weather.data.LocationRepository
 import com.fangjet.weather.data.LocationWeatherRepository
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
@@ -67,6 +68,7 @@ class WeatherNotificationWorkerTest {
             LocationWeatherRepository(context, preferences, weather),
             remoteConfig,
             scheduler,
+            mockk<LocationRepository>(relaxed = true),
         )
     }
 

@@ -1,18 +1,14 @@
 package com.fangjet.weather.model
 
-import com.fangjet.weather.data.GeocodingRepository
-import com.fangjet.weather.data.PreferencesRepository
+import com.fangjet.weather.data.CityRepository
+import com.fangjet.weather.data.FakePosition
+import com.fangjet.weather.data.testCityRepository
 import com.fangjet.weather.data.testLocationWeatherRepository
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WeatherUnits
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
@@ -27,9 +23,9 @@ import org.junit.Test
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 
-/** The weather screen's steps. Same cases as iOS's `CurrentWeatherViewModelTests`. */
+/** The weather screen's steps, in [WeatherForecastViewModel]. Same cases as iOS's `WeatherScreenStepsTests`. */
 @OptIn(ExperimentalCoroutinesApi::class)
-class CurrentWeatherViewModelTest {
+class WeatherScreenStepsTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
@@ -45,12 +41,11 @@ class CurrentWeatherViewModelTest {
     // --- Refreshing ---
 
     @Test
-    fun `the city on screen and retries are refetched`() =
+    fun `the city on screen is fetched once the cities load, and again on a retry`() =
         runTest {
             val viewModel = viewModel(listOf(austin))
             idle()
 
-            viewModel.activeCityChanged()
             viewModel.retry()
             idle()
 
@@ -58,13 +53,26 @@ class CurrentWeatherViewModelTest {
         }
 
     @Test
+    fun `picking another tab fetches that city`() =
+        runTest {
+            val viewModel = viewModel(listOf(austin, myLocation))
+            idle()
+
+            viewModel.selectCity(1)
+            idle()
+
+            assertEquals(listOf(austin.label, myLocation.label), fetched)
+        }
+
+    @Test
     fun `the half-hourly refresh runs while the screen is up`() =
         runTest {
             val viewModel = viewModel(listOf(austin))
             idle()
+            fetched.clear()
             val job = launch { viewModel.refreshWhileActive() }
 
-            advanceTimeBy(CurrentWeatherViewModel.AUTO_REFRESH_INTERVAL * 2 + kotlin.time.Duration.parse("1s"))
+            advanceTimeBy(WeatherForecastViewModel.AUTO_REFRESH_INTERVAL * 2 + kotlin.time.Duration.parse("1s"))
             job.cancel()
             idle()
 
@@ -180,15 +188,9 @@ class CurrentWeatherViewModelTest {
 
     private fun viewModel(locations: List<SavedLocation>) = viewModelAndCities(locations).first
 
-    private fun viewModelAndCities(locations: List<SavedLocation>): Pair<CurrentWeatherViewModel, CityListViewModel> {
-        val preferences = mockk<PreferencesRepository>(relaxed = true)
-        every { preferences.savedLocations } returns flowOf(locations)
-        every { preferences.activeLocationIndex } returns flowOf(0)
-        every { preferences.lastCity } returns flowOf(null)
-        val geocoding = mockk<GeocodingRepository>(relaxed = true)
-        coEvery { geocoding.searchCities(any()) } returns Result.success(emptyList())
-        val cityList = CityListViewModel(preferences, geocoding, onCityAdded = {})
-        val weather = WeatherForecastViewModel(
+    private fun viewModelAndCities(locations: List<SavedLocation>): Pair<WeatherForecastViewModel, CityRepository> {
+        val cities = testCityRepository(locations)
+        val viewModel = WeatherForecastViewModel(
             repository = testLocationWeatherRepository(
                 fetchCurrentWeather = { units, location ->
                     fetched += location.label
@@ -196,8 +198,10 @@ class CurrentWeatherViewModelTest {
                 },
                 fetchForecast = { _, _ -> Result.success(emptyList()) },
             ),
+            cities = cities,
+            position = position,
         )
-        return CurrentWeatherViewModel(cityList, weather, position) to cityList
+        return viewModel to cities
     }
 
     private fun reading(units: WeatherUnits) =
@@ -218,23 +222,6 @@ class CurrentWeatherViewModelTest {
             cloudPercent = 10,
             units = units,
         )
-
-    private class FakePosition : DevicePositioning {
-        var granted = true
-        var here: SavedLocation? = null
-        var reads = 0
-
-        override fun hasLocationPermission() = granted
-
-        override suspend fun knownPosition(): SavedLocation? = read()
-
-        override suspend fun currentPosition(): SavedLocation? = read()
-
-        private fun read(): SavedLocation? {
-            reads++
-            return here.takeIf { granted }
-        }
-    }
 
     class MainDispatcherRule(
         val testDispatcher: TestDispatcher = StandardTestDispatcher(),

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.fangjet.weather.data.LocationRepository
 import com.fangjet.weather.data.LocationWeatherRepository
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
@@ -21,6 +22,7 @@ class WeatherNotificationWorker @AssistedInject constructor(
     locationWeatherRepository: LocationWeatherRepository,
     remoteConfigRepository: RemoteConfigRepository,
     private val scheduler: WorkManagerScheduler,
+    locationRepository: LocationRepository,
 ) : CoroutineWorker(context, workerParams) {
 
     private val logic = NotificationWorkerLogic(
@@ -41,7 +43,7 @@ class WeatherNotificationWorker @AssistedInject constructor(
 
     // Tomorrow's run back on 8:30, however late this one was. Not on a retry: that would move the
     // retry itself to tomorrow.
-    private val follower = myLocationFollower(context, preferencesRepository)
+    private val follower = myLocationFollower(locationRepository, preferencesRepository)
 
     override suspend fun doWork(): Result {
         // Where the phone is now, so the briefing isn't for the last place the app was opened.

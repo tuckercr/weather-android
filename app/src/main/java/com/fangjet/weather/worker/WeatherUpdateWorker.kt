@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.fangjet.weather.data.LocationRepository
 import com.fangjet.weather.data.LocationWeatherRepository
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
@@ -18,6 +19,7 @@ class WeatherUpdateWorker @AssistedInject constructor(
     preferencesRepository: PreferencesRepository,
     locationWeatherRepository: LocationWeatherRepository,
     remoteConfigRepository: RemoteConfigRepository,
+    locationRepository: LocationRepository,
 ) : CoroutineWorker(context, workerParams) {
 
     private val rainAlerts = RainAlertLogic(
@@ -40,7 +42,7 @@ class WeatherUpdateWorker @AssistedInject constructor(
         afterRefresh = rainAlerts::check,
     )
 
-    private val follower = myLocationFollower(context, preferencesRepository)
+    private val follower = myLocationFollower(locationRepository, preferencesRepository)
 
     override suspend fun doWork(): Result {
         follower.follow()
