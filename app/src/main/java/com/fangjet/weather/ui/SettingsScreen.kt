@@ -1,9 +1,7 @@
 package com.fangjet.weather.ui
 
-import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -39,9 +37,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +48,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -61,7 +58,6 @@ import com.fangjet.weather.BuildConfig
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.UnitOverride
 import com.fangjet.weather.model.SettingsViewModel
-import com.fangjet.weather.worker.canPostNotifications
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,19 +77,8 @@ fun SettingsRoute(
     val context = LocalContext.current
     val cacheClearedMessage = stringResource(R.string.settings_cache_cleared)
 
-    val locationGranted = rememberGrantedOnResume {
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-    val backgroundLocationGranted = rememberGrantedOnResume {
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_BACKGROUND_LOCATION,
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-    val notificationGranted = rememberGrantedOnResume { context.canPostNotifications() }
+    val permissions by viewModel.permissionState.collectAsStateWithLifecycle()
+    OnResume(viewModel::refreshPermissions)
 
     Scaffold(
         topBar = {
@@ -137,7 +122,7 @@ fun SettingsRoute(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             SettingsNavRow(
                 label = stringResource(R.string.settings_notifications),
-                value = if (notificationGranted && notificationsOnCount > 0) {
+                value = if (permissions.notifications && notificationsOnCount > 0) {
                     stringResource(R.string.settings_notifications_on_count, notificationsOnCount)
                 } else {
                     stringResource(R.string.settings_notifications_off)
@@ -148,11 +133,11 @@ fun SettingsRoute(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             SettingsSectionHeader(stringResource(R.string.settings_section_location))
 
-            if (locationGranted) {
+            if (permissions.location) {
                 Text(
                     // Android's own words for the two kinds of access.
                     text = stringResource(
-                        if (backgroundLocationGranted) {
+                        if (permissions.backgroundLocation) {
                             R.string.settings_location_granted_always
                         } else {
                             R.string.settings_location_granted
@@ -263,19 +248,18 @@ fun SettingsRoute(
     }
 }
 
-/** Re-checked each time the screen comes back to the foreground (it may have changed in App Settings). */
+/** Runs [action] each time the screen comes back to the foreground: permissions change in system settings. */
 @Composable
-internal fun rememberGrantedOnResume(check: () -> Boolean): Boolean {
-    var granted by remember { mutableStateOf(check()) }
+internal fun OnResume(action: () -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
+    val currentAction by rememberUpdatedState(action)
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) granted = check()
+            if (event == Lifecycle.Event.ON_RESUME) currentAction()
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    return granted
 }
 
 internal fun Context.openAppDetailsSettings() {

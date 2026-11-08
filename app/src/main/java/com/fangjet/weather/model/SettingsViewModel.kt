@@ -2,24 +2,73 @@ package com.fangjet.weather.model
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fangjet.weather.data.AppPermissions
+import com.fangjet.weather.data.DevicePermissions
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.UnitOverride
 import com.fangjet.weather.worker.NotificationKind
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** What the app has been allowed, as Settings shows it. Re-read on every resume. */
+data class PermissionState(
+    val location: Boolean = false,
+    val backgroundLocation: Boolean = false,
+    val notifications: Boolean = false,
+)
+
+/** What turning on Follow my location asks Android for next, which only the screen can launch. */
+enum class FollowMyLocationRequest {
+    /** Already allowed all the time: nothing to ask. */
+    NONE,
+
+    /** "While using the app" first: Android only offers "Allow all the time" after it. */
+    FOREGROUND_LOCATION,
+    BACKGROUND_LOCATION,
+
+    /** Refused twice: Android won't open its page again, so the app's settings open instead. */
+    APP_SETTINGS,
+}
+
 @HiltViewModel
-class SettingsViewModel @Inject constructor(
+class SettingsViewModel internal constructor(
     private val preferencesRepository: PreferencesRepository,
     private val remoteConfigRepository: RemoteConfigRepository,
+    private val permissions: AppPermissions,
 ) : ViewModel() {
+    @Inject
+    constructor(
+        preferencesRepository: PreferencesRepository,
+        remoteConfigRepository: RemoteConfigRepository,
+        permissions: DevicePermissions,
+    ) : this(preferencesRepository, remoteConfigRepository, permissions as AppPermissions)
+
+    private val _permissionState = MutableStateFlow(readPermissions())
+
+    /** What's allowed, as at the last [refreshPermissions]. */
+    val permissionState: StateFlow<PermissionState> = _permissionState.asStateFlow()
+
+    /** Re-reads the permissions: on every resume, since they change in system settings. */
+    fun refreshPermissions() {
+        _permissionState.value = readPermissions()
+    }
+
+    private fun readPermissions() =
+        PermissionState(
+            location = permissions.location(),
+            backgroundLocation = permissions.backgroundLocation(),
+            notifications = permissions.notifications(),
+        )
 
     val unitOverride = preferencesRepository.unitOverride
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UnitOverride.SYSTEM)
@@ -92,12 +141,52 @@ class SettingsViewModel @Inject constructor(
         .map { locations -> locations.any(SavedLocation::isCurrentLocation) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    /** "Follow my location" as set. The screen shows it on only while "Allow all the time" is granted too. */
-    val followMyLocation = preferencesRepository.followMyLocation
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    /** Follow my location as the switch shows it: on only while it's set and "Allow all the time" is granted. */
+    val followsMyLocation = combine(preferencesRepository.followMyLocation, _permissionState) { on, allowed ->
+        on && allowed.backgroundLocation
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    fun setFollowMyLocation(enabled: Boolean) {
-        viewModelScope.launch { preferencesRepository.setFollowMyLocation(enabled) }
+    private val _explainingFollowMyLocation = MutableStateFlow(false)
+
+    /** Turning Follow my location on without "Allow all the time" explains first, as Play requires. */
+    val explainingFollowMyLocation: StateFlow<Boolean> = _explainingFollowMyLocation.asStateFlow()
+
+    /** Off turns it straight off; on with "Allow all the time" already granted has nothing to explain. */
+    fun setFollowMyLocation(on: Boolean) {
+        when {
+            !on -> saveFollowMyLocation(false)
+            permissions.backgroundLocation() -> saveFollowMyLocation(true)
+            else -> _explainingFollowMyLocation.value = true
+        }
+    }
+
+    /**
+     * "Continue" on the explanation: it's switched on, and this says what to ask Android for. Android 11
+     * and later open the app's location page in system settings rather than a dialog.
+     */
+    fun confirmFollowMyLocation(): FollowMyLocationRequest {
+        _explainingFollowMyLocation.value = false
+        saveFollowMyLocation(true)
+        return when {
+            permissions.backgroundLocation() -> FollowMyLocationRequest.NONE
+            !permissions.location() -> FollowMyLocationRequest.FOREGROUND_LOCATION
+            permissions.backgroundLocationRefusals() >= 2 -> FollowMyLocationRequest.APP_SETTINGS
+            else -> FollowMyLocationRequest.BACKGROUND_LOCATION
+        }
+    }
+
+    fun dismissFollowMyLocationExplanation() {
+        _explainingFollowMyLocation.value = false
+    }
+
+    /** The answer to "Allow all the time", counted so the third try opens the app's settings. */
+    fun backgroundLocationAnswered(granted: Boolean) {
+        permissions.noteBackgroundLocationAnswer(granted)
+        refreshPermissions()
+    }
+
+    private fun saveFollowMyLocation(on: Boolean) {
+        viewModelScope.launch { preferencesRepository.setFollowMyLocation(on) }
     }
 
     fun clearCache() {

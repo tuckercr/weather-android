@@ -339,16 +339,12 @@ noted. Checked against the code, not fixed yet.
 
 Since 11-07 the weather view model in both apps holds the screen's clock and builds what the
 weather screen shows, the notifications share the screen's data layer and rules, and a screen
-view model runs the refresh and My Location steps (see Done). Still to do:
+view model runs the refresh and My Location steps, and views go through their view models for
+settings and permissions (see Done). Still to do:
 
 - [ ] **Two Android workers have no wiring tests.** `WalkTimeWorker` and
       `WeatherUpdateWorker` are wired by hand like `WeatherNotificationWorker`, which has a
       wiring test; they don't. (11-07)
-- [ ] **Views read settings and singletons directly.** iOS's `OnboardingNotificationView` reads
-      `PreferencesStore` and asks for notification permission itself, and the Follow my location
-      switch drives `MyLocationFollower.shared`. Android's notification settings screen reads and
-      writes SharedPreferences, and Settings checks permissions in the UI. These should go through
-      the view models. (11-07)
 - [ ] **Layers depend on each other the wrong way.** On Android the worker imports from ui
       (`petMoodFor`, formatting), and data and model import the worker's
       `NotificationKind`. The weather screen state (`model/WeatherScreen.kt`) uses `petMoodFor`,
@@ -409,6 +405,14 @@ view model runs the refresh and My Location steps (see Done). Still to do:
 
 ## Done
 
+- [x] **Views go through their view models** (11-07): on iOS, notification onboarding's text and
+      "Allow notifications" are `WelcomeViewModel`'s; Follow my location (with its explanation),
+      the debug samples and the link from iOS Settings are `SettingsViewModel`'s; `RootView` owns
+      the one `RadarViewModel` and hands it down in the environment instead of a singleton. On
+      Android, Settings and Notifications read what's allowed from `SettingsViewModel`
+      (`AppPermissions`, re-read on resume) instead of checking in the composables, and Follow my
+      location's explanation and what to ask for next (`FollowMyLocationRequest`) are the view
+      model's, with the refusal count behind `AppPermissions`. All unit tested.
 - [x] **Refresh and location steps in a view model** (11-07): `CurrentWeatherViewModel` in both
       apps refreshes the city on screen when it changes, on returning to the app and every half
       hour, reads My Location first on pull to refresh, moves My Location at most every 15 minutes

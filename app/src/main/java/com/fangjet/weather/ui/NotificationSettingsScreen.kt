@@ -20,8 +20,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -29,13 +27,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fangjet.weather.R
+import com.fangjet.weather.model.FollowMyLocationRequest
 import com.fangjet.weather.model.SettingsViewModel
-import com.fangjet.weather.model.backgroundLocationRefusals
-import com.fangjet.weather.model.hasBackgroundLocationPermission
-import com.fangjet.weather.model.hasLocationPermission
-import com.fangjet.weather.model.noteBackgroundLocationAnswer
 import com.fangjet.weather.worker.NotificationKind
-import com.fangjet.weather.worker.canPostNotifications
 
 /**
  * A switch for each notification, under Settings. Walk time only shows with a dog ("I have a dog"
@@ -51,9 +45,9 @@ fun NotificationSettingsRoute(onNavigateBack: () -> Unit) {
     val notifyWalkTime by viewModel.notifyWalkTime.collectAsStateWithLifecycle()
     val notifyRain by viewModel.notifyRain.collectAsStateWithLifecycle()
     val hasMyLocation by viewModel.hasMyLocation.collectAsStateWithLifecycle()
-    val followMyLocation by viewModel.followMyLocation.collectAsStateWithLifecycle()
+    val permissions by viewModel.permissionState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val granted = rememberGrantedOnResume { context.canPostNotifications() }
+    OnResume(viewModel::refreshPermissions)
 
     Scaffold(
         topBar = {
@@ -76,7 +70,7 @@ fun NotificationSettingsRoute(onNavigateBack: () -> Unit) {
                 .padding(padding)
                 .verticalScroll(rememberScrollState()),
         ) {
-            if (!granted) {
+            if (!permissions.notifications) {
                 SettingsLinkRow(
                     label = stringResource(R.string.settings_notifications_disabled),
                     onClick = context::openAppDetailsSettings,
@@ -111,7 +105,7 @@ fun NotificationSettingsRoute(onNavigateBack: () -> Unit) {
                 )
             }
             if (hasMyLocation) {
-                FollowMyLocationRow(on = followMyLocation, onChange = viewModel::setFollowMyLocation)
+                FollowMyLocationRow(viewModel)
             }
         }
     }
@@ -124,17 +118,15 @@ fun NotificationSettingsRoute(onNavigateBack: () -> Unit) {
  * so the app's settings open instead. Same as iOS's `FollowMyLocationToggle`.
  */
 @Composable
-private fun FollowMyLocationRow(
-    on: Boolean,
-    onChange: (Boolean) -> Unit,
-) {
+private fun FollowMyLocationRow(viewModel: SettingsViewModel) {
     val context = LocalContext.current
-    val backgroundGranted = rememberGrantedOnResume { context.hasBackgroundLocationPermission() }
-    var explaining by rememberSaveable { mutableStateOf(false) }
+    val on by viewModel.followsMyLocation.collectAsStateWithLifecycle()
+    val explaining by viewModel.explainingFollowMyLocation.collectAsStateWithLifecycle()
 
-    val backgroundRequest = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        context.noteBackgroundLocationAnswer(granted)
-    }
+    val backgroundRequest = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+        viewModel::backgroundLocationAnswered,
+    )
     // Android only offers "Allow all the time" once "While using the app" is granted.
     val foregroundRequest = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         if (result.values.any { it }) backgroundRequest.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
@@ -143,19 +135,12 @@ private fun FollowMyLocationRow(
     SettingsSwitchRow(
         label = stringResource(R.string.settings_follow_location),
         summary = stringResource(R.string.settings_follow_location_summary),
-        checked = on && backgroundGranted,
-        onCheckedChange = { turnOn ->
-            when {
-                !turnOn -> onChange(false)
-                // Already allowed all the time: nothing to ask, so nothing to explain.
-                context.hasBackgroundLocationPermission() -> onChange(true)
-                else -> explaining = true
-            }
-        },
+        checked = on,
+        onCheckedChange = viewModel::setFollowMyLocation,
     )
     if (explaining) {
         AlertDialog(
-            onDismissRequest = { explaining = false },
+            onDismissRequest = viewModel::dismissFollowMyLocationExplanation,
             title = { Text(stringResource(R.string.follow_location_title)) },
             text = {
                 Text(stringResource(R.string.follow_location_body) + "\n\n" + stringResource(R.string.follow_location_android_hint))
@@ -163,21 +148,23 @@ private fun FollowMyLocationRow(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        explaining = false
-                        onChange(true)
-                        when {
-                            context.hasBackgroundLocationPermission() -> Unit
-                            !context.hasLocationPermission() -> foregroundRequest.launch(
+                        when (viewModel.confirmFollowMyLocation()) {
+                            FollowMyLocationRequest.NONE -> Unit
+                            FollowMyLocationRequest.FOREGROUND_LOCATION -> foregroundRequest.launch(
                                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
                             )
-                            context.backgroundLocationRefusals() >= 2 -> context.openAppDetailsSettings()
-                            else -> backgroundRequest.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                            FollowMyLocationRequest.APP_SETTINGS -> context.openAppDetailsSettings()
+                            FollowMyLocationRequest.BACKGROUND_LOCATION -> backgroundRequest.launch(
+                                Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+                            )
                         }
                     },
                 ) { Text(stringResource(R.string.follow_location_continue)) }
             },
             dismissButton = {
-                TextButton(onClick = { explaining = false }) { Text(stringResource(R.string.follow_location_not_now)) }
+                TextButton(onClick = viewModel::dismissFollowMyLocationExplanation) {
+                    Text(stringResource(R.string.follow_location_not_now))
+                }
             },
         )
     }
