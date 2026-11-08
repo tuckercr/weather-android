@@ -342,6 +342,42 @@ clock and builds what the screen shows; the notifications share the screen's dat
 a screen view model runs the refresh and My Location steps; views go through their view models for
 settings and permissions; and the domain rules are out of the UI layer. Still to do:
 
+- [ ] **Architecture decisions to review (11-07).** From an MVVM audit of both apps after the
+      refactors (iOS judged about 80-85% of the way; Android "MVVM with one unfinished seam").
+      Decide 4 and 11 first, since they change where things go:
+  1. **Screen view models built from other view models.** `CurrentWeatherViewModel` holds the
+     city list, weather and location view models; on Android it's built with `viewModel { }` from
+     activity- and screen-scoped ones and can't be Hilt-injected. Shared state (saved cities,
+     active city, weather) in repositories or one app-wide store would be the usual shape. M-L.
+  2. **Location is a view model, not a data source.** `LocationPermissionViewModel` wraps the
+     location manager; iOS makes several copies, and Android's data layer and workers import its
+     helpers from `model/`. A `LocationRepository` owned once, with Settings' "a grant adds the
+     city" rule in a view model. M.
+  3. **Dependency wiring.** iOS view models fall back to `.shared` singletons in their
+     initialisers (a service locator); `AppViewModels` could take one dependencies container.
+     Android uses lambda constructors behind `@Inject`, which is consistent but unusual. M.
+  4. **Where the words live.** iOS keeps English in view models and domain; Android puts string
+     resources in screen state but writes notification text in Kotlin. Settle translation first.
+  5. **Notifications built two ways.** Plan-ahead on iOS, at-the-time workers on Android, forced
+     by the platforms, but the rules and wording are kept in step by hand. iOS's scheduler still
+     holds rules (mood per kind, walk-nudge records), reads singletons and can't be tested, and
+     asks a view (`PetSceneIcon.png`) for the picture. M.
+  6. **Screen state recomputed rather than stored.** iOS rebuilds `WeatherScreen` on every redraw;
+     Android reads Remote Config once when the view model is made, so a later fetch applies after
+     a restart. S-M.
+  7. **The clock moves only when told.** `tick()` is called from several hooks; a clock service
+     publishing ticks would be harder to get wrong. S.
+  8. **Activity-scoped view models as app state (Android).** Repositories exposing the cities and
+     weather would own it better. Goes with 1.
+  9. **Weather cached in settings storage** (UserDefaults, DataStore preferences). Fine at today's
+     size; look again before caching more.
+  10. **Names don't match the layers.** Business rules in `Utilities`/`util`, domain code in
+      `Services`, Android's `NotificationKind` in `worker/`. S.
+  11. **Two native codebases kept in step by hand.** Shared rules in Kotlin Multiplatform
+      (version 2 below) would remove most of the duplication.
+- [ ] **Radar label wrong for one moment after a refresh (Android).** `shownFrame` combines the new
+      timeline with the old frame index before playback resets to "now", so the chip can show the
+      wrong time briefly. Cosmetic. (11-07)
 - [ ] **Views still work things out (review of every view, 11-07).** Found by a pass over all
       views in both apps; none is a bug today, but each is logic a view model or the domain should
       own. The captions, the Today tiles, app start-up, the onboarding glue, the location flows, the
