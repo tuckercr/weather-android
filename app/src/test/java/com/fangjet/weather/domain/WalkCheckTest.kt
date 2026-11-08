@@ -84,7 +84,7 @@ class WalkCheckTest {
 
     @Test
     fun `pavement goes from a wait to keeping pets inside`() {
-        assertEquals(WalkLevel.WAIT, check(slot(pavement = 49.0)).level)
+        assertEquals(WalkLevel.WAIT, check(slot(pavement = 43.0)).level)
         assertEquals(WalkLevel.POTTY_ONLY, check(slot(pavement = 54.0)).level)
         assertEquals(WalkLevel.STAY_IN, check(slot(pavement = 60.0)).level)
         assertEquals(WalkReason.Pavement(PavementBand.DANGEROUS), check(slot(pavement = 60.0)).reason)
@@ -118,7 +118,7 @@ class WalkCheckTest {
     @Test
     fun `rain comes before warm pavement at the same level`() {
         // Nairobi on 11-07: drizzle, and pavement getting hot in the sun between showers.
-        assertEquals(WalkReason.Rain(likely = true), check(slot(pavement = 49.0), conditionNow = "Drizzle").reason)
+        assertEquals(WalkReason.Rain(likely = true), check(slot(pavement = 43.0), conditionNow = "Drizzle").reason)
     }
 
     @Test
@@ -193,8 +193,8 @@ class WalkCheckTest {
 
     @Test
     fun `the pavement note says it is about now and never stands in for rain`() {
-        val slots = listOf(slot(pavement = 49.0), slot("6 PM", pavement = 30.0))
-        assertEquals(WalkText(R.string.walk_pavement_warm, listOf(49)), caption(slots))
+        val slots = listOf(slot(pavement = 43.0), slot("6 PM", pavement = 30.0))
+        assertEquals(WalkText(R.string.walk_pavement_warm, listOf(43)), caption(slots))
         assertNull(caption(slots, conditionNow = "Drizzle"))
     }
 

@@ -111,19 +111,19 @@ class WalkAdvisorTest {
 
     @Test
     fun `imperial pavement is compared in celsius`() {
-        // 110F is ~43C: under the 45C warm limit, so a warm afternoon is still walkable.
-        val advice = walkAdviceFor(26.0, listOf(slot("2 PM", 79.0, 0, WeatherUnits.IMPERIAL, pavement = 110.0)))
+        // 100F is ~38C: under the 40C warm limit, so a warm afternoon is still walkable.
+        val advice = walkAdviceFor(26.0, listOf(slot("2 PM", 79.0, 0, WeatherUnits.IMPERIAL, pavement = 100.0)))
         assertEquals(WalkRating.GREAT, advice?.rating)
     }
 
     @Test
     fun `pavement that is getting hot makes now only okay, pointing at a cooler hour`() {
-        // 49C is between the 45C warm and 52C hot limits.
+        // 43C is between the 40C warm and 46C hot limits.
         val advice = walkAdviceFor(
             24.0,
-            listOf(slot("2 PM", 24.0, 0, pavement = 49.0), slot("6 PM", 22.0, 0, pavement = 35.0)),
+            listOf(slot("2 PM", 24.0, 0, pavement = 43.0), slot("6 PM", 22.0, 0, pavement = 35.0)),
         )
-        assertEquals(WalkAdvice(WalkRating.OKAY, "6 PM", 49.0), advice.withoutCheck())
+        assertEquals(WalkAdvice(WalkRating.OKAY, "6 PM", 43.0), advice.withoutCheck())
         assertEquals(WalkReason.Pavement(PavementBand.WARM), advice?.now?.reason)
     }
 
@@ -175,10 +175,10 @@ class WalkAdvisorTest {
 
     @Test
     fun `a lower pavement limit flags paws hot sooner`() {
-        val slots = listOf(slot("1 PM", 24.0, 0, pavement = 44.5))
+        val slots = listOf(slot("1 PM", 24.0, 0, pavement = 38.0))
 
         assertEquals(WalkRating.GREAT, walkAdviceFor(24.0, slots)?.rating)
-        assertEquals(WalkRating.PAWS_HOT, walkAdviceFor(24.0, slots, default.copy(hotPavementC = 44.0, warmPavementC = 40.0))?.rating)
+        assertEquals(WalkRating.PAWS_HOT, walkAdviceFor(24.0, slots, default.copy(hotPavementC = 37.0, warmPavementC = 33.0))?.rating)
     }
 
     @Test
