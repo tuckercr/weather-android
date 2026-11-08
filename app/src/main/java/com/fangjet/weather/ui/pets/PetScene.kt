@@ -86,6 +86,7 @@ import com.fangjet.weather.ui.theme.PetTongue
 import com.fangjet.weather.ui.theme.PetUmbrella
 import com.fangjet.weather.ui.theme.PetWitchHat
 import com.fangjet.weather.util.WindForce
+import com.fangjet.weather.util.airNameRes
 import java.time.Instant
 import java.time.ZoneOffset
 import kotlin.math.abs

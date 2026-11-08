@@ -26,7 +26,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fangjet.weather.R
-import com.fangjet.weather.domain.AirQuality
 import com.fangjet.weather.domain.WalkAdvice
 import com.fangjet.weather.domain.WalkChange
 import com.fangjet.weather.domain.WalkLevel
@@ -46,6 +45,7 @@ import com.fangjet.weather.ui.theme.WalkPoorBg
 import com.fangjet.weather.ui.theme.WalkPoorText
 import com.fangjet.weather.util.PavementBand
 import com.fangjet.weather.util.WindForce
+import com.fangjet.weather.util.airNameRes
 import kotlin.math.roundToInt
 
 /**
@@ -103,20 +103,6 @@ fun WalkCard(
         }
     }
 }
-
-/**
- * What the pollutant behind bad air is called, for captions and notifications: "Smoky air" for fine
- * particles, "Dusty air" for coarse ones, "High ozone". Null for the rest, which each screen words
- * in its own way.
- */
-@StringRes
-fun airNameRes(pollutant: AirQuality.Pollutant?): Int? =
-    when (pollutant) {
-        AirQuality.Pollutant.FINE_PARTICLES -> R.string.walk_air_smoky
-        AirQuality.Pollutant.COARSE_PARTICLES -> R.string.walk_air_dusty
-        AirQuality.Pollutant.OZONE -> R.string.walk_air_ozone
-        else -> null
-    }
 
 /** A string resource and its format arguments, chosen without Compose so the choice is unit-testable. */
 internal data class WalkText(

@@ -1,6 +1,7 @@
 package com.fangjet.weather.worker
 
 import androidx.work.ListenableWorker.Result
+import com.fangjet.weather.R
 import com.fangjet.weather.data.testLocationWeatherRepository
 import com.fangjet.weather.data.weatherRequest
 import com.fangjet.weather.domain.AirQuality
@@ -15,6 +16,7 @@ import com.fangjet.weather.domain.WalkAdvice
 import com.fangjet.weather.domain.WalkRating
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.util.NextRain
+import com.fangjet.weather.util.airNameOrPoorRes
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -343,14 +345,9 @@ class NotificationWorkerLogicTest {
 
     @Test
     fun `bad air in notifications uses the hero's names for it`() {
-        // The notifications are worded in code; the hero and walk card read strings.xml. This keeps
-        // the two in step.
-        val strings = java.io.File("src/main/res/values/strings.xml").readText()
-
-        fun string(name: String) = Regex("<string name=\"$name\">([^<]*)</string>").find(strings)!!.groupValues[1]
-
         fun phrase(air: AirQuality.Pollutant) =
-            badAirPhrase(listOf(forecast(slots = listOf(slot(9, rain = 0, air = air)))), 0, NOW, PetWeatherThresholds.DEFAULT)
+            badAirPhrase(listOf(forecast(slots = listOf(slot(9, rain = 0, air = air)))), 0, NOW, PetWeatherThresholds.DEFAULT, ::airName)
+        // The names come from strings.xml, through the same mapping as the hero's caption.
         assertEquals("${string("walk_air_smoky")} today", phrase(AirQuality.Pollutant.FINE_PARTICLES))
         assertEquals("${string("walk_air_dusty")} today", phrase(AirQuality.Pollutant.COARSE_PARTICLES))
         assertEquals("${string("walk_air_ozone")} today", phrase(AirQuality.Pollutant.OZONE))
@@ -359,7 +356,8 @@ class NotificationWorkerLogicTest {
 
     @Test
     fun `bad air is named by the worst walking hour left today`() {
-        fun phrase(vararg slots: HourlySlot) = badAirPhrase(listOf(forecast(slots = slots.toList())), 0, NOW, PetWeatherThresholds.DEFAULT)
+        fun phrase(vararg slots: HourlySlot) =
+            badAirPhrase(listOf(forecast(slots = slots.toList())), 0, NOW, PetWeatherThresholds.DEFAULT, ::airName)
 
         assertEquals("Smoky air today", phrase(slot(9, rain = 0, air = AirQuality.Pollutant.FINE_PARTICLES)))
         assertEquals("Dusty air today", phrase(slot(9, rain = 0, air = AirQuality.Pollutant.COARSE_PARTICLES)))
@@ -476,6 +474,7 @@ class NotificationWorkerLogicTest {
                     refreshForecast = { kotlin.Result.success(listOf(forecast(slots = slots))) },
                     hasNotificationPermission = { true },
                     postNotification = { posted += it },
+                    airName = ::airName,
                     isWalkTimeEnabled = { true },
                     nowEpochSeconds = { NOW },
                 )
@@ -643,6 +642,7 @@ class NotificationWorkerLogicTest {
         refreshForecast = testLocationWeatherRepository(units, fetchCurrentWeather, fetchForecast)::refreshForecast,
         hasNotificationPermission = hasNotificationPermission,
         postNotification = postNotification,
+        airName = ::airName,
         isDailyWeatherNotificationEnabled = isDailyWeatherNotificationEnabled,
         isBriefingEnabled = { isBriefingEnabled },
         isWalkTimeEnabled = { isWalkTimeEnabled },
@@ -653,6 +653,19 @@ class NotificationWorkerLogicTest {
     )
 
     private companion object {
+        val strings: String = java.io.File("src/main/res/values/strings.xml").readText()
+
+        fun string(name: String) = Regex("<string name=\"$name\">([^<]*)</string>").find(strings)!!.groupValues[1]
+
+        /** What the workers pass: the name from strings.xml for [airNameOrPoorRes]'s resource. */
+        fun airName(pollutant: AirQuality.Pollutant?): String =
+            when (airNameOrPoorRes(pollutant)) {
+                R.string.walk_air_smoky -> string("walk_air_smoky")
+                R.string.walk_air_dusty -> string("walk_air_dusty")
+                R.string.walk_air_ozone -> string("walk_air_ozone")
+                else -> string("walk_air_poor")
+            }
+
         const val TODAY_LABEL = "Mon, Jan 1"
         const val DAY_START = 1_704_067_200L // Mon, Jan 1 2024, 00:00 UTC
         const val HOUR = 3600L

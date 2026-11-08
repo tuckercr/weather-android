@@ -7,6 +7,7 @@ import androidx.work.WorkerParameters
 import com.fangjet.weather.data.LocationWeatherRepository
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
+import com.fangjet.weather.util.airNameOrPoorRes
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
@@ -28,6 +29,7 @@ class WeatherNotificationWorker @AssistedInject constructor(
         refreshForecast = locationWeatherRepository::refreshForecast,
         hasNotificationPermission = context::canPostNotifications,
         postNotification = context::postWeatherNotification,
+        airName = { context.getString(airNameOrPoorRes(it)) },
         isDailyWeatherNotificationEnabled = remoteConfigRepository::dailyWeatherNotificationsEnabled,
         isWalkTimeRemotelyEnabled = remoteConfigRepository::walkTimeNotificationsEnabled,
         petWeatherThresholds = remoteConfigRepository::petWeatherThresholds,

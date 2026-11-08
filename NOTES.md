@@ -342,13 +342,47 @@ clock and builds what the screen shows; the notifications share the screen's dat
 a screen view model runs the refresh and My Location steps; views go through their view models for
 settings and permissions; and the domain rules are out of the UI layer. Still to do:
 
-- [ ] **Two Android workers have no wiring tests.** `WalkTimeWorker` and
-      `WeatherUpdateWorker` are wired by hand like `WeatherNotificationWorker`, which has a
-      wiring test; they don't. (11-07)
-- [ ] **Android's notification text names bad air in code.** `badAirPhrase` in
-      `NotificationWorkerLogic.kt` spells out "Smoky air today" and the rest, while the hero's
-      caption takes the names from `strings.xml` (`airNameRes`); iOS shares `WalkReason.airName`.
-      The worker's text is all in Kotlin, so moving it to resources is a bigger change. (11-07)
+- [ ] **Views still work things out (review of every view, 11-07).** Found by a pass over all
+      views in both apps; none is a bug today, but each is logic a view model or the domain should
+      own. Biggest first:
+  - **Captions chosen in views.** The walk card's text (iOS `WalkCard.caption`, `outlookLine`;
+    Android `walkCaption`) and Android's hero caption (`PetScene.kt`: night part by hour, daily
+    rotation, walk filtering, `heroWalkCaptions`) pick wording from walk levels and wind force.
+    The choice should come with the screen state as a key and variant, leaving only the words to
+    the view. Medium.
+  - **Today tiles decide and derive in the view.** Which tiles show (UV only without Daylight,
+    Paw Check needs a pavement value) and each tile's bands and lines (feels-like band, dew point
+    and fluff, wind force and gusts, Daylight's state from the clock, sky and visibility, the air
+    tile's tint from `airWalkLevel`). Should be a ready list of tiles in `WeatherScreenState`.
+    Both apps. Medium to large.
+  - **Location permission flows in views.** Onboarding's "Use my location" and Add location's
+    "Add My Location" choose between fetch, ask and skip in the click handlers (iOS
+    `OnboardingLocationView`, `AddLocationView`; Android `OnboardingLocationScreen`,
+    `rememberAddMyLocation`). iOS also makes a `LocationPermissionViewModel` (and its
+    `CLLocationManager`) per screen. Should be view model actions with an outcome. Medium.
+  - **Radar playback and polling in the view.** Frame index, play/pause, the playback loop, the
+    "now" frame, `RadarTile.from` and the recheck loop live in the radar views; Android's frame
+    label also hardcodes English "Now ·" and "Forecast ·". Should be `RadarViewModel`'s. Medium.
+  - **App start-up in the app type.** iOS's `Cats_DogsApp.init` sets up Firebase, analytics,
+    Remote Config, the notification delegate and categories, the scheduler and Follow my
+    location; Android's `WeatherApplication` holds the notification channel rules. Should be an
+    app start-up service. Small.
+  - **Onboarding glue in views.** RootView (iOS) and `WeatherNavHost` (Android) decide the next
+    onboarding step and pass the dog answer between view models; Android keeps its own copy of
+    the answer and makes a `SettingsViewModel` just to read Remote Config. Should be
+    `WelcomeViewModel`'s. Small.
+  - **Smaller rules in views.** The stale banner's text and the offline check (iOS
+    `WeatherErrorViews`), "the last city can't be removed" and the "X added" toast
+    (`LocationsView`), the notifications row's "Off / N on", adding a city when location is
+    granted in Settings (iOS `SettingsView`), switch visibility from `remotelyEnabled` (Android
+    `NotificationSettingsScreen`), the southern-hemisphere check, `uvLevelRes`, `isCalmWind`
+    and `moonPhaseAt` in Android's ui. Small each.
+  - **Clock reads in views.** `WeatherIconView`/`WeatherIcon` and the pets' default moon fall
+    back to the device clock, not the screen's. Small.
+  - **View models made in views.** iOS builds `CurrentWeatherViewModel` and Add location's view
+    model in view initialisers (rebuilt on each parent re-init, only the first kept); Android
+    has several `SettingsViewModel` instances at different scopes and hand-builds
+    `CurrentWeatherViewModel`. Worth a look when the rest moves. Small to medium.
 
 ## Ideas
 
@@ -402,6 +436,11 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **The last Android workers have wiring tests, and bad air is named from strings.xml**
+      (11-07): `WalkTimeWorkerTest` and `WeatherUpdateWorkerTest` check which city each fetches,
+      in which units, and that it's cached. The briefing and walk nudge take bad air's name from
+      strings.xml through `airNameOrPoorRes` (now in `util/AirNames.kt`), as the hero does,
+      instead of spelling it out in Kotlin.
 - [x] **Domain rules out of the UI layer** (11-07): the pets' moods, the walk advisor and check,
       the thresholds and the seasonal themes live in iOS's `Domain/` and Android's `domain/`, with
       no UI in them; their colours are view extensions (iOS `PetMood+Colors`,

@@ -17,6 +17,7 @@ import com.fangjet.weather.domain.petMoodAt
 import com.fangjet.weather.domain.walkAdviceForReading
 import com.fangjet.weather.util.NextRain
 import com.fangjet.weather.util.SkyCondition
+import com.fangjet.weather.util.airNameOrPoorRes
 import com.fangjet.weather.util.dayOf
 import com.fangjet.weather.util.displayedRainChance
 import com.fangjet.weather.util.formatEpochTime
@@ -56,6 +57,8 @@ internal class NotificationWorkerLogic(
     private val refreshForecast: suspend (location: SavedLocation) -> kotlin.Result<List<DayForecast>>,
     private val hasNotificationPermission: () -> Boolean,
     private val postNotification: (WeatherNotification) -> Unit,
+    // Bad air's name from strings.xml ("Smoky air"), as the hero says it: airNameOrPoorRes.
+    private val airName: (AirQuality.Pollutant?) -> String,
     // Remote Config daily_weather_notifications_enabled: switches the briefing off for everyone.
     private val isDailyWeatherNotificationEnabled: () -> Boolean = { true },
     // Remote Config walk_time_notifications_enabled: switches the walk nudge off for everyone.
@@ -101,7 +104,7 @@ internal class NotificationWorkerLogic(
         }
 
         if (!briefingOn) return Result.success()
-        val badAir = forecast?.let { badAirPhrase(it, weather.offsetSeconds, now, thresholds) }
+        val badAir = forecast?.let { badAirPhrase(it, weather.offsetSeconds, now, thresholds, airName) }
         val (title, body) = buildBriefingContent(weather, todayForecast, walk.takeIf { hasDog() }, badAir)
         postNotification(
             WeatherNotification(
@@ -127,6 +130,8 @@ internal class WalkTimeLogic(
     private val refreshForecast: suspend (location: SavedLocation) -> kotlin.Result<List<DayForecast>>,
     private val hasNotificationPermission: () -> Boolean,
     private val postNotification: (WeatherNotification) -> Unit,
+    // Bad air's name from strings.xml ("Smoky air"), as the hero says it: airNameOrPoorRes.
+    private val airName: (AirQuality.Pollutant?) -> String,
     private val isWalkTimeEnabled: suspend () -> Boolean,
     private val petWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
     private val nowEpochSeconds: () -> Long = { Instant.now().epochSecond },
@@ -140,7 +145,7 @@ internal class WalkTimeLogic(
         val now = nowEpochSeconds()
         val walk = walkAdviceForReading(weather, forecast, thresholds, now)
         if (walk?.rating != WalkRating.GREAT) return Result.success()
-        val (title, body) = buildWalkTimeContent(weather, badAirPhrase(forecast, weather.offsetSeconds, now, thresholds))
+        val (title, body) = buildWalkTimeContent(weather, badAirPhrase(forecast, weather.offsetSeconds, now, thresholds, airName))
         postNotification(
             WeatherNotification(
                 NotificationKind.WALK_TIME,
@@ -159,15 +164,16 @@ private const val BRIEFING_RAIN_CHANCE = 40
 
 /**
  * "Smoky air today" when bad air rules out walking hours from the one under way to the end of the
- * city's day, named by the worst hour's main pollutant as the hero's caption names it
- * ([airNameRes]): fine particles read as smoke, coarse ones as dust, ozone by name, anything else
- * as poor air. Null on a clean day.
+ * city's day, named by the worst hour's main pollutant with [airName], the hero caption's names
+ * from strings.xml ([airNameOrPoorRes]): fine particles read as smoke, coarse ones as dust, ozone
+ * by name, anything else as poor air. Null on a clean day.
  */
 internal fun badAirPhrase(
     forecast: List<DayForecast>,
     utcOffsetSeconds: Int,
     nowEpochSeconds: Long,
     thresholds: PetWeatherThresholds,
+    airName: (AirQuality.Pollutant?) -> String,
 ): String? {
     fun localDay(epochSeconds: Long) = Math.floorDiv(epochSeconds + utcOffsetSeconds, 86_400L)
     val worst = forecast
@@ -176,12 +182,7 @@ internal fun badAirPhrase(
             val start = slot.epochSeconds ?: return@filter false
             start + 3600 > nowEpochSeconds && localDay(start) == localDay(nowEpochSeconds) && slot.hasBadAirForWalking(thresholds)
         }.maxByOrNull { it.airQuality?.index ?: 0 } ?: return null
-    return when (worst.airQuality?.mainPollutant) {
-        AirQuality.Pollutant.FINE_PARTICLES -> "Smoky air today"
-        AirQuality.Pollutant.COARSE_PARTICLES -> "Dusty air today"
-        AirQuality.Pollutant.OZONE -> "High ozone today"
-        else -> "Poor air today"
-    }
+    return "${airName(worst.airQuality?.mainPollutant)} today"
 }
 
 /**

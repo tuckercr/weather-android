@@ -4,7 +4,6 @@ import com.fangjet.weather.R
 import com.fangjet.weather.ui.airQualityDogLine
 import com.fangjet.weather.ui.pets.WALK_SUGGESTIONS
 import com.fangjet.weather.ui.pets.WalkText
-import com.fangjet.weather.ui.pets.airNameRes
 import com.fangjet.weather.ui.pets.captionOptions
 import com.fangjet.weather.ui.pets.heroWalkCaptions
 import com.fangjet.weather.ui.pets.pickHeroCaption
@@ -13,6 +12,7 @@ import com.fangjet.weather.ui.pets.walkCaption
 import com.fangjet.weather.ui.pets.walkDetail
 import com.fangjet.weather.util.PavementBand
 import com.fangjet.weather.util.WindForce
+import com.fangjet.weather.util.airNameRes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
