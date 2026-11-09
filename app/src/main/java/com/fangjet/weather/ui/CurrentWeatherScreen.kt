@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,7 +27,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -76,9 +76,11 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
+import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -87,6 +89,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -126,7 +129,6 @@ import com.fangjet.weather.util.NextRain
 import com.fangjet.weather.util.ReadingDay
 import com.fangjet.weather.util.SunEvent
 import com.fangjet.weather.util.UpdatePrompt
-import com.fangjet.weather.util.besideRainChance
 import com.fangjet.weather.util.displayedRainChance
 import com.fangjet.weather.util.formatEpochTime
 import com.fangjet.weather.util.hourlyStrip
@@ -650,14 +652,10 @@ private fun HourlyStrip(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            itemsIndexed(items) { index, item ->
+            items(items) { item ->
                 when (item) {
                     is HourlyStripItem.Hour -> HourlyCell(slot = item.slot)
-                    is HourlyStripItem.Sun -> SunMarker(
-                        event = item.event,
-                        utcOffsetSeconds = utcOffsetSeconds,
-                        besideRain = items.besideRainChance(index) { displayedRainChance(it.precipitationChance) != null },
-                    )
+                    is HourlyStripItem.Sun -> SunMarker(event = item.event, utcOffsetSeconds = utcOffsetSeconds)
                 }
             }
         }
@@ -666,15 +664,13 @@ private fun HourlyStrip(
 
 /**
  * A sunrise or sunset between two hours of the strip: half a column, with the time ("6:50"), the
- * sun on the horizon and a thin line beside the temperatures, running on beside the rain chances
- * when an hour either side shows one ([besideRain]). It's never taller than the hours beside it, so
- * the strip doesn't grow for it.
+ * sun on the horizon in the hours' icon space and a thin line beside the temperatures. It's never
+ * taller than the hours beside it, so the strip doesn't grow for it.
  */
 @Composable
 private fun SunMarker(
     event: SunEvent,
     utcOffsetSeconds: Int,
-    besideRain: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
@@ -696,36 +692,65 @@ private fun SunMarker(
             // The walk card's amber, the dark shade on the light card and the pale one on the dark.
             color = if (dark) WalkOkayBg else WalkOkayText,
         )
-        Image(
-            painter = painterResource(if (event.sunrise) R.drawable.wx_sunrise else R.drawable.wx_sunset),
-            contentDescription = null,
-            modifier = Modifier
-                .padding(vertical = 2.dp)
-                .size(28.dp),
-        )
+        HourIconSpace {
+            Image(
+                painter = painterResource(if (event.sunrise) R.drawable.wx_sunrise else R.drawable.wx_sunset),
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+            )
+        }
         Box(
             modifier = Modifier
                 .width(1.5.dp)
                 .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(1.dp)),
         ) {
-            // An unseen temperature, and rain chance when there is one beside it, laid out as in an
-            // hour cell, give the line their height whatever the text size; they overflow the line's
-            // width without widening it.
-            Column(
+            // An unseen temperature gives the line its height whatever the text size; it overflows
+            // the line's width without widening it.
+            Text(
+                text = "0°",
                 modifier = Modifier
                     .wrapContentWidth(unbounded = true)
                     .alpha(0f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    text = "0°",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                if (besideRain) PrecipChance(percent = 50)
-            }
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
+    }
+}
+
+/** An hour's icon on its own, and the smaller one with a rain chance under it. Same as iOS's `HourIconMetrics`. */
+private val HOUR_ICON_SIZE = 32.dp
+private val HOUR_ICON_BESIDE_CHANCE = 24.dp
+private val HOUR_CHANCE_SPACING = 2.dp
+
+/**
+ * The icon's space in an hour of the strip, the same height in every hour, so the card never
+ * changes height with the rain and never ends in a gap. An hour with a rain chance shows a smaller
+ * icon with the chance under it, inside the space; an hour without one, the full-size icon in the
+ * middle. The sunrise and sunset markers use it for the sun too, so their lines meet the
+ * temperatures. Same sizes as iOS's `HourIconSpace`.
+ */
+@Composable
+private fun HourIconSpace(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier.heightIn(min = HOUR_ICON_SIZE),
+        contentAlignment = Alignment.Center,
+    ) {
+        // An unseen smaller icon and chance, 1dp wide, give the space its height at any font scale,
+        // whether or not any hour has rain.
+        Column(
+            modifier = Modifier
+                .width(1.dp)
+                .wrapContentWidth(unbounded = true)
+                .alpha(0f)
+                .clearAndSetSemantics {},
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(HOUR_CHANCE_SPACING),
+        ) {
+            Spacer(Modifier.size(HOUR_ICON_BESIDE_CHANCE))
+            PrecipChance(percent = 50)
+        }
+        content()
     }
 }
 
@@ -735,7 +760,9 @@ private fun HourlyCell(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.padding(horizontal = 8.dp),
+        modifier = modifier
+            .padding(horizontal = 8.dp)
+            .semantics { isTraversalGroup = true },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -744,19 +771,42 @@ private fun HourlyCell(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        WeatherIcon(
-            iconCode = slot.iconCode,
-            contentDescription = slot.description,
-            sizeDp = 32,
-            epochSeconds = slot.epochSeconds,
-        )
+        HourIconSpace {
+            if (displayedRainChance(slot.precipitationChance) != null) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(HOUR_CHANCE_SPACING),
+                ) {
+                    HourIcon(slot, HOUR_ICON_BESIDE_CHANCE)
+                    // Read last, after the temperature, as before it moved up beside the icon.
+                    PrecipChance(
+                        percent = slot.precipitationChance,
+                        modifier = Modifier.semantics { traversalIndex = 1f },
+                    )
+                }
+            } else {
+                HourIcon(slot, HOUR_ICON_SIZE)
+            }
+        }
         Text(
             text = "${slot.temperature.roundToInt()}°",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
         )
-        PrecipChance(percent = slot.precipitationChance)
     }
+}
+
+@Composable
+private fun HourIcon(
+    slot: HourlySlot,
+    size: Dp,
+) {
+    WeatherIcon(
+        iconCode = slot.iconCode,
+        contentDescription = slot.description,
+        sizeDp = size.value.roundToInt(),
+        epochSeconds = slot.epochSeconds,
+    )
 }
 
 /** "Rain starting around 3:15 PM": the next-rain line's words, also the rain outlook's headline. */
@@ -1144,6 +1194,43 @@ private fun CurrentWeatherSuccessPreview() {
             onTabSelected = {},
             onAddCityClick = {},
         ) {}
+    }
+}
+
+/** 9 AM to 8 PM UTC with a sunset at 5:49 PM, each hour's rain chance from [chance]. */
+private fun previewHourlyStrip(chance: (Int) -> Int): List<HourlyStripItem> {
+    val dayStart = 1_700_000_000L - 1_700_000_000L % 86_400
+    val slots = (9..20).map { hour ->
+        HourlySlot(
+            timeLabel = "${if (hour % 12 == 0) 12 else hour % 12} ${if (hour < 12) "AM" else "PM"}",
+            iconCode = if (chance(hour) > 0) "10d" else "02d",
+            description = "Cloudy",
+            temperature = 18.0,
+            feelsLike = 18.0,
+            windSpeed = 2.0,
+            windDeg = 0,
+            humidity = 60,
+            pressure = 1010,
+            units = WeatherUnits.METRIC,
+            epochSeconds = dayStart + hour * 3600,
+            precipitationChance = chance(hour),
+        )
+    }
+    return hourlyStrip(slots, listOf(SunEvent(sunrise = false, epochSeconds = dayStart + 17 * 3600 + 49 * 60)), dayStart + 9 * 3600)
+}
+
+/** The hourly card is the same height with no rain, rain every hour and rain only off screen. */
+@Preview(showBackground = true, widthDp = 390)
+@Preview(showBackground = true, widthDp = 390, fontScale = 2f)
+@Composable
+private fun HourlyStripPreview() {
+    CatsDogsTheme {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            HourlyStrip(items = previewHourlyStrip { 0 }, utcOffsetSeconds = 0)
+            HourlyStrip(items = previewHourlyStrip { 30 + it }, utcOffsetSeconds = 0)
+            HourlyStrip(items = previewHourlyStrip { if (it >= 19) 80 else 0 }, utcOffsetSeconds = 0)
+            HourlyStrip(items = previewHourlyStrip { if (it == 18) 60 else 0 }.drop(6), utcOffsetSeconds = 0)
+        }
     }
 }
 

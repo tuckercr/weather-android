@@ -74,8 +74,10 @@ WorkManager, and CI on GitHub Actions.
   Open-Meteo's 15-minute forecast (0.1 mm in 15 minutes counts; it stops after 30 dry minutes).
   Rules in `util/NextRain.kt`. `next_rain_enabled` hides it remotely.
 - **Hourly strip** with the next 24 forecast slots (hours from Open-Meteo, 3-hour slots on the
-  OpenWeatherMap fallback): time, condition icon, temperature, and rain chance (hidden under 10%,
-  otherwise to the nearest 10%, as everywhere in the app). Hours that have
+  OpenWeatherMap fallback): time, condition icon and temperature, with the rain chance (hidden
+  under 10%, otherwise to the nearest 10%, as everywhere in the app) under a smaller icon in the
+  icon's own space. Every hour is the same height, so the card never changes height with the rain
+  and never ends in a gap. Hours that have
   already passed are dropped at display time (`fromCurrentSlot`), so a cached forecast or an app
   left open never shows or advises on past hours. `hourly_forecast_enabled` hides the strip
   remotely.
