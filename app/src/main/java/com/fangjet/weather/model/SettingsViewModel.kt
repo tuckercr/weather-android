@@ -110,17 +110,28 @@ class SettingsViewModel internal constructor(
      */
     internal fun remotelyEnabled(kind: NotificationKind) = remoteConfigRepository.notificationsEnabled(kind)
 
+    private fun readRemotelyEnabledKinds() = NotificationKind.entries.filter(::remotelyEnabled).toSet()
+
+    /**
+     * The kinds whose switches show ([remotelyEnabled]), read again on each Remote Config
+     * activation, so a fetch that lands while Settings is open applies at once.
+     */
+    internal val remotelyEnabledKinds: StateFlow<Set<NotificationKind>> = remoteConfigRepository.activationCount
+        .map { readRemotelyEnabledKinds() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), readRemotelyEnabledKinds())
+
     /** For the Notifications row in Settings: how many of the shown switches are on. */
     val notificationsOnCount = combine(
         preferencesRepository.notifyMorningBriefing,
         preferencesRepository.notifyWalkTime,
         preferencesRepository.notifyRain,
         preferencesRepository.showWalkCard,
-    ) { briefing, walk, rain, dog ->
+        remotelyEnabledKinds,
+    ) { briefing, walk, rain, dog, remote ->
         listOf(
-            briefing && remotelyEnabled(NotificationKind.MORNING_BRIEFING),
-            walk && dog && remotelyEnabled(NotificationKind.WALK_TIME),
-            rain && remotelyEnabled(NotificationKind.RAIN),
+            briefing && NotificationKind.MORNING_BRIEFING in remote,
+            walk && dog && NotificationKind.WALK_TIME in remote,
+            rain && NotificationKind.RAIN in remote,
         ).count { it }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 

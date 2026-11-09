@@ -188,6 +188,7 @@ fun CurrentWeatherRoute(
     val screen by viewModel.screen.collectAsStateWithLifecycle()
     val staleErrorKey by viewModel.staleErrorKey.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val temperatureUnitsShown by viewModel.temperatureUnitsShown.collectAsStateWithLifecycle()
 
     val lifecycleOwner = LocalLifecycleOwner.current
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
@@ -213,7 +214,7 @@ fun CurrentWeatherRoute(
 
     CompositionLocalProvider(
         LocalDistanceInMiles provides distanceInMiles,
-        LocalTemperatureUnitsShown provides viewModel.temperatureUnitsShown,
+        LocalTemperatureUnitsShown provides temperatureUnitsShown,
     ) {
         CurrentWeatherScreen(
             locations = locations,

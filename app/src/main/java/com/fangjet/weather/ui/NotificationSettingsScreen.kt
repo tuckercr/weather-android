@@ -46,6 +46,7 @@ fun NotificationSettingsRoute(onNavigateBack: () -> Unit) {
     val notifyRain by viewModel.notifyRain.collectAsStateWithLifecycle()
     val hasMyLocation by viewModel.hasMyLocation.collectAsStateWithLifecycle()
     val permissions by viewModel.permissionState.collectAsStateWithLifecycle()
+    val remotelyEnabled by viewModel.remotelyEnabledKinds.collectAsStateWithLifecycle()
     val context = LocalContext.current
     OnResume(viewModel::refreshPermissions)
 
@@ -78,7 +79,7 @@ fun NotificationSettingsRoute(onNavigateBack: () -> Unit) {
                 return@Column
             }
             // Each shows unless Remote Config has switched it off for everyone; Walk time also needs a dog.
-            if (viewModel.remotelyEnabled(NotificationKind.MORNING_BRIEFING)) {
+            if (NotificationKind.MORNING_BRIEFING in remotelyEnabled) {
                 SettingsSwitchRow(
                     label = stringResource(R.string.settings_notify_briefing),
                     summary = stringResource(
@@ -88,7 +89,7 @@ fun NotificationSettingsRoute(onNavigateBack: () -> Unit) {
                     onCheckedChange = viewModel::setNotifyMorningBriefing,
                 )
             }
-            if (hasDog && viewModel.remotelyEnabled(NotificationKind.WALK_TIME)) {
+            if (hasDog && NotificationKind.WALK_TIME in remotelyEnabled) {
                 SettingsSwitchRow(
                     label = stringResource(R.string.settings_notify_walk),
                     summary = stringResource(R.string.settings_notify_walk_summary),
@@ -96,7 +97,7 @@ fun NotificationSettingsRoute(onNavigateBack: () -> Unit) {
                     onCheckedChange = viewModel::setNotifyWalkTime,
                 )
             }
-            if (viewModel.remotelyEnabled(NotificationKind.RAIN)) {
+            if (NotificationKind.RAIN in remotelyEnabled) {
                 SettingsSwitchRow(
                     label = stringResource(R.string.settings_notify_rain),
                     summary = stringResource(R.string.settings_notify_rain_summary),
