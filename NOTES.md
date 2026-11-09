@@ -71,10 +71,6 @@ Finished items move to Done at the bottom.
       and Feels Like and Paw Check have one since 11-04). Define what each colour means per tile.
       Never colour alone: keep the words ("Gale", "Very hot"), and check contrast in both themes and
       on the seasonal card colours, which Feels Like's band word hasn't been checked on yet either.
-- [ ] **A hint that the hourly strip scrolls.** Nothing shows there's more past the edge unless an
-      hour is cut off there by luck. Consider fading the edges, letting the last hour on screen
-      always peek out half cut, or a small arrow; check it at large text sizes and on iPad, where
-      more hours fit.
 - [ ] **Tile design looks too much like other weather apps.** Review the Today tiles as a whole:
       shape, layout, icons and type, and what would make them ours (the pets' voice, the brand
       font, the colour scale above, the tile sizes above).
@@ -136,15 +132,11 @@ noted. Checked against the code, not fixed yet.
       sunny sky (#FAC775), and the walk nudge's picture is always the sunny scene. It was lightened
       for the old Halloween card, which has since changed. Try a couple of coat colours side by
       side. Both apps.
-- [ ] **Seasonal theme at night.** The night look (colours, caption, costumes off, lit pumpkin)
-      follows the night mood, so on a rainy or freezing Halloween evening the day look shows; go by
-      the clock instead. The night caption also shows from midnight on the 31st ("Too many
-      doorbells" at 3 AM). Both apps.
-- [ ] **Witch hat over the umbrella.** On a rainy Halloween Misty's hat is drawn over the umbrella;
-      and a theme with only the hat would take Sunny's sunglasses or scarf off too. Both apps.
 - [ ] **Halloween contrast.** Tile labels (#C25E00 on #FCE9D2) are 3.6:1, under the 4.5:1 AA needs;
       the day pumpkin and Misty's grey fur barely show on the #B4500C hero, and one bat on the night
       hero. Fixable in Remote Config before next Halloween.
+- [ ] **Raindrops at night.** On the dark night heroes the raindrops, drawn in the umbrella's blue,
+      barely show. Both apps. (11-09)
 - [ ] **UV tile** (off by default). The peak only counts hours from the last fetch, so in the
       afternoon it says "At today's peak" (and loses "Shade for pale noses"); a day of all-zero UV
       reads "Peak 0". Turning the Daylight tile off also shows the UV tile, whatever
@@ -333,7 +325,7 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 - [ ] **Hero card layout.** Try other designs: the pets on the left with the text beside them, or
       a more interesting text layout than one long centred list (conditions, city, temperature,
       high and low, caption). (10-31)
-- [ ] **More seasonal themes** (Thanksgiving, winter holidays, the Fourth of July...). A theme
+- [ ] **More seasonal themes** (winter holidays, the Fourth of July...). A theme
       that reuses existing decorations is only a new entry in Remote Config's `seasonal_themes`
       JSON; new props (a turkey, a scarf with lights) need drawing in both apps' `PetScene` and a
       name in `SceneDecoration`. (10-31)
@@ -374,6 +366,17 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Thanksgiving theme** (11-09): on the fourth Thursday of November, an orange-brown hero
+      with falling leaves and a pie, "Sunny is on crumb patrol under the table." by day and "Too
+      full to move. Misty is napping on the coats." at night. Built in, and added to the Remote
+      Config template, whose live value (Halloween only) replaces the built-in list until it's
+      deployed. Unknown decorations in a Remote Config list are skipped.
+- [x] **Seasonal theme at night, and costumes** (11-09): a theme's night look follows the clock,
+      not the mood; the night caption shows only from noon while dark, so not at 3 AM. The
+      umbrella is drawn over Misty's witch hat, and a costume replaces only its own pet's accessory
+      in the same spot (Sunny keeps his sunglasses under the bandana).
+- [x] **A hint that the hourly strip scrolls** (11-09): the strip's edges fade (24 pt/dp) where
+      there are more hours to scroll to, and not at either end or when every hour fits.
 - [x] **Radar outside RainViewer's coverage** (11-09): RainViewer's coverage layer is transparent
       where it has radar and black where it doesn't (checked at London, Knoxville, Nairobi,
       Ulaanbaatar and the mid-Atlantic). The radar card dims the areas without radar, and says

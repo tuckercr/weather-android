@@ -19,7 +19,7 @@ class SeasonalThemeTest {
           "colors": {"heroDay": "#F5A94E", "heroNight": "#26215C", "inkDay": "#412402", "inkNight": "#EEEDFE",
                      "cardLight": "#FCE9D2", "cardDark": "#3A2A1A", "accentLight": "#A34F0B", "accentDark": "#F5A94E"},
           "captions": {"day": ["Day"], "night": ["Night"]},
-          "decorations": ["bats", "witchHat", "turkey"]}]
+          "decorations": ["bats", "turkey", "witchHat"]}]
         """.trimIndent()
 
     private fun epoch(
@@ -29,14 +29,48 @@ class SeasonalThemeTest {
 
     @Test
     fun `the shipped list has Halloween with orange tile headers`() {
-        assertEquals(listOf("halloween"), shipped.map { it.id })
-        val halloween = shipped.single()
+        assertEquals(listOf("halloween", "thanksgiving"), shipped.map { it.id })
+        val halloween = shipped.first()
         assertEquals(
             setOf(SceneDecoration.BATS, SceneDecoration.WITCH_HAT, SceneDecoration.BANDANA, SceneDecoration.JACK_O_LANTERN),
             halloween.decorations,
         )
         assertEquals(0xC25E00, halloween.colors.tileHeaderLight)
         assertEquals(0xF5A94E, halloween.colors.tileHeaderDark)
+    }
+
+    @Test
+    fun `the shipped list has Thanksgiving with leaves and a pie`() {
+        val thanksgiving = shipped.single { it.id == "thanksgiving" }
+        assertEquals(setOf(SceneDecoration.AUTUMN_LEAVES, SceneDecoration.PIE), thanksgiving.decorations)
+        assertEquals(0x8C3F14, thanksgiving.colors.heroDay)
+        assertEquals(0x8F3E0E, thanksgiving.colors.tileHeaderLight)
+        assertEquals(0xF2B27A, thanksgiving.colors.tileHeaderDark)
+        assertEquals("Sunny is on crumb patrol under the table.", thanksgiving.caption(night = false, date = LocalDate.of(2026, 11, 26)))
+        assertEquals(
+            "Too full to move. Misty is napping on the coats.",
+            thanksgiving.caption(night = true, date = LocalDate.of(2026, 11, 26)),
+        )
+    }
+
+    @Test
+    fun `Thanksgiving is the fourth Thursday of November`() {
+        val noon = { date: String -> epoch("${date}T12:00", -5) }
+        assertEquals("thanksgiving", SeasonalThemes.themeOn(noon("2026-11-26"), -5 * 3600, shipped)?.id)
+        assertEquals("thanksgiving", SeasonalThemes.themeOn(noon("2027-11-25"), -5 * 3600, shipped)?.id)
+        assertNull(SeasonalThemes.themeOn(noon("2026-11-19"), -5 * 3600, shipped))
+        assertNull(SeasonalThemes.themeOn(noon("2026-11-27"), -5 * 3600, shipped))
+    }
+
+    @Test
+    fun `the night caption shows from sunset on the day, not from midnight to sunrise`() {
+        val halloween = shipped.first()
+        val day = "Misty's going as a witch. Sunny's going as Sunny."
+        val night = "Too many doorbells. Misty is under the bed."
+        assertEquals(night, halloween.captionAt(dark = true, local = LocalDateTime.parse("2026-10-31T19:00")))
+        assertEquals(day, halloween.captionAt(dark = true, local = LocalDateTime.parse("2026-10-31T03:00")))
+        assertEquals(day, halloween.captionAt(dark = false, local = LocalDateTime.parse("2026-10-31T12:00")))
+        assertEquals(day, halloween.captionAt(dark = false, local = LocalDateTime.parse("2026-10-31T17:00")))
     }
 
     @Test
@@ -76,6 +110,16 @@ class SeasonalThemeTest {
         // Without tile header colours the tiles keep the brand colour; the old accent colours this
         // theme still carries are ignored.
         assertEquals(null, theme.colors.tileHeaderLight)
+    }
+
+    @Test
+    fun `an unknown decoration keeps the theme and the rest of the list`() {
+        val other = json.replace("\"halloween\"", "\"other\"").removeSurrounding("[", "]")
+        val list = "[${json.removeSurrounding("[", "]")}, $other]"
+        val themes = SeasonalThemes.parse(list)!!
+        assertEquals(listOf("halloween", "other"), themes.map { it.id })
+        assertEquals(setOf(SceneDecoration.BATS, SceneDecoration.WITCH_HAT), themes.first().decorations)
+        assertEquals("Day", themes.first().caption(night = false, date = LocalDate.of(2026, 10, 31)))
     }
 
     @Test

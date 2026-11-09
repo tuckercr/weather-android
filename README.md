@@ -36,6 +36,19 @@ WorkManager, and CI on GitHub Actions.
   that instead, in place of a seasonal theme's caption too: bad air by its pollutant ("Smoky air
   today. Quick potty breaks, then back on the sofa."), hot pavement, or a gale and worse. The night
   sky shows the moon's real phase, lit from the other side in the southern hemisphere.
+- **Seasonal themes**: on Halloween (31 October) and Thanksgiving (the fourth Thursday of November),
+  by the city's own date, the hero takes the theme's colours and caption, the cards below a warmer
+  tint, and the scene the theme's decorations: bats, Misty's witch hat, Sunny's bandana and a
+  jack-o'-lantern for Halloween; autumn leaves and a pie for Thanksgiving. The theme's night look
+  (night colours, costumes off, the pumpkin lit, the leaves dimmer, no steam on the pie) follows the
+  clock, after sunset or before sunrise in the city, whatever the weather, so a rainy Halloween
+  evening is still a Halloween night; the pets' weather (the umbrella, scarves) still follows the
+  conditions. The night caption shows from sunset on the theme's day: from midnight to sunrise the
+  night colours show with the day's caption. A costume replaces only what it covers on its own pet
+  (the witch hat Misty's head, the bandana Sunny's scarf), and the umbrella is drawn in front of the
+  hat. Themes are data (`res/raw/seasonal_themes.json`, replaceable from Remote Config
+  `seasonal_themes`): a decoration name this version can't draw is skipped, keeping the rest of the
+  theme and the list.
 - **Best Walk Time** card: "Now is a great time", the next good hour ("Around 8 AM"), or "Not a good
   day for walkies" when nothing in the next 24 hours qualifies. A good hour is under 30% rain
   chance (the chance as the hourly strip shows it, so 25% counts as 30%; from 60% shown it's
@@ -476,7 +489,7 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `analytics_enabled` | boolean | `true` | Analytics kill switch; see [Gates](#gates) |
 | `tile_feels_like_enabled`, `tile_wind_enabled`, `tile_humidity_enabled`, `tile_paw_check_enabled`, `tile_daylight_enabled`, `tile_sky_enabled` | boolean | `true` | One switch per Today tile (`tile_sky_enabled` is Misty's View, the sky and visibility tile); false hides that tile for everyone |
 | `tile_uv_enabled` | boolean | `false` | The UV index tile; while off, UV stays in the Daylight tile's header (it still gets its own tile when there's no Daylight tile) |
-| `seasonal_themes_enabled` | boolean | `true` | Seasonal themes (Halloween and so on); false switches them all off |
+| `seasonal_themes_enabled` | boolean | `true` | Seasonal themes (Halloween, Thanksgiving); false switches them all off |
 | `seasonal_themes` | string | the built-in list | The themes as a JSON list (format: `SeasonalTheme`), replacing the list built into the apps (`res/raw/seasonal_themes.json`) when valid; empty keeps it. A new theme for a fixed date, a date range or an nth weekday needs no app update |
 
 The walk and pet-mood thresholds are always Celsius, whatever units the user picks. A value outside

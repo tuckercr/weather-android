@@ -17,5 +17,24 @@
       "night": ["Too many doorbells. Misty is under the bed."]
     },
     "decorations": ["bats", "witchHat", "bandana", "jackOLantern"]
+  },
+  {
+    "id": "thanksgiving",
+    "dates": { "type": "nthWeekday", "month": 11, "weekday": 5, "n": 4 },
+    "colors": {
+      "heroDay": "#8C3F14",
+      "heroNight": "#2E1A12",
+      "inkDay": "#FFF2E2",
+      "inkNight": "#F6E3CF",
+      "cardLight": "#F7E6D2",
+      "cardDark": "#3A2416",
+      "tileHeaderLight": "#8F3E0E",
+      "tileHeaderDark": "#F2B27A"
+    },
+    "captions": {
+      "day": ["Sunny is on crumb patrol under the table."],
+      "night": ["Too full to move. Misty is napping on the coats."]
+    },
+    "decorations": ["autumnLeaves", "pie"]
   }
 ]
