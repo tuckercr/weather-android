@@ -14,6 +14,7 @@ import com.fangjet.weather.domain.QuarterHour
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WalkAdvice
 import com.fangjet.weather.domain.WalkRating
+import com.fangjet.weather.domain.WalkWarning
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.util.NextRain
 import kotlinx.coroutines.test.runTest
@@ -570,6 +571,81 @@ class NotificationWorkerLogicTest {
             assertEquals(NotificationKind.WALK_TIME, posted.single().kind)
             assertEquals("Time for a walk", posted.single().title)
             assertEquals("72° and clear in London. Sunny's waiting by the door.", posted.single().body)
+        }
+
+    // --- walk nudge warnings ---
+
+    private fun nudgeWarning(
+        walkHour: Int,
+        slots: List<HourlySlot>,
+    ) = walkNudgeWarning(DAY_START + walkHour * HOUR, slots, 0, PetWeatherThresholds.DEFAULT)
+
+    @Test
+    fun `the walk nudge warns about hurricane force wind or storms within 3 hours after the walk hour`() {
+        assertEquals(WalkWarning.Hurricane("12 PM"), nudgeWarning(10, day(hurricane(12))))
+        assertEquals(WalkWarning.Storms("1 PM"), nudgeWarning(10, day(storms(13))))
+        // The first one gives the time.
+        assertEquals(WalkWarning.Storms("11 AM"), nudgeWarning(10, day(storms(11), storms(12))))
+        // Hurricane force wins over storms, even earlier ones.
+        assertEquals(WalkWarning.Hurricane("1 PM"), nudgeWarning(10, day(storms(11), hurricane(13))))
+        // Beyond 3 hours, before the walk hour, or with no time: nothing.
+        assertNull(nudgeWarning(10, day(hurricane(14), storms(14))))
+        assertNull(nudgeWarning(10, day(hurricane(9), storms(9))))
+        assertNull(nudgeWarning(10, day() + hurricane(12).copy(epochSeconds = null, localHour = null)))
+        assertNull(nudgeWarning(10, day()))
+    }
+
+    @Test
+    fun `the walk nudge doesn't warn about the next day`() {
+        // Walk at 10 PM; hurricane force at midnight and storms at 1 AM are tomorrow.
+        val late = listOf(slot(22, rain = 0), slot(23, rain = 0), hurricane(24), storms(25))
+        assertNull(nudgeWarning(22, late))
+        assertEquals(WalkWarning.Hurricane("11 PM"), nudgeWarning(22, late + hurricane(23)))
+    }
+
+    @Test
+    fun `the walk nudge's warning replaces the bad-air sentence`() {
+        fun body(warning: WalkWarning?) = buildWalkTimeContent(StringsXml, weather(cityName = "London"), "Smoky air today", warning).second
+
+        assertEquals("72° and clear in London. Sunny's waiting by the door. Smoky air today, so a short one.", body(null))
+        assertEquals(
+            "72° and clear in London. Sunny's waiting by the door. Storms from 4 PM, so be back by then.",
+            body(WalkWarning.Storms("4 PM")),
+        )
+        assertEquals(
+            "72° and clear in London. Sunny's waiting by the door. Hurricane force winds from 4 PM, so be back by then.",
+            body(WalkWarning.Hurricane("4 PM")),
+        )
+    }
+
+    @Test
+    fun `the walk nudge at the walk time warns about the hours just after it`() =
+        runTest {
+            val posted = mutableListOf<WeatherNotification>()
+
+            suspend fun run(slots: List<HourlySlot>) =
+                WalkTimeLogic(
+                    getSavedLocations = { listOf(london) },
+                    refreshWeather = { kotlin.Result.success(weather(cityName = "London")) },
+                    refreshForecast = { kotlin.Result.success(listOf(forecast(slots = slots))) },
+                    hasNotificationPermission = { true },
+                    postNotification = { posted += it },
+                    strings = StringsXml,
+                    isWalkTimeEnabled = { true },
+                    nowEpochSeconds = { NOW },
+                ).doWork()
+
+            // Now is 8:30, in the 8 AM hour: 9, 10 and 11 AM are within 3 hours, noon isn't.
+            run(day(hurricane(11)))
+            run(day(storms(10)))
+            run(day(storms(12)))
+
+            assertEquals(
+                "72° and clear in London. Sunny's waiting by the door. Hurricane force winds from 11 AM, so be back by then.",
+                posted[0].body,
+            )
+            assertEquals("72° and clear in London. Sunny's waiting by the door. Storms from 10 AM, so be back by then.", posted[1].body)
+            assertEquals("72° and clear in London. Sunny's waiting by the door.", posted[2].body)
         }
 
     // --- rain alerts ---

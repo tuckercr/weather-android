@@ -188,6 +188,10 @@
     <string name="notif_walk_body">%1$d° and %2$s in %3$s. Sunny\'s waiting by the door.</string>
     <!-- %1$s is notif_bad_air_today ("Smoky air today"). -->
     <string name="notif_walk_bad_air">%1$s, so a short one.</string>
+    <!-- Hurricane force wind or likely storms in the 3 hours after the walk hour, in place of
+         notif_walk_bad_air. %1$s is the hour they start, such as "4 PM". -->
+    <string name="notif_walk_hurricane_from">Hurricane force winds from %1$s, so be back by then.</string>
+    <string name="notif_walk_storms_from">Storms from %1$s, so be back by then.</string>
     <!-- Rain alert body (the title is next_rain_starting or next_snow_starting). %1$s is the city. -->
     <string name="notif_rain_body_dog">Rain on the way in %1$s. Walk now or wait it out.</string>
     <string name="notif_rain_body_no_dog">Rain on the way in %1$s. Misty\'s staying in.</string>
