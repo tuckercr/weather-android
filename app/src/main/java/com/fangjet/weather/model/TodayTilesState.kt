@@ -11,6 +11,7 @@ import com.fangjet.weather.domain.airWalkLevel
 import com.fangjet.weather.util.Daylight
 import com.fangjet.weather.util.FeelsLikeBand
 import com.fangjet.weather.util.FluffLevel
+import com.fangjet.weather.util.MistyLine
 import com.fangjet.weather.util.PavementBand
 import com.fangjet.weather.util.SkyCondition
 import com.fangjet.weather.util.UvLine
@@ -24,6 +25,8 @@ import com.fangjet.weather.util.feelsLikeGap
 import com.fangjet.weather.util.fluffLevel
 import com.fangjet.weather.util.gustWorthMentioning
 import com.fangjet.weather.util.isCalmWind
+import com.fangjet.weather.util.isDarkAt
+import com.fangjet.weather.util.mistyLine
 import com.fangjet.weather.util.pavementBand
 import com.fangjet.weather.util.skyCondition
 import com.fangjet.weather.util.uvLine
@@ -118,11 +121,16 @@ data class DaylightTile(
     val uvIndex: Double?,
 )
 
-/** Misty's View: the sky, and how far she can see when the reading says. */
+/**
+ * Misty's View: the sky, and how far she can see when the reading says. [mistyLine] is her line
+ * under it (null without a visibility): how far she can see by day, the stars or the streetlights
+ * after dark.
+ */
 data class SkyTile(
     val sky: SkyCondition,
     val visibilityMeters: Int?,
     val visibilityBand: VisibilityBand?,
+    val mistyLine: MistyLine?,
 )
 
 @Suppress("LongParameterList")
@@ -214,10 +222,14 @@ fun todayTilesState(
     }
     val sky = if (switches.sky) {
         val visibility = weather.visibilityMeters.takeUnless { showingForecast }
+        val skyNow = skyCondition(weather.conditionMain, weather.cloudPercent.takeUnless { showingForecast }, weather.iconCode)
+        val band = visibility?.let(::visibilityBand)
         SkyTile(
-            sky = skyCondition(weather.conditionMain, weather.cloudPercent.takeUnless { showingForecast }, weather.iconCode),
+            sky = skyNow,
             visibilityMeters = visibility,
-            visibilityBand = visibility?.let(::visibilityBand),
+            visibilityBand = band,
+            // [weather] carries today's sun times, so this is the darkness the rest of the screen uses.
+            mistyLine = mistyLine(band, skyNow, dark = weather.isDarkAt(nowEpochSeconds)),
         )
     } else {
         null

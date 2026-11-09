@@ -75,6 +75,7 @@ import com.fangjet.weather.util.Daylight
 import com.fangjet.weather.util.DistanceUnit
 import com.fangjet.weather.util.FeelsLikeBand
 import com.fangjet.weather.util.FluffLevel
+import com.fangjet.weather.util.MistyLine
 import com.fangjet.weather.util.PavementBand
 import com.fangjet.weather.util.SkyCondition
 import com.fangjet.weather.util.UvLine
@@ -845,7 +846,7 @@ private fun SkyTileCard(tile: SkyTile) {
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
-        if (band != null) TileNote(stringResource(band.mistyRes()), color = petLineTint())
+        tile.mistyLine?.let { TileNote(stringResource(it.stringRes()), color = petLineTint()) }
     }
 }
 
@@ -885,12 +886,16 @@ private fun VisibilityBand.nameRes(): Int =
     }
 
 @StringRes
-private fun VisibilityBand.mistyRes(): Int =
+private fun MistyLine.stringRes(): Int =
     when (this) {
-        VisibilityBand.EXCELLENT -> R.string.misty_visibility_excellent
-        VisibilityBand.GOOD -> R.string.misty_visibility_good
-        VisibilityBand.MODERATE -> R.string.misty_visibility_moderate
-        VisibilityBand.POOR -> R.string.misty_visibility_poor
+        MistyLine.WHOLE_STREET -> R.string.misty_visibility_excellent
+        MistyLine.DOWN_THE_BLOCK -> R.string.misty_visibility_good
+        MistyLine.END_OF_STREET_FUZZY -> R.string.misty_visibility_moderate
+        MistyLine.PAST_THE_GARDEN -> R.string.misty_visibility_poor
+        MistyLine.STREETLIGHTS_FUZZY -> R.string.misty_night_streetlights_fuzzy
+        MistyLine.STARS -> R.string.misty_night_stars
+        MistyLine.FEW_STARS -> R.string.misty_night_few_stars
+        MistyLine.NO_STARS -> R.string.misty_night_no_stars
     }
 
 @StringRes

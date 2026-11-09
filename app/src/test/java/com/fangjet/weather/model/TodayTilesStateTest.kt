@@ -6,6 +6,7 @@ import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.util.Daylight
+import com.fangjet.weather.util.MistyLine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -63,6 +64,17 @@ class TodayTilesStateTest {
         assertNull(tiles(showingForecast = true).sky?.visibilityMeters)
     }
 
+    @Test
+    fun `Misty's View picks the night lines after sunset and the day lines before it`() {
+        // Sunset is 5 PM: clear at 10 km.
+        assertEquals(MistyLine.WHOLE_STREET, tiles(now = noon + 5 * 3600 - 60).sky?.mistyLine)
+        assertEquals(MistyLine.STARS, tiles(now = noon + 5 * 3600).sky?.mistyLine)
+        // And before sunrise.
+        assertEquals(MistyLine.STARS, tiles(now = noon - 6 * 3600).sky?.mistyLine)
+        // No visibility (a forecast hour standing in), no line.
+        assertNull(tiles(now = noon + 6 * 3600, showingForecast = true).sky?.mistyLine)
+    }
+
     private fun tiles(
         pavementNow: Double? = null,
         uvIndex: Double? = null,
@@ -71,6 +83,7 @@ class TodayTilesStateTest {
         sunTimes: Boolean = true,
         showingForecast: Boolean = false,
         switches: TodayTileSwitches = TodayTileSwitches(),
+        now: Long = noon,
     ) = todayTilesState(
         weather = CurrentWeather(
             cityName = "London",
@@ -99,7 +112,7 @@ class TodayTilesStateTest {
         uvPeak = null,
         airQuality = air,
         hasDog = hasDog,
-        nowEpochSeconds = noon,
+        nowEpochSeconds = now,
         thresholds = PetWeatherThresholds.DEFAULT,
         switches = switches,
     )
