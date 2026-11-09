@@ -68,18 +68,3 @@ fun hourlyStrip(
         before[index].orEmpty().sortedBy { it.epochSeconds }.map { HourlyStripItem.Sun(it) } + HourlyStripItem.Hour(slot)
     }
 }
-
-/**
- * Whether an hour beside the sun event at [index] shows a rain chance ([showsChance]), so its
- * marker's line runs on down beside the chances; otherwise it stops at the temperatures. Only the
- * hours either side count: they're on screen with the marker, so the strip is already that tall and
- * the line never makes it grow. Same rule as iOS's `HourlyStripItem.besideRainChance`.
- */
-fun List<HourlyStripItem>.besideRainChance(
-    index: Int,
-    showsChance: (HourlySlot) -> Boolean,
-): Boolean {
-    val before = subList(0, index).filterIsInstance<HourlyStripItem.Hour>().lastOrNull()
-    val after = subList(index + 1, size).filterIsInstance<HourlyStripItem.Hour>().firstOrNull()
-    return listOfNotNull(before, after).any { showsChance(it.slot) }
-}
