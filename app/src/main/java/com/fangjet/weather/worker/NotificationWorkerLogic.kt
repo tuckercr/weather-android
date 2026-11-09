@@ -10,6 +10,7 @@ import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WalkAdvice
 import com.fangjet.weather.domain.WalkRating
+import com.fangjet.weather.domain.WalkWarning
 import com.fangjet.weather.domain.hasBadAirForWalking
 import com.fangjet.weather.domain.hasLikelyStorms
 import com.fangjet.weather.domain.isHurricaneForce
@@ -151,7 +152,15 @@ internal class WalkTimeLogic(
         val now = nowEpochSeconds()
         val walk = walkAdviceForReading(weather, forecast, thresholds, now)
         if (walk?.rating != WalkRating.GREAT) return Result.success()
-        val (title, body) = buildWalkTimeContent(strings, weather, badAirPhrase(strings, forecast, weather.offsetSeconds, now, thresholds))
+        val slots = forecast.flatMap { it.hourlySlots }
+        // The walk hour is the forecast hour under way now, as the walk advice reads it.
+        val walkHourStart = slots.mapNotNull { it.epochSeconds }.filter { it <= now }.maxOrNull() ?: now
+        val (title, body) = buildWalkTimeContent(
+            strings,
+            weather,
+            badAirPhrase(strings, forecast, weather.offsetSeconds, now, thresholds),
+            walkNudgeWarning(walkHourStart, slots, weather.offsetSeconds, thresholds),
+        )
         postNotification(
             WeatherNotification(
                 NotificationKind.WALK_TIME,
@@ -296,15 +305,49 @@ private fun walkSentence(
     return listOfNotNull(walkNow, shortOne).joinToString(" ")
 }
 
-/** "Time for a walk" / "64° and clear in Knoxville. Sunny's waiting by the door. Smoky air today, so a short one." */
+/** How far after the walk hour's start the walk nudge looks for hurricane force wind and storms. */
+private const val WALK_NUDGE_AHEAD_SECONDS = 3 * 60 * 60L
+
+/**
+ * Hurricane force wind, or else likely storms, in the forecast hours after the walk hour (starting
+ * at [walkHourStart]) that start within [WALK_NUDGE_AHEAD_SECONDS] of it, on the same city day.
+ * An hour without a time doesn't count. Same rule as iOS's `NotificationPlanner.walkNudgeWarning`.
+ */
+internal fun walkNudgeWarning(
+    walkHourStart: Long,
+    slots: List<HourlySlot>,
+    utcOffsetSeconds: Int,
+    thresholds: PetWeatherThresholds,
+): WalkWarning? {
+    fun localDay(epochSeconds: Long) = Math.floorDiv(epochSeconds + utcOffsetSeconds, 86_400L)
+    val after = slots
+        .filter { slot ->
+            val start = slot.epochSeconds ?: return@filter false
+            start > walkHourStart && start - walkHourStart <= WALK_NUDGE_AHEAD_SECONDS && localDay(start) == localDay(walkHourStart)
+        }.sortedBy { it.epochSeconds }
+    after.firstOrNull(::isHurricaneForce)?.let { return WalkWarning.Hurricane(it.timeLabel) }
+    after.firstOrNull { hasLikelyStorms(it, thresholds) }?.let { return WalkWarning.Storms(it.timeLabel) }
+    return null
+}
+
+/**
+ * "Time for a walk" / "64° and clear in Knoxville. Sunny's waiting by the door. Smoky air today, so a
+ * short one." Hurricane force wind or storms soon after ([warning], from [walkNudgeWarning]) take the
+ * bad-air sentence's place: "Storms from 4 PM, so be back by then."
+ */
 internal fun buildWalkTimeContent(
     strings: Strings,
     weather: CurrentWeather,
     badAir: String? = null,
+    warning: WalkWarning? = null,
 ): Pair<String, String> {
     val body = strings.get(R.string.notif_walk_body, weather.temperature.roundToInt(), conditionPhrase(strings, weather), weather.cityName)
-    val shortOne = badAir?.let { strings.get(R.string.notif_walk_bad_air, it) }
-    return strings.get(R.string.notif_walk_title) to listOfNotNull(body, shortOne).joinToString(" ")
+    val trailing = when (warning) {
+        is WalkWarning.Hurricane -> strings.get(R.string.notif_walk_hurricane_from, warning.timeLabel)
+        is WalkWarning.Storms -> strings.get(R.string.notif_walk_storms_from, warning.timeLabel)
+        null -> badAir?.let { strings.get(R.string.notif_walk_bad_air, it) }
+    }
+    return strings.get(R.string.notif_walk_title) to listOfNotNull(body, trailing).joinToString(" ")
 }
 
 /** Rain, drizzle, snow and storms by their own description ("light rain"); otherwise the sky ("partly cloudy"). */

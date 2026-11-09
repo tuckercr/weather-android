@@ -167,7 +167,11 @@ WorkManager, and CI on GitHub Actions.
     "Hurricane force winds from 2 PM. Get everyone inside before then." later. Otherwise likely
     storms in a later hour add "Storms from 4 PM." before the walk sentence, for everyone.
   - *Walk time* (only with a dog): the morning run plans a nudge for the day's best walk time, which
-    checks again when it's due and only goes if now is still a great time (and there's still a dog).
+    checks again when it's due and only goes if now is still a great time (and there's still a dog):
+    "Time for a walk / 52° and partly cloudy in Knoxville. Sunny's waiting by the door." Bad air
+    left today adds "Smoky air today, so a short one." Hurricane force wind in a forecast hour
+    starting within 3 hours after the walk hour, the same day, adds "Hurricane force winds from
+    4 PM, so be back by then." instead, or else likely storms "Storms from 4 PM, so be back by then."
   - *Rain alerts* (off): the background refresh alerts up to an hour before rain or snow starts,
     from the 15-minute forecast, between 7 AM and 9 PM city time, once per shower. Switched off for
     everyone in the first release (`rain_notifications_enabled`), since an alert depends on a
