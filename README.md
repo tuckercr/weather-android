@@ -533,6 +533,32 @@ Compose UI tests live in `app/src/androidTest` and run on an emulator in CI via 
 | `LocationsScreenTest` | Manage Locations: tapping a row makes it active, Move up / Move down accessibility actions, delete buttons name their city |
 | `AddLocationScreenTest` | Add location: the button names what it adds and the Search key does the same, tapping a row adds it, a far smaller match asks for a pick, a saved place is marked and gone to, and the X closes it |
 
+## Text and translations
+
+The app's own words, on screen and in notifications, live in `app/src/main/res/values/strings.xml`
+(captions with several variants are `<string-array>`s there), in British English, word for word the
+same as iOS. The exceptions are at the end of this section.
+
+- Compose screens read it with `stringResource`. Rules that pick what to say, such as the walk card
+  and the hero captions, return a resource id and its arguments (`WalkText`) instead of text, so they
+  stay plain JVM code.
+- Notifications are written by `worker/NotificationWorkerLogic.kt` through `util/Strings`: the
+  workers pass `context.resources.asStrings()`, and the unit tests pass `StringsXml`, which reads
+  strings.xml itself, so they check the real English wording without Robolectric.
+- Each sentence is one string with numbered arguments (`%1$d° and %2$s in %3$s`), so a translation
+  can reorder them. Code joins whole sentences, never pieces of one. Use `<plurals>` for anything that
+  counts, and `translatable="false"` only for text that isn't language (URLs).
+
+To add a language, add `app/src/main/res/values-<code>/strings.xml` (`values-fr`, `values-de`)
+with the translated strings under the same names, keeping every `%1$s`-style argument and
+escaping apostrophes (`\'`). Anything left out falls back to English; `./gradlew lint` lists what's
+missing. For the language to show in Android 13's per-app language settings, also turn on
+`androidResources { generateLocaleConfig = true }` with an `app/src/main/res/resources.properties`
+naming the default (`unqualifiedResLocale=en-GB`). Some text isn't in strings.xml yet: weather
+descriptions ("light rain") come from the API layer (`weather-api`'s `WmoWeatherCodes.kt`, and
+OpenWeather in English), seasonal theme captions come from `seasonal_themes.json` or Remote Config,
+and times and dates use fixed 12-hour patterns ("3:15 PM", "Mon, Jan 1").
+
 ## Units
 
 Users choose their preferred units in Settings: **System default**, **Celsius (°C)** (metric), or
