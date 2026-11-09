@@ -208,6 +208,22 @@ private fun walkFactors(
 }
 
 /**
+ * Sustained hurricane force wind (Beaufort 12) in [slot]'s forecast. Gusts aren't counted: a
+ * forecast hour's gusts are too uncertain to warn about. The walk warning and the 8:30 briefing use
+ * this, like iOS's `WalkConditions.isHurricaneForce`.
+ */
+fun isHurricaneForce(slot: HourlySlot): Boolean = windForce(slot.windSpeed, slot.units) >= WindForce.HURRICANE
+
+/**
+ * Likely thunderstorms in [slot]: a thunder icon with a chance from [LIKELY_RAIN_CHANCE], which
+ * keeps pets inside. Same as iOS's `WalkConditions.hasLikelyStorms`.
+ */
+fun hasLikelyStorms(
+    slot: HourlySlot,
+    thresholds: PetWeatherThresholds,
+): Boolean = precipitation(slot, null, thresholds)?.first == WalkReason.Storms(likely = true)
+
+/**
  * The Remote Config band (by default 3, US "Unhealthy" and Europe's "Poor") and up is potty breaks
  * only, and the worst band (5) keeps pets inside. From 2 up to the band below it is a walk with a
  * caveat for older and flat-faced dogs. 0 and 1 are nothing to mention.

@@ -376,6 +376,89 @@ class NotificationWorkerLogicTest {
         assertNull(phrase(slot(23, rain = 0, air = AirQuality.Pollutant.FINE_PARTICLES)))
     }
 
+    // --- hurricane and storm warnings ---
+
+    private fun hurricane(hour: Int) = slot(hour, rain = 0).copy(windSpeed = 80.0)
+
+    private fun storms(hour: Int) = slot(hour, rain = 80).copy(iconCode = "11d")
+
+    private fun day(vararg replaced: HourlySlot) = (8..20).map { h -> replaced.firstOrNull { it.localHour == h } ?: slot(h, rain = 0) }
+
+    private fun warning(
+        slots: List<HourlySlot>,
+        weather: CurrentWeather = weather(),
+    ) = briefingWarning(weather, listOf(forecast(slots = slots)), NOW, PetWeatherThresholds.DEFAULT)
+
+    @Test
+    fun `the briefing warns about hurricane force wind now or later today, and storms later`() {
+        assertEquals(BriefingWarning.HurricaneNow, warning(day(hurricane(8))))
+        assertEquals(BriefingWarning.HurricaneNow, warning(day(), weather().copy(windSpeed = 80.0)))
+        assertEquals(BriefingWarning.HurricaneFrom("2 PM"), warning(day(hurricane(14))))
+        assertEquals(BriefingWarning.StormsFrom("4 PM"), warning(day(storms(16))))
+        // Hurricane force wins over storms, even earlier ones.
+        assertEquals(BriefingWarning.HurricaneFrom("2 PM"), warning(day(storms(10), hurricane(14))))
+        // Storms in the hour under way: the title already says so.
+        assertNull(warning(day(storms(8))))
+        // Tomorrow, an hour already over, a maybe: nothing.
+        assertNull(warning(day() + slot(30, rain = 0).copy(windSpeed = 80.0, timeLabel = "6 AM")))
+        assertNull(warning(day(hurricane(7))))
+        assertNull(warning(day(slot(16, rain = 40).copy(iconCode = "11d"))))
+    }
+
+    @Test
+    fun `hurricane force wind takes the walk sentence's place, with a dog or without`() {
+        fun body(
+            warning: BriefingWarning,
+            walk: WalkAdvice?,
+        ) = buildBriefingContent(StringsXml, weather(tempMin = 50.0, tempMax = 70.0), null, walk, "Smoky air today", warning).second
+
+        val now = "High 70°, low 50°. Hurricane force winds. Stay inside, away from the windows."
+        assertEquals(now, body(BriefingWarning.HurricaneNow, WalkAdvice(WalkRating.DANGER, null)))
+        assertEquals(now, body(BriefingWarning.HurricaneNow, null))
+        val later = "High 70°, low 50°. Hurricane force winds from 2 PM. Get everyone inside before then."
+        assertEquals(later, body(BriefingWarning.HurricaneFrom("2 PM"), WalkAdvice(WalkRating.GREAT, null)))
+        assertEquals(later, body(BriefingWarning.HurricaneFrom("2 PM"), null))
+    }
+
+    @Test
+    fun `storms later come before the walk sentence`() {
+        fun body(walk: WalkAdvice?) =
+            buildBriefingContent(
+                StringsXml,
+                weather(tempMin = 50.0, tempMax = 70.0),
+                null,
+                walk,
+                warning = BriefingWarning.StormsFrom("4 PM"),
+            ).second
+
+        assertEquals("High 70°, low 50°. Storms from 4 PM. Sunny's picked 10 AM for a walk.", body(WalkAdvice(WalkRating.OKAY, "10 AM")))
+        assertEquals("High 70°, low 50°. Storms from 4 PM.", body(null))
+    }
+
+    @Test
+    fun `the morning run words the warnings from the day's hours`() =
+        runTest {
+            val posted = mutableListOf<WeatherNotification>()
+
+            suspend fun run(
+                slots: List<HourlySlot>,
+                hasDog: Boolean,
+            ) = logic(
+                fetchForecast = { _, _ -> kotlin.Result.success(listOf(forecast(slots = slots))) },
+                hasDog = hasDog,
+                postNotification = { posted += it },
+            ).doWork()
+            run(day(storms(16)), hasDog = true)
+            run(day(storms(16)), hasDog = false)
+            run(day(hurricane(14)), hasDog = true)
+            run(day(storms(8)), hasDog = true)
+
+            assertEquals("High 85°, low 55°. Storms from 4 PM. Sunny says now's a great time for a walk.", posted[0].body)
+            assertEquals("High 85°, low 55°. Storms from 4 PM.", posted[1].body)
+            assertEquals("High 85°, low 55°. Hurricane force winds from 2 PM. Get everyone inside before then.", posted[2].body)
+            assertFalse(posted[3].body.contains("Storms"))
+        }
+
     // --- walk time planning ---
 
     @Test

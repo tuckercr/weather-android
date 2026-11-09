@@ -8,6 +8,7 @@ import com.fangjet.weather.domain.WalkLevel
 import com.fangjet.weather.domain.WalkOutlook
 import com.fangjet.weather.domain.WalkRating
 import com.fangjet.weather.domain.WalkReason
+import com.fangjet.weather.domain.WalkWarning
 import com.fangjet.weather.util.PavementBand
 import com.fangjet.weather.util.WindForce
 import com.fangjet.weather.util.airNameRes
@@ -23,12 +24,14 @@ data class WalkText(
  * What the walk card says: the sentence that carries the advice and a short caption with
  * [com.fangjet.weather.domain.WalkCheck]'s reason when it's more than a wait (the pavement, heat or
  * cold, the air by its pollutant, a gale or storms), or the outlook after a walk now. Hurricane force
- * wind turns it into a warning, which shows even without a dog. Built with the screen state; the
+ * wind, now or in the next few hours, turns it into a warning, which shows even without a dog, and
+ * likely storms in the next few hours are added to the caption. Built with the screen state; the
  * card says it. Same wording as iOS's `WalkCardContent`.
  */
 data class WalkCardContent(
     /** Picks the paw's tint. */
     val rating: WalkRating,
+    /** The warning look: the Danger title, a triangle and the danger tint. */
     val isDanger: Boolean,
     val headline: WalkText,
     val caption: WalkText?,
@@ -37,15 +40,19 @@ data class WalkCardContent(
 fun walkCardContent(advice: WalkAdvice) =
     WalkCardContent(
         rating = advice.rating,
-        isDanger = advice.rating == WalkRating.DANGER,
+        isDanger = advice.isDanger,
         headline = walkDetail(advice),
         caption = walkCaption(advice),
     )
 
-/** The card's sentence: walk now, around a time (today or tomorrow), or no good time soon. */
+/**
+ * The card's sentence: hurricane force wind now or from an hour, walk now, around a time (today or
+ * tomorrow), or no good time soon.
+ */
 internal fun walkDetail(advice: WalkAdvice): WalkText =
     when {
         advice.rating == WalkRating.DANGER -> WalkText(R.string.walk_danger_hurricane)
+        advice.warning is WalkWarning.Hurricane -> WalkText(R.string.walk_danger_hurricane_from, listOf(advice.warning.timeLabel))
         advice.rating == WalkRating.GREAT -> WalkText(R.string.walk_now)
         advice.bestTimeLabel != null && advice.bestTimeIsTomorrow ->
             WalkText(R.string.walk_around_tomorrow, listOf(advice.bestTimeLabel))
@@ -54,10 +61,32 @@ internal fun walkDetail(advice: WalkAdvice): WalkText =
     }
 
 /**
+ * "Get everyone inside before then." under hurricane force wind ahead. Otherwise the caption for now
+ * ([nowCaption]), with likely storms ahead after it ("Too hot for paws. Storms from 4 PM."), unless
+ * it's already the outlook that ends in storms.
+ */
+internal fun walkCaption(advice: WalkAdvice): WalkText? {
+    val warning = advice.warning
+    if (warning is WalkWarning.Hurricane && advice.rating != WalkRating.DANGER) return WalkText(R.string.walk_danger_get_inside)
+    val caption = nowCaption(advice)
+    if (warning !is WalkWarning.Storms) return caption
+    val storms = WalkText(R.string.walk_storms_from, listOf(warning.timeLabel))
+    val outlook = advice.outlook
+    val stormsOutlook = advice.rating == WalkRating.GREAT &&
+        outlook is WalkOutlook.Until &&
+        (outlook.change == WalkChange.STORMS || outlook.change == WalkChange.MAYBE_STORMS)
+    return when {
+        caption == null -> storms
+        stormsOutlook -> caption
+        else -> WalkText(R.string.walk_caption_and_more, listOf(caption, storms))
+    }
+}
+
+/**
  * The outlook after a walk now; otherwise the reason now isn't the time, when it's worth more than a
  * wait (or it's the pavement, which says how hot it is now).
  */
-internal fun walkCaption(advice: WalkAdvice): WalkText? {
+private fun nowCaption(advice: WalkAdvice): WalkText? {
     if (advice.rating == WalkRating.GREAT) return advice.outlook?.let(::outlookText)
     val reason = advice.now.reason ?: return null
     val severe = advice.now.level >= WalkLevel.POTTY_ONLY

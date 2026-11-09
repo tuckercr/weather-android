@@ -20,10 +20,6 @@ Finished items move to Done at the bottom.
       and the in-app explanation, which the switch already shows. Google reviews it. App Store
       Connect: say in the review notes what "Always" is for (Settings › Notifications › Follow my
       location). (11-03)
-- [ ] **Storms in the dog walking line, and maybe the hero text.** Warn about thunder in the walk
-      card ("Storms from 4 PM, walk before 3"), and possibly the pets' hero line. Check that both
-      forecast providers give thunderstorm codes hourly. Should storm hours also be dropped from
-      suggested walks, like bad air? (10-30)
 - [ ] **Android: the city search in SEARCH.md**, assigned to a new developer. iOS has had it since
       11-06, so until it lands the apps differ: Open-Meteo prefix search with the OpenWeather
       fallback, filtering, county labels, sorting with the size guard, text after a comma, US ZIP
@@ -140,11 +136,6 @@ Finished items move to Done at the bottom.
       day plans nothing until the next morning. (11-02)
 - Won't do: let people choose the morning briefing time; it stays at 8:30. (10-26, decided 10-31)
 
-- [ ] **Danger in the notifications.** At hurricane force the app shows a Danger warning, but the
-      8:30 briefing and the walk nudges only find no walking hours ("Not a good day for
-      walkies."). A forecast of it could be said in the briefing, or get a warning of its own.
-      Both apps. (11-07)
-
 ## From the 11-02 code review
 
 Found reviewing the iOS changes since TestFlight build 1; where Android works the same way it's
@@ -207,11 +198,6 @@ noted. Checked against the code, not fixed yet.
 ## Walk planner and pet safety
 
 - [ ] Retune the pavement heat model after an outdoor check of your own. (10-27)
-- [ ] **Hurricane warnings ahead are faked as now.** When hurricane force is forecast in the next 6
-      hours, the walk verdict on now gets a force-12 wind factor, so the card says "Hurricane force
-      winds" while the Wind tile shows a breeze. A warning about later should be its own field on
-      the walk advice ("Hurricane force winds from 6 PM"), separate from the verdict on now. Both
-      apps. (11-07)
 - [ ] **The Danger warning lives inside the walk card.** It borrows the card's icon, label and
       headline, and needs an exception to the card's own rule for when it shows (no dog,
       `walk_card_enabled` off). A danger to everyone isn't walk advice: a separate warning banner
@@ -394,6 +380,16 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Hurricane and storm warnings ahead** (11-09): hurricane force wind forecast in the next 6
+      hours is a warning of its own on the walk card ("Hurricane force winds from 6 PM", "Get
+      everyone inside before then.", for everyone, dog or not) instead of being treated as wind
+      now, so the card, the hero and the Wind tile agree about now. Likely thunderstorms in the
+      next 6 hours add "Storms from 4 PM." to the walk card's caption. The 8:30 briefing says
+      either for the rest of the day, in place of the walk sentence for a hurricane. Storm hours
+      were already left out of suggested walks. One difference: Android's briefing also counts
+      hurricane force in the reading at 8:30, since it runs then; iOS plans briefings ahead from
+      the forecast hours. Not done: the hero's line doesn't mention storms ahead, and walk nudges
+      don't mention either warning.
 - [x] **Manage Locations polish** (11-08): Android's rows wrap a long name at the delete button,
       not halfway across, and iOS's Settings row says "Manage Locations" like the screen and
       Android.

@@ -11,6 +11,8 @@ import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WalkAdvice
 import com.fangjet.weather.domain.WalkRating
 import com.fangjet.weather.domain.hasBadAirForWalking
+import com.fangjet.weather.domain.hasLikelyStorms
+import com.fangjet.weather.domain.isHurricaneForce
 import com.fangjet.weather.domain.isPrecipitating
 import com.fangjet.weather.domain.notificationLocation
 import com.fangjet.weather.domain.petMoodAt
@@ -18,6 +20,7 @@ import com.fangjet.weather.domain.walkAdviceForReading
 import com.fangjet.weather.util.NextRain
 import com.fangjet.weather.util.SkyCondition
 import com.fangjet.weather.util.Strings
+import com.fangjet.weather.util.WindForce
 import com.fangjet.weather.util.airNameOrPoorRes
 import com.fangjet.weather.util.dayOf
 import com.fangjet.weather.util.displayedRainChance
@@ -25,6 +28,7 @@ import com.fangjet.weather.util.formatEpochTime
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.skyCondition
 import com.fangjet.weather.util.todayHighLow
+import com.fangjet.weather.util.windForce
 import java.time.Instant
 import java.time.ZoneOffset
 import kotlin.math.abs
@@ -106,7 +110,8 @@ internal class NotificationWorkerLogic(
 
         if (!briefingOn) return Result.success()
         val badAir = forecast?.let { badAirPhrase(strings, it, weather.offsetSeconds, now, thresholds) }
-        val (title, body) = buildBriefingContent(strings, weather, todayForecast, walk.takeIf { hasDog() }, badAir)
+        val warning = briefingWarning(weather, forecast.orEmpty(), now, thresholds)
+        val (title, body) = buildBriefingContent(strings, weather, todayForecast, walk.takeIf { hasDog() }, badAir, warning)
         postNotification(
             WeatherNotification(
                 NotificationKind.MORNING_BRIEFING,
@@ -164,6 +169,59 @@ internal class WalkTimeLogic(
 private const val BRIEFING_RAIN_CHANCE = 40
 
 /**
+ * The hours from the one under way at [nowEpochSeconds] to the end of the city's day: what the
+ * briefing's bad-air phrase and warnings look at.
+ */
+private fun restOfDay(
+    forecast: List<DayForecast>,
+    utcOffsetSeconds: Int,
+    nowEpochSeconds: Long,
+): List<HourlySlot> {
+    fun localDay(epochSeconds: Long) = Math.floorDiv(epochSeconds + utcOffsetSeconds, 86_400L)
+    return forecast.flatMap { it.hourlySlots }.filter { slot ->
+        val start = slot.epochSeconds ?: return@filter false
+        start + 3600 > nowEpochSeconds && localDay(start) == localDay(nowEpochSeconds)
+    }
+}
+
+/** What the briefing warns about today, ahead of the walk. Same rules as iOS's `NotificationPlanner`. */
+internal sealed interface BriefingWarning {
+    /** Hurricane force wind in the hour under way. */
+    data object HurricaneNow : BriefingWarning
+
+    /** Hurricane force wind from a later hour today ([timeLabel], such as "2 PM"). */
+    data class HurricaneFrom(
+        val timeLabel: String,
+    ) : BriefingWarning
+
+    /** Likely thunderstorms from a later hour today. */
+    data class StormsFrom(
+        val timeLabel: String,
+    ) : BriefingWarning
+}
+
+/**
+ * Hurricane force wind now (the hour under way, or the reading's own wind or gusts, which the walk
+ * card goes by), else hurricane force wind later today, else likely storms later today. Storms in the
+ * hour under way aren't mentioned: the title already gives its weather.
+ */
+internal fun briefingWarning(
+    weather: CurrentWeather,
+    forecast: List<DayForecast>,
+    nowEpochSeconds: Long,
+    thresholds: PetWeatherThresholds,
+): BriefingWarning? {
+    val hours = restOfDay(forecast, weather.offsetSeconds, nowEpochSeconds)
+    val (underWay, later) = hours.partition { (it.epochSeconds ?: Long.MAX_VALUE) <= nowEpochSeconds }
+    val readingHurricane = windForce(weather.windSpeed, weather.units) >= WindForce.HURRICANE ||
+        weather.windGust?.let { windForce(it, weather.units) >= WindForce.HURRICANE } == true
+    if (readingHurricane || underWay.any(::isHurricaneForce)) return BriefingWarning.HurricaneNow
+    later.firstOrNull(::isHurricaneForce)?.let { return BriefingWarning.HurricaneFrom(it.timeLabel) }
+    later.firstOrNull { hasLikelyStorms(it, thresholds) }?.let { return BriefingWarning.StormsFrom(it.timeLabel) }
+    return null
+}
+
+/**
  * "Smoky air today" when bad air rules out walking hours from the one under way to the end of the
  * city's day, named by the worst hour's main pollutant with the hero caption's names
  * ([airNameOrPoorRes]): fine particles read as smoke, coarse ones as dust, ozone by name, anything
@@ -176,20 +234,18 @@ internal fun badAirPhrase(
     nowEpochSeconds: Long,
     thresholds: PetWeatherThresholds,
 ): String? {
-    fun localDay(epochSeconds: Long) = Math.floorDiv(epochSeconds + utcOffsetSeconds, 86_400L)
-    val worst = forecast
-        .flatMap { it.hourlySlots }
-        .filter { slot: HourlySlot ->
-            val start = slot.epochSeconds ?: return@filter false
-            start + 3600 > nowEpochSeconds && localDay(start) == localDay(nowEpochSeconds) && slot.hasBadAirForWalking(thresholds)
-        }.maxByOrNull { it.airQuality?.index ?: 0 } ?: return null
+    val worst = restOfDay(forecast, utcOffsetSeconds, nowEpochSeconds)
+        .filter { it.hasBadAirForWalking(thresholds) }
+        .maxByOrNull { it.airQuality?.index ?: 0 } ?: return null
     return strings.get(R.string.notif_bad_air_today, strings.get(airNameOrPoorRes(worst.airQuality?.mainPollutant)))
 }
 
 /**
  * "52° and partly cloudy in Knoxville" / "High 70°, low 45°, 60% chance of rain. Sunny's picked
  * 1 PM for a walk." The walk sentence only comes with [walk], which is null without a dog. Bad-air
- * hours are left out of the walk silently, so [badAir] ("Smoky air today") says why.
+ * hours are left out of the walk silently, so [badAir] ("Smoky air today") says why. Hurricane force
+ * wind ([warning]) takes the walk sentence's place, and is said with or without a dog; storms later
+ * come before the walk sentence ("Storms from 4 PM.").
  */
 internal fun buildBriefingContent(
     strings: Strings,
@@ -197,6 +253,7 @@ internal fun buildBriefingContent(
     todayForecast: DayForecast?,
     walk: WalkAdvice?,
     badAir: String? = null,
+    warning: BriefingWarning? = null,
 ): Pair<String, String> {
     // As on the hero: today's forecast high and low, taking in the temperature now.
     val (high, low) = todayHighLow(weather, todayForecast).let { (h, l) -> h.roundToInt() to l.roundToInt() }
@@ -212,7 +269,14 @@ internal fun buildBriefingContent(
     } else {
         strings.get(R.string.notif_briefing_high_low, high, low)
     }
-    val body = listOfNotNull(highLow, walkSentence(strings, walk, badAir)).joinToString(" ")
+    val rest = when (warning) {
+        BriefingWarning.HurricaneNow -> listOf(strings.get(R.string.notif_briefing_hurricane_now))
+        is BriefingWarning.HurricaneFrom -> listOf(strings.get(R.string.notif_briefing_hurricane_from, warning.timeLabel))
+        is BriefingWarning.StormsFrom ->
+            listOfNotNull(strings.get(R.string.walk_storms_from, warning.timeLabel), walkSentence(strings, walk, badAir))
+        null -> listOfNotNull(walkSentence(strings, walk, badAir))
+    }
+    val body = (listOf(highLow) + rest).joinToString(" ")
     return title to body
 }
 

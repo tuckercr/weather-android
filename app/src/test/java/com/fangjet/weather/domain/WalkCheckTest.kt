@@ -10,13 +10,13 @@ import com.fangjet.weather.model.heroCaption
 import com.fangjet.weather.model.heroWalkCaptions
 import com.fangjet.weather.model.rulesOutWalkNow
 import com.fangjet.weather.model.walkCaption
+import com.fangjet.weather.model.walkCardContent
 import com.fangjet.weather.model.walkDetail
 import com.fangjet.weather.util.PavementBand
 import com.fangjet.weather.util.WindForce
 import com.fangjet.weather.util.airNameRes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -264,19 +264,111 @@ class WalkCheckTest {
         assertEquals(WalkLevel.POTTY_ONLY, check(slot(wind = 19.0), gustForceNow = WindForce.STORM).level)
     }
 
-    @Test
-    fun `hurricane force wind in the next few hours is a danger now`() {
-        val start = 1_762_516_800L
+    // --- warnings about later ---
 
-        fun advice(hours: Int) =
-            walkAdviceFor(
-                18.0,
-                listOf(slot(epoch = start), slot("4 PM", wind = 35.0, epoch = start + hours * 3600L)),
-                nowEpochSeconds = start,
-            )
-        assertEquals(WalkRating.DANGER, advice(3)?.rating)
-        assertEquals(WalkReason.Wind(WindForce.HURRICANE), advice(3)?.now?.reason)
-        assertNotEquals(WalkRating.DANGER, advice(9)?.rating)
+    private val start = 1_762_516_800L
+
+    private fun aheadAdvice(
+        later: HourlySlot,
+        hours: Int = 3,
+        now: HourlySlot = slot(),
+        conditionNow: String? = null,
+        hasDog: Boolean = true,
+    ) = walkAdviceFor(
+        18.0,
+        listOf(now.copy(epochSeconds = start), later.copy(epochSeconds = start + hours * 3600L)),
+        nowEpochSeconds = start,
+        conditionNow = conditionNow,
+        hasDog = hasDog,
+    )!!
+
+    @Test
+    fun `hurricane force wind in the next few hours is a warning, not the verdict on now`() {
+        val advice = aheadAdvice(slot("4 PM", wind = 35.0))
+        assertEquals(WalkWarning.Hurricane("4 PM"), advice.warning)
+        // Great now stays great: the hour under way has a breeze.
+        assertEquals(WalkRating.GREAT, advice.rating)
+        assertTrue(advice.now.factors.none { it.level == WalkLevel.DANGER })
+        assertTrue(advice.isDanger)
+        // Beyond 6 hours it isn't news yet.
+        assertNull(aheadAdvice(slot("4 PM", wind = 35.0), hours = 9).warning)
+        // An hour without a time never counts.
+        val untimed = walkAdviceFor(18.0, listOf(slot(epoch = start), slot("4 PM", wind = 35.0)), nowEpochSeconds = start)
+        assertNull(untimed?.warning)
+    }
+
+    @Test
+    fun `hurricane force wind now gives no warning`() {
+        val advice = aheadAdvice(slot("4 PM", wind = 35.0), now = slot(wind = 35.0))
+        assertEquals(WalkRating.DANGER, advice.rating)
+        assertNull(advice.warning)
+        assertTrue(advice.isDanger)
+        // Nor storms ahead: hurricane force now is warning enough.
+        assertNull(aheadAdvice(slot("4 PM", rain = 80, icon = "11d"), now = slot(wind = 35.0)).warning)
+        // The hurricane-ahead caption replaces the reason about now.
+        val hotNow = walkAdviceFor(
+            35.0,
+            listOf(slot(epoch = start), slot("6 PM", wind = 35.0, epoch = start + 3 * 3600L)),
+            nowEpochSeconds = start,
+        )!!
+        assertEquals(WalkText(R.string.walk_danger_get_inside), walkCaption(hotNow))
+    }
+
+    @Test
+    fun `likely storms ahead are a warning, unless storms are already here`() {
+        val storms = slot("4 PM", rain = 80, icon = "11d")
+        assertEquals(WalkWarning.Storms("4 PM"), aheadAdvice(storms).warning)
+        assertFalse(aheadAdvice(storms).isDanger)
+        assertNull(aheadAdvice(storms, conditionNow = "Thunderstorm").warning)
+        // A chance of storms under 60% is only maybe.
+        assertNull(aheadAdvice(slot("4 PM", rain = 40, icon = "11d")).warning)
+        // Hurricane force wind wins over storms.
+        assertEquals(WalkWarning.Hurricane("4 PM"), aheadAdvice(storms.copy(windSpeed = 35.0)).warning)
+    }
+
+    @Test
+    fun `the slot rules for warnings`() {
+        assertTrue(isHurricaneForce(slot(wind = 35.0)))
+        assertFalse(isHurricaneForce(slot(wind = 30.0)))
+        assertTrue(hasLikelyStorms(slot(rain = 60, icon = "11d"), default))
+        assertFalse(hasLikelyStorms(slot(rain = 59, icon = "11d"), default))
+        assertFalse(hasLikelyStorms(slot(rain = 90, icon = "10d"), default))
+    }
+
+    @Test
+    fun `the card warns about hurricane force wind ahead`() {
+        val content = walkCardContent(aheadAdvice(slot("6 PM", wind = 35.0), hasDog = false))
+        assertEquals(WalkText(R.string.walk_danger_hurricane_from, listOf("6 PM")), content.headline)
+        assertEquals(WalkText(R.string.walk_danger_get_inside), content.caption)
+        assertTrue(content.isDanger)
+        assertTrue(walkCardShown(aheadAdvice(slot("6 PM", wind = 35.0), hasDog = false), walkCardEnabled = false))
+        // Hurricane force now is as before.
+        val now = walkCardContent(aheadAdvice(slot("6 PM"), now = slot(wind = 35.0)))
+        assertEquals(WalkText(R.string.walk_danger_hurricane), now.headline)
+        assertEquals(WalkText(R.string.walk_danger_stay_inside), now.caption)
+        assertTrue(now.isDanger)
+    }
+
+    @Test
+    fun `the card adds storms ahead to the caption`() {
+        val storms = slot("4 PM", rain = 80, icon = "11d")
+        val stormsFrom = WalkText(R.string.walk_storms_from, listOf("4 PM"))
+        // Great now, with the outlook already saying storms: left as it is.
+        val great = walkCardContent(aheadAdvice(storms))
+        assertEquals(WalkText(R.string.walk_now), great.headline)
+        assertEquals(WalkText(R.string.walk_until_storms, listOf("4 PM")), great.caption)
+        assertFalse(great.isDanger)
+        // Not a walk now, with no caption of its own: the storms are the caption.
+        val dark = aheadAdvice(storms, now = slot(icon = "01n"))
+        assertEquals(stormsFrom, walkCaption(dark))
+        // A caption of its own: the storms follow it.
+        val hot = walkAdviceFor(
+            35.0,
+            listOf(slot(epoch = start), storms.copy(epochSeconds = start + 3 * 3600L)),
+            nowEpochSeconds = start,
+        )!!
+        assertEquals(WalkText(R.string.walk_caption_and_more, listOf(WalkText(R.string.walk_too_hot), stormsFrom)), walkCaption(hot))
+        assertFalse(walkCardShown(hot, walkCardEnabled = false))
     }
 
     @Test
@@ -365,6 +457,8 @@ class WalkCheckTest {
         assertTrue(walkCardShown(WalkAdvice(WalkRating.OKAY, "4 PM"), walkCardEnabled = true))
         assertFalse(walkCardShown(WalkAdvice(WalkRating.OKAY, "4 PM"), walkCardEnabled = false))
         assertTrue(walkCardShown(WalkAdvice(WalkRating.DANGER, null), walkCardEnabled = false))
+        assertTrue(walkCardShown(WalkAdvice(WalkRating.GREAT, null, warning = WalkWarning.Hurricane("6 PM")), walkCardEnabled = false))
+        assertFalse(walkCardShown(WalkAdvice(WalkRating.GREAT, null, warning = WalkWarning.Storms("6 PM")), walkCardEnabled = false))
     }
 
     @Test
