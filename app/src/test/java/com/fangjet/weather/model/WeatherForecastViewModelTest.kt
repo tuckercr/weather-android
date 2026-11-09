@@ -14,6 +14,9 @@ import com.fangjet.weather.domain.WeatherUnits
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -23,6 +26,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestWatcher
@@ -502,6 +506,8 @@ class WeatherForecastViewModelTest {
         readRainOutlookSettings: () -> RainOutlookSettings = { RainOutlookSettings() },
         isTemperatureUnitsShown: () -> Boolean = { true },
         readPetWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
+        isRadarEnabled: () -> Boolean = { true },
+        remoteConfigActivations: Flow<Int> = flowOf(0),
         foregroundRefreshMinMinutes: () -> Long = { 0L },
         nowMillis: () -> Long = { 0L },
         clock: () -> Long = { 1_000L },
@@ -525,6 +531,8 @@ class WeatherForecastViewModelTest {
         readRainOutlookSettings = readRainOutlookSettings,
         isTemperatureUnitsShown = isTemperatureUnitsShown,
         readPetWeatherThresholds = readPetWeatherThresholds,
+        isRadarEnabled = isRadarEnabled,
+        remoteConfigActivations = remoteConfigActivations,
         foregroundRefreshMinMinutes = foregroundRefreshMinMinutes,
         nowMillis = nowMillis,
         clock = clock,
@@ -592,8 +600,8 @@ class WeatherForecastViewModelTest {
     fun `pet weather thresholds come from Remote Config`() {
         val custom = PetWeatherThresholds.validated(petHotC = 25.0)
 
-        assertEquals(PetWeatherThresholds.DEFAULT, viewModel().screenConfig.thresholds)
-        assertEquals(custom, viewModel(readPetWeatherThresholds = { custom }).screenConfig.thresholds)
+        assertEquals(PetWeatherThresholds.DEFAULT, viewModel().screenConfig.value.thresholds)
+        assertEquals(custom, viewModel(readPetWeatherThresholds = { custom }).screenConfig.value.thresholds)
     }
 
     // --- foreground_refresh_min_minutes ---
@@ -742,34 +750,60 @@ class WeatherForecastViewModelTest {
         }
 
     @Test
+    fun `a Remote Config activation while the app is open updates the screen without a restart`() =
+        runTest {
+            // A settable Remote Config: values change, and apply once they're activated.
+            var radarEnabled = true
+            var unitsShown = true
+            val activations = MutableStateFlow(0)
+            val vm = viewModel(
+                isRadarEnabled = { radarEnabled },
+                isTemperatureUnitsShown = { unitsShown },
+                remoteConfigActivations = activations,
+            )
+            vm.refreshCurrent(SavedLocation(label = "Austin", latitude = 30.27, longitude = -97.74))
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+            assertTrue((vm.screen.value as WeatherScreen.Weather).state.showsRadar)
+
+            radarEnabled = false
+            unitsShown = false
+            activations.value = 1
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+
+            assertFalse(vm.screenConfig.value.radarEnabled)
+            assertFalse((vm.screen.value as WeatherScreen.Weather).state.showsRadar)
+            assertFalse(vm.temperatureUnitsShown.value)
+        }
+
+    @Test
     fun `walk card is shown by default and hidden when Remote Config turns it off`() {
-        assertEquals(true, viewModel().screenConfig.walkCardEnabled)
-        assertEquals(false, viewModel(isWalkCardEnabled = { false }).screenConfig.walkCardEnabled)
+        assertEquals(true, viewModel().screenConfig.value.walkCardEnabled)
+        assertEquals(false, viewModel(isWalkCardEnabled = { false }).screenConfig.value.walkCardEnabled)
     }
 
     @Test
     fun `hourly strip, next-rain line and week list are shown by default and each can be turned off`() {
         val defaults = viewModel()
-        assertEquals(true, defaults.screenConfig.hourlyForecastEnabled)
-        assertEquals(true, defaults.screenConfig.nextRainEnabled)
-        assertEquals(true, defaults.screenConfig.weekForecastEnabled)
+        assertEquals(true, defaults.screenConfig.value.hourlyForecastEnabled)
+        assertEquals(true, defaults.screenConfig.value.nextRainEnabled)
+        assertEquals(true, defaults.screenConfig.value.weekForecastEnabled)
 
-        assertEquals(false, viewModel(isHourlyForecastEnabled = { false }).screenConfig.hourlyForecastEnabled)
-        assertEquals(false, viewModel(isNextRainEnabled = { false }).screenConfig.nextRainEnabled)
-        assertEquals(false, viewModel(isWeekForecastEnabled = { false }).screenConfig.weekForecastEnabled)
+        assertEquals(false, viewModel(isHourlyForecastEnabled = { false }).screenConfig.value.hourlyForecastEnabled)
+        assertEquals(false, viewModel(isNextRainEnabled = { false }).screenConfig.value.nextRainEnabled)
+        assertEquals(false, viewModel(isWeekForecastEnabled = { false }).screenConfig.value.weekForecastEnabled)
     }
 
     @Test
     fun `rain outlook settings come from Remote Config`() {
-        assertEquals(RainOutlookSettings(), viewModel().screenConfig.rainOutlookSettings)
+        assertEquals(RainOutlookSettings(), viewModel().screenConfig.value.rainOutlookSettings)
         val remote = RainOutlookSettings(enabled = false, hours = 6, minChance = 40)
-        assertEquals(remote, viewModel(readRainOutlookSettings = { remote }).screenConfig.rainOutlookSettings)
+        assertEquals(remote, viewModel(readRainOutlookSettings = { remote }).screenConfig.value.rainOutlookSettings)
     }
 
     @Test
     fun `temperatures show their unit by default and drop it when Remote Config turns it off`() {
-        assertEquals(true, viewModel().temperatureUnitsShown)
-        assertEquals(false, viewModel(isTemperatureUnitsShown = { false }).temperatureUnitsShown)
+        assertEquals(true, viewModel().temperatureUnitsShown.value)
+        assertEquals(false, viewModel(isTemperatureUnitsShown = { false }).temperatureUnitsShown.value)
     }
 
     class MainDispatcherRule(

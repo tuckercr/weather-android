@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -56,17 +57,20 @@ class WeatherForecastViewModel internal constructor(
     private val position: DevicePositioning,
     private val onError: (errorKey: String) -> Unit = {},
     private val onSettingsOpened: () -> Unit = {},
-    isWalkCardEnabled: () -> Boolean = { true },
-    isHourlyForecastEnabled: () -> Boolean = { true },
-    isNextRainEnabled: () -> Boolean = { true },
-    isWeekForecastEnabled: () -> Boolean = { true },
-    readRainOutlookSettings: () -> RainOutlookSettings = { RainOutlookSettings() },
+    private val isWalkCardEnabled: () -> Boolean = { true },
+    private val isHourlyForecastEnabled: () -> Boolean = { true },
+    private val isNextRainEnabled: () -> Boolean = { true },
+    private val isWeekForecastEnabled: () -> Boolean = { true },
+    private val readRainOutlookSettings: () -> RainOutlookSettings = { RainOutlookSettings() },
     isTemperatureUnitsShown: () -> Boolean = { true },
-    isAirQualityEnabled: () -> Boolean = { true },
-    readTodayTiles: () -> TodayTileSwitches = { TodayTileSwitches() },
-    readSeasonalThemes: () -> List<SeasonalTheme> = { emptyList() },
-    readPetWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
-    isRadarEnabled: () -> Boolean = { true },
+    private val isAirQualityEnabled: () -> Boolean = { true },
+    private val readTodayTiles: () -> TodayTileSwitches = { TodayTileSwitches() },
+    private val readSeasonalThemes: () -> List<SeasonalTheme> = { emptyList() },
+    private val readPetWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
+    private val isRadarEnabled: () -> Boolean = { true },
+    // Ticks each time newly fetched Remote Config values are activated, so the switches above are
+    // read again and a fetch that lands while the app is open applies without a restart.
+    remoteConfigActivations: Flow<Int> = flowOf(0),
     // Settings' Dog walking switch.
     showWalkCard: Flow<Boolean> = flowOf(true),
     // Settings' units: miles or kilometres follow it, or the device's region with System.
@@ -104,30 +108,44 @@ class WeatherForecastViewModel internal constructor(
         readSeasonalThemes = remoteConfigRepository::seasonalThemes,
         readPetWeatherThresholds = remoteConfigRepository::petWeatherThresholds,
         isRadarEnabled = remoteConfigRepository::radarEnabled,
+        remoteConfigActivations = remoteConfigRepository.activationCount,
         showWalkCard = preferencesRepository.showWalkCard,
         unitOverride = preferencesRepository.unitOverride,
         foregroundRefreshMinMinutes = remoteConfigRepository::foregroundRefreshMinMinutes,
     )
 
-    /** Remote Config `temperature_units_shown`: false shows temperatures as "89°", without the unit. */
-    val temperatureUnitsShown: Boolean = isTemperatureUnitsShown()
+    /**
+     * Remote Config `temperature_units_shown`: false shows temperatures as "89°", without the unit.
+     * Read again on each activation.
+     */
+    val temperatureUnitsShown: StateFlow<Boolean> =
+        remoteConfigActivations
+            .map { isTemperatureUnitsShown() }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, isTemperatureUnitsShown())
 
     /**
-     * The Remote Config switches and settings the screen goes by, read once. Air quality: the fetch
-     * checks `air_quality_enabled` too; this hides a reading in a forecast cached before it went off.
+     * The Remote Config switches and settings the screen goes by, read again on each activation.
+     * Air quality: the fetch checks `air_quality_enabled` too; this hides a reading in a forecast
+     * cached before it went off.
      */
-    val screenConfig = WeatherScreenConfig(
-        thresholds = readPetWeatherThresholds(),
-        seasonalThemes = readSeasonalThemes(),
-        nextRainEnabled = isNextRainEnabled(),
-        rainOutlookSettings = readRainOutlookSettings(),
-        airQualityEnabled = isAirQualityEnabled(),
-        hourlyForecastEnabled = isHourlyForecastEnabled(),
-        radarEnabled = isRadarEnabled(),
-        weekForecastEnabled = isWeekForecastEnabled(),
-        walkCardEnabled = isWalkCardEnabled(),
-        todayTiles = readTodayTiles(),
-    )
+    val screenConfig: StateFlow<WeatherScreenConfig> =
+        remoteConfigActivations
+            .map { readScreenConfig() }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, readScreenConfig())
+
+    private fun readScreenConfig() =
+        WeatherScreenConfig(
+            thresholds = readPetWeatherThresholds(),
+            seasonalThemes = readSeasonalThemes(),
+            nextRainEnabled = isNextRainEnabled(),
+            rainOutlookSettings = readRainOutlookSettings(),
+            airQualityEnabled = isAirQualityEnabled(),
+            hourlyForecastEnabled = isHourlyForecastEnabled(),
+            radarEnabled = isRadarEnabled(),
+            weekForecastEnabled = isWeekForecastEnabled(),
+            walkCardEnabled = isWalkCardEnabled(),
+            todayTiles = readTodayTiles(),
+        )
 
     /**
      * Settings' units, for miles or kilometres in Misty's View. The screen applies the device's
@@ -189,11 +207,16 @@ class WeatherForecastViewModel internal constructor(
     /**
      * What the screen shows for the active city at the screen's clock: the reading (or the forecast
      * hour standing in for an old one), the hero, the walk verdict, the tiles and the sections the
-     * settings switch on.
+     * settings switch on. Worked out again when any of those changes, Remote Config included.
      */
     val screen: StateFlow<WeatherScreen> =
-        combine(_currentWeather, _forecast, _staleErrorKey, _now, showWalkCard) { current, forecast, stale, now, hasDog ->
-            weatherScreen(current, forecast, stale, now, hasDog, screenConfig)
+        combine(
+            combine(_currentWeather, _forecast, _staleErrorKey, ::Triple),
+            _now,
+            showWalkCard,
+            screenConfig,
+        ) { (current, forecast, stale), now, hasDog, config ->
+            weatherScreen(current, forecast, stale, now, hasDog, config)
         }.stateIn(viewModelScope, SharingStarted.Eagerly, WeatherScreen.Loading)
 
     private val currentWeatherFetchGeneration = AtomicInteger(0)

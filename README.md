@@ -399,7 +399,9 @@ Settings → About → *Privacy Policy*.
 Server-tunable values, so behaviour can change without shipping an update. The
 app never blocks on a fetch: it starts from the in-app defaults in
 [`remote_config_defaults.xml`](app/src/main/res/xml/remote_config_defaults.xml), reads the last
-activated values on cold start, and refreshes in the background at most hourly. Every read is
+activated values on cold start, and refreshes in the background at most hourly. Values activated
+while the app is open apply at once: the weather screen, Settings, onboarding and the update prompt
+read Remote Config again on each activation. Every read is
 validated: a missing or bad value falls back to the default rather than crashing.
 
 | Key | Type | Default | What it does |

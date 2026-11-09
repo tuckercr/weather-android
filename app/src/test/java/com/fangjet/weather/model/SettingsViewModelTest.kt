@@ -10,6 +10,8 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -146,6 +148,38 @@ class SettingsViewModelTest {
         }
 
     @Test
+    fun `a Remote Config activation while Settings is open updates the switches and the count`() =
+        runTest {
+            // A settable Remote Config: Rain is switched off, then on again by a fetch.
+            val off = mutableSetOf(NotificationKind.RAIN)
+            val activations = MutableStateFlow(0)
+            val repo = mockk<PreferencesRepository>(relaxed = true)
+            every { repo.showWalkCard } returns flowOf(true)
+            every { repo.notifyMorningBriefing } returns flowOf(true)
+            every { repo.notifyWalkTime } returns flowOf(true)
+            every { repo.notifyRain } returns flowOf(true)
+            val remote = mockk<RemoteConfigRepository>(relaxed = true)
+            every { remote.notificationsEnabled(any()) } answers { firstArg<NotificationKind>() !in off }
+            every { remote.activationCount } returns activations
+            val viewModel = SettingsViewModel(repo, remote, FakePermissions())
+            val collected = mutableListOf<Int>()
+            val job = backgroundScope.launch { viewModel.notificationsOnCount.collect { collected += it } }
+            val kinds = backgroundScope.launch { viewModel.remotelyEnabledKinds.collect {} }
+            mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+            assertEquals(2, collected.last())
+            assertFalse(NotificationKind.RAIN in viewModel.remotelyEnabledKinds.value)
+
+            off.clear()
+            activations.value = 1
+            mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+            job.cancel()
+            kinds.cancel()
+
+            assertEquals(3, collected.last())
+            assertTrue(NotificationKind.RAIN in viewModel.remotelyEnabledKinds.value)
+        }
+
+    @Test
     fun `the notification count leaves out Walk time without a dog`() =
         runTest {
             fun count(showWalkCard: Boolean): Int {
@@ -258,9 +292,13 @@ class SettingsViewModelTest {
         }
     }
 
-    private fun remoteConfig(off: Set<NotificationKind> = emptySet()): RemoteConfigRepository {
+    private fun remoteConfig(
+        off: Set<NotificationKind> = emptySet(),
+        activations: Flow<Int> = flowOf(0),
+    ): RemoteConfigRepository {
         val remote = mockk<RemoteConfigRepository>(relaxed = true)
         every { remote.notificationsEnabled(any()) } answers { firstArg<NotificationKind>() !in off }
+        every { remote.activationCount } returns activations
         return remote
     }
 

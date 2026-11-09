@@ -51,13 +51,11 @@ import kotlin.math.abs
 @HiltViewModel
 class RadarViewModel internal constructor(
     private val getTimeline: suspend () -> Result<RadarTimeline>,
-    /** Delay between animation frames (ms), from Remote Config. */
-    val frameIntervalMs: Long,
-    /**
-     * Remote Config `radar_enabled`. When false the radar section is hidden and nothing is
-     * fetched from RainViewer or the OpenStreetMap tile servers.
-     */
-    val radarEnabled: Boolean = true,
+    // Delay between animation frames (ms), from Remote Config. Read for each frame, so a value
+    // activated while the app is open applies at once.
+    private val frameIntervalMs: () -> Long,
+    // Remote Config `radar_enabled`, read on each load.
+    private val isRadarEnabled: () -> Boolean = { true },
     // Monotonic clock in milliseconds; injectable for tests.
     private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000 },
     private val loadBaseMap: suspend (RadarTile) -> Bitmap? = { null },
@@ -71,11 +69,17 @@ class RadarViewModel internal constructor(
         tileLoader: RadarTileLoader,
     ) : this(
         getTimeline = radarRepository::getTimeline,
-        frameIntervalMs = remoteConfigRepository.radarFrameIntervalMs(),
-        radarEnabled = remoteConfigRepository.radarEnabled(),
+        frameIntervalMs = remoteConfigRepository::radarFrameIntervalMs,
+        isRadarEnabled = remoteConfigRepository::radarEnabled,
         loadBaseMap = tileLoader::baseMap,
         loadOverlay = { tile, timeline, frame -> tileLoader.overlay(frame, timeline, tile) },
     )
+
+    /**
+     * Remote Config `radar_enabled`. When false the radar section is hidden and nothing is
+     * fetched from RainViewer or the OpenStreetMap tile servers.
+     */
+    val radarEnabled: Boolean get() = isRadarEnabled()
 
     private val _timeline = MutableStateFlow<LoadingState<RadarTimeline>>(LoadingState.Idle)
     val timeline: StateFlow<LoadingState<RadarTimeline>> = _timeline.asStateFlow()
@@ -173,7 +177,7 @@ class RadarViewModel internal constructor(
             // Asleep while paused or before there are frames.
             _playback.first { it.playing }
             timeline.first { (it as? LoadingState.Success)?.data?.frames?.isNotEmpty() == true }
-            delay(frameIntervalMs)
+            delay(frameIntervalMs())
             val count = frames.size
             if (_playback.value.playing && count > 0) {
                 _playback.update { it.copy(frameIndex = (it.frameIndex + 1) % count) }

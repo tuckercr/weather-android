@@ -54,8 +54,8 @@ class RadarViewModelTest {
         loadOverlay: suspend (RadarTile, RadarTimeline, RadarFrame) -> Bitmap? = { _, _, _ -> null },
     ) = RadarViewModel(
         getTimeline = source::fetch,
-        frameIntervalMs = 850,
-        radarEnabled = radarEnabled,
+        frameIntervalMs = { 850 },
+        isRadarEnabled = { radarEnabled },
         nowMillis = { now },
         loadBaseMap = loadBaseMap,
         loadOverlay = loadOverlay,

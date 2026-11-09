@@ -7,11 +7,13 @@ import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
 import com.fangjet.weather.worker.NotificationKind
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -48,6 +50,8 @@ class WelcomeViewModel internal constructor(
     private val hasDogOnce: suspend () -> Boolean = { true },
     // Remote Config's switch for each kind of notification.
     private val remotelyEnabled: (NotificationKind) -> Boolean = { true },
+    // Ticks on each Remote Config activation: the first launch's fetch often lands mid-onboarding.
+    private val remoteConfigActivations: Flow<Int> = flowOf(0),
 ) : ViewModel() {
 
     @Inject
@@ -66,6 +70,7 @@ class WelcomeViewModel internal constructor(
         onOnboardingComplete = analyticsRepository::logOnboardingComplete,
         hasDogOnce = { preferencesRepository.showWalkCard.first() },
         remotelyEnabled = remoteConfigRepository::notificationsEnabled,
+        remoteConfigActivations = remoteConfigRepository.activationCount,
     )
 
     /** null while the prefs read is in-flight. */
@@ -91,16 +96,23 @@ class WelcomeViewModel internal constructor(
     val notificationPromise: StateFlow<NotificationPromise> = _notificationPromise.asStateFlow()
 
     init {
-        _notificationPromise.value = NotificationPromise(
-            walkTimeEnabled = remotelyEnabled(NotificationKind.WALK_TIME),
-            rainEnabled = remotelyEnabled(NotificationKind.RAIN),
-        )
+        readRemoteSwitches()
+        viewModelScope.launch { remoteConfigActivations.collect { readRemoteSwitches() } }
         viewModelScope.launch { _notificationPromise.update { it.copy(hasDog = hasDogOnce()) } }
         viewModelScope.launch {
             _onboardingState.value = OnboardingState(
                 hasSeenWelcome = hasSeenWelcomeOnce(),
                 notificationOnboardingDone = notificationOnboardingDoneOnce(),
                 locationOnboardingDone = locationOnboardingDoneOnce(),
+            )
+        }
+    }
+
+    private fun readRemoteSwitches() {
+        _notificationPromise.update {
+            it.copy(
+                walkTimeEnabled = remotelyEnabled(NotificationKind.WALK_TIME),
+                rainEnabled = remotelyEnabled(NotificationKind.RAIN),
             )
         }
     }

@@ -3,6 +3,9 @@ package com.fangjet.weather.model
 import com.fangjet.weather.worker.NotificationKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -153,6 +156,25 @@ class WelcomeViewModelTest {
             assertEquals(false, vm.notificationPromise.value.hasDog)
         }
 
+    @Test
+    fun `a Remote Config activation during onboarding updates the notification promise`() =
+        runTest {
+            // A settable Remote Config: rain alerts off, then on once a fetch is activated.
+            var rainOn = false
+            val activations = MutableStateFlow(0)
+            val vm = viewModel(
+                remotelyEnabled = { it != NotificationKind.RAIN || rainOn },
+                remoteConfigActivations = activations,
+            )
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals(false, vm.notificationPromise.value.rainEnabled)
+
+            rainOn = true
+            activations.value = 1
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals(true, vm.notificationPromise.value.rainEnabled)
+        }
+
     private fun viewModel(
         hasSeenWelcomeOnce: suspend () -> Boolean = { false },
         notificationOnboardingDoneOnce: suspend () -> Boolean = { false },
@@ -163,6 +185,7 @@ class WelcomeViewModelTest {
         setShowWalkCard: suspend (Boolean) -> Unit = {},
         hasDogOnce: suspend () -> Boolean = { true },
         remotelyEnabled: (NotificationKind) -> Boolean = { true },
+        remoteConfigActivations: Flow<Int> = flowOf(0),
     ) = WelcomeViewModel(
         hasSeenWelcomeOnce = hasSeenWelcomeOnce,
         notificationOnboardingDoneOnce = notificationOnboardingDoneOnce,
@@ -173,6 +196,7 @@ class WelcomeViewModelTest {
         setShowWalkCard = setShowWalkCard,
         hasDogOnce = hasDogOnce,
         remotelyEnabled = remotelyEnabled,
+        remoteConfigActivations = remoteConfigActivations,
     )
 
     class MainDispatcherRule(
