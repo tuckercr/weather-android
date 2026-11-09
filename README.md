@@ -331,7 +331,8 @@ emulator with a clean status bar:
    - **Cache**: clear cached data.
    - **Privacy**: *Share usage statistics*.
    - **About**: the OpenWeather and Open-Meteo attributions, the
-     [privacy policy](https://sunnyandmisty.com/privacy), and the version at the bottom ("Version 1.0.0" for build 1,
+     [privacy policy](https://sunnyandmisty.com/privacy), the [terms of use](https://sunnyandmisty.com/terms),
+     and the version at the bottom ("Version 1.0.0" for build 1,
      with "· Debug build" in debug builds).
 8. **Notifications**: WorkManager runs the 8:30 AM briefing (unless `daily_weather_notifications_enabled`
    is off), which also plans the one-off walk-time nudge, and refreshes
@@ -409,7 +410,8 @@ collection and ad-personalisation signals. Analytics keeps working on its app-in
 Crashlytics is enabled in release builds only (off in debug).
 
 The privacy policy is at [sunnyandmisty.com/privacy](https://sunnyandmisty.com/privacy), linked from
-Settings → About → *Privacy Policy*.
+Settings → About → *Privacy Policy*, and the terms of use at
+[sunnyandmisty.com/terms](https://sunnyandmisty.com/terms), linked from Settings → About → *Terms of Use*.
 
 ## Remote Config
 
