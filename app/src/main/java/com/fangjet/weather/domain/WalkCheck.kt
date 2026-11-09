@@ -216,7 +216,7 @@ private fun walkFactors(
 fun isHurricaneForce(slot: HourlySlot): Boolean = windForce(slot.windSpeed, slot.units) >= WindForce.HURRICANE
 
 /**
- * Likely thunderstorms in [slot]: a thunder icon with a chance from [LIKELY_RAIN_CHANCE], which
+ * Likely thunderstorms in [slot]: a thunder icon with a chance (as shown) from [LIKELY_RAIN_CHANCE], which
  * keeps pets inside. Same as iOS's `WalkConditions.hasLikelyStorms`.
  */
 fun hasLikelyStorms(

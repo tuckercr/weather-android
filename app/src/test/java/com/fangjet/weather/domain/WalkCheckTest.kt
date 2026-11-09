@@ -361,8 +361,9 @@ class WalkCheckTest {
     fun `the slot rules for warnings`() {
         assertTrue(isHurricaneForce(slot(wind = 35.0)))
         assertFalse(isHurricaneForce(slot(wind = 30.0)))
-        assertTrue(hasLikelyStorms(slot(rain = 60, icon = "11d"), default))
-        assertFalse(hasLikelyStorms(slot(rain = 59, icon = "11d"), default))
+        // The chance as the hourly strip shows it: 55% shows as 60%, 54% as 50%.
+        assertTrue(hasLikelyStorms(slot(rain = 55, icon = "11d"), default))
+        assertFalse(hasLikelyStorms(slot(rain = 54, icon = "11d"), default))
         assertFalse(hasLikelyStorms(slot(rain = 90, icon = "10d"), default))
     }
 
