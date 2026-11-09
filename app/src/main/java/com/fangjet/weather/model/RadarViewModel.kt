@@ -3,6 +3,7 @@ package com.fangjet.weather.model
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fangjet.weather.data.RadarCoverageMap
 import com.fangjet.weather.data.RadarRepository
 import com.fangjet.weather.data.RadarTile
 import com.fangjet.weather.data.RadarTileLoader
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -57,6 +59,7 @@ class RadarViewModel internal constructor(
     private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000 },
     private val loadBaseMap: suspend (RadarTile) -> Bitmap? = { null },
     private val loadOverlay: suspend (RadarTile, RadarTimeline, RadarFrame) -> Bitmap? = { _, _, _ -> null },
+    private val loadCoverage: suspend (RadarTile, RadarTimeline) -> RadarCoverageMap? = { _, _ -> null },
 ) : ViewModel() {
 
     @Inject
@@ -70,6 +73,7 @@ class RadarViewModel internal constructor(
         isRadarEnabled = remoteConfigRepository::radarEnabled,
         loadBaseMap = tileLoader::baseMap,
         loadOverlay = { tile, timeline, frame -> tileLoader.overlay(frame, timeline, tile) },
+        loadCoverage = { tile, timeline -> tileLoader.coverage(timeline, tile) },
     )
 
     /**
@@ -98,6 +102,15 @@ class RadarViewModel internal constructor(
     /** The OpenStreetMap tiles around the city on screen; null until they load. */
     val baseMap: StateFlow<Bitmap?> = _baseMap.asStateFlow()
 
+    private val _coverage = MutableStateFlow<RadarCoverageMap?>(null)
+
+    /**
+     * RainViewer's coverage layer around the city on screen, drawn dimmed over the map, and
+     * whether the city has radar ("No radar here" when not). Null until it loads, or when it
+     * fails: the card then shows as it would without it.
+     */
+    val coverage: StateFlow<RadarCoverageMap?> = _coverage.asStateFlow()
+
     private val _overlays = MutableStateFlow<Map<String, Bitmap>>(emptyMap())
 
     /** Each frame's stitched overlay by frame path, kept so replays are smooth. */
@@ -110,6 +123,17 @@ class RadarViewModel internal constructor(
                 _baseMap.value = null
                 _baseMap.value = loadBaseMap(it)
             }
+        }
+        // The coverage layer, once per tile and tile host (from the first timeline; a refresh with
+        // the same host doesn't refetch it). A new city drops the old city's layer at once.
+        viewModelScope.launch {
+            combine(tile.filterNotNull(), timeline) { tile, state -> tile to (state as? LoadingState.Success)?.data }
+                .distinctUntilChanged { old, new -> old.first == new.first && (new.second == null || old.second?.host == new.second?.host) }
+                .collectLatest { (tile, timeline) ->
+                    _coverage.value = null
+                    timeline ?: return@collectLatest
+                    _coverage.value = loadCoverage(tile, timeline)
+                }
         }
         // Every frame's overlay, prefetched once per tile and timeline (a change cancels the old
         // prefetch), frames nearest "now" first, a few at a time. A new tile starts from scratch; a

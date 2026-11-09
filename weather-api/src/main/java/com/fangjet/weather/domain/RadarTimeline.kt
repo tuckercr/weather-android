@@ -24,6 +24,17 @@ data class RadarTimeline(
         y: Int,
     ): String = "$host${frame.path}/$TILE_SIZE/$z/$x/$y/$COLOR_SCHEME/${SMOOTH}_$SNOW.png"
 
+    /**
+     * RainViewer's coverage layer at the given tile: transparent where there is radar, opaque
+     * black where there isn't (much of Africa, central Asia and the oceans, where the radar tiles
+     * are empty and would read as "no rain"). Same as iOS's `RadarTimeline.coverageTileURL`.
+     */
+    fun coverageTileUrl(
+        z: Int,
+        x: Int,
+        y: Int,
+    ): String = "$host/v2/coverage/0/$TILE_SIZE/$z/$x/$y/0/0_0.png"
+
     companion object {
         /**
          * Highest slippy-map zoom RainViewer's public radar tiles are served at; higher zooms return
