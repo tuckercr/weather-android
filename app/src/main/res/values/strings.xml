@@ -153,6 +153,8 @@
     <string name="settings_share_usage_statistics">Share usage statistics</string>
     <string name="settings_share_usage_statistics_summary">Anonymous app usage to help improve Sunny &amp; Misty</string>
     <string name="settings_privacy_policy_url" translatable="false">https://sunnyandmisty.com/privacy</string>
+    <string name="settings_terms_of_use">Terms of Use</string>
+    <string name="settings_terms_of_use_url" translatable="false">https://sunnyandmisty.com/terms</string>
     <string name="settings_openweather_url" translatable="false">https://openweathermap.org</string>
     <!-- Notification channels: one per kind, so each can be silenced in system settings. -->
     <string name="notif_channel_briefing_name">Morning briefing</string>
@@ -172,6 +174,10 @@
     <string name="notif_briefing_walk_now">Sunny says now\'s a great time for a walk.</string>
     <string name="notif_briefing_walk_at">Sunny\'s picked %1$s for a walk.</string>
     <string name="notif_briefing_no_walk">Not a good day for walkies.</string>
+    <!-- Hurricane force wind in the hour under way, or from a later hour today (%1$s, such as "2 PM"):
+         in place of the walk sentence with a dog, and added without one. -->
+    <string name="notif_briefing_hurricane_now">Hurricane force winds. Stay inside, away from the windows.</string>
+    <string name="notif_briefing_hurricane_from">Hurricane force winds from %1$s. Get everyone inside before then.</string>
     <!-- %1$s is notif_bad_air_today ("Smoky air today"). -->
     <string name="notif_briefing_bad_air_short">%1$s, so keep it short.</string>
     <string name="notif_briefing_bad_air_potty">%1$s, so potty breaks only.</string>
@@ -370,6 +376,13 @@
     <string name="walk_danger_title">Danger</string>
     <string name="walk_danger_hurricane">Hurricane force winds</string>
     <string name="walk_danger_stay_inside">Stay inside, away from the windows.</string>
+    <!-- Hurricane force wind forecast in the next few hours. %1$s is the hour it starts ("6 PM"). -->
+    <string name="walk_danger_hurricane_from">Hurricane force winds from %1$s</string>
+    <string name="walk_danger_get_inside">Get everyone inside before then.</string>
+    <!-- Likely thunderstorms in the next few hours, on the walk card and in the morning briefing. %1$s is the hour they start ("4 PM"). -->
+    <string name="walk_storms_from">Storms from %1$s.</string>
+    <!-- The walk card's caption followed by another sentence: "Too hot for paws." and "Storms from 4 PM." -->
+    <string name="walk_caption_and_more">%1$s %2$s</string>
     <string name="walk_gale">Gale force winds. Potty breaks only.</string>
     <string name="walk_storm_wind">Storm force winds. Keep pets inside.</string>
     <string name="walk_storms">Thunderstorms. Keep pets inside.</string>
