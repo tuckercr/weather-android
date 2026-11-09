@@ -3,6 +3,7 @@ package com.fangjet.weather.util
 import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.RainOutlookSettings
 import com.fangjet.weather.domain.WeatherUnits
+import com.fangjet.weather.domain.shownRainChance
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.DecimalFormat
@@ -16,7 +17,7 @@ import java.util.Locale
 /** What the card says and charts. */
 data class RainOutlook(
     val headline: RainOutlookHeadline,
-    /** The last hour in the window that's still wet (at the minimum chance or more). */
+    /** The last hour in the window that's still wet (at the minimum chance or more, as shown). */
     val lastWetHour: String,
     /** That hour is the window's last: "The chance stays up past 6 PM." rather than "Drying out after 6 PM." */
     val staysUp: Boolean,
@@ -59,7 +60,7 @@ sealed interface RainTotal {
 data class RainBar(
     /** As the hourly strip labels it: "4 PM". */
     val hour: String,
-    /** 0 to 100. */
+    /** 0 to 100, as the hourly strip shows it: to the nearest 10%, and 0 under 10%. */
     val chance: Int,
     /** The hour's rain in mm, or null when unknown. */
     val amountMm: Double?,
@@ -96,7 +97,9 @@ fun rainOutlook(
 ): RainOutlook? {
     if (!settings.enabled) return null
     val window = slots.take(settings.hours)
-    val chances = window.map { it.precipitationChance.coerceIn(0, 100) }
+    // The chance as the hourly strip shows it (to the nearest 10%, 0 under 10%), so a bar never
+    // says 55% beside a strip that says 60%, and the minimum and "likely" go by what's shown.
+    val chances = window.map { it.shownRainChance.coerceIn(0, 100) }
     val lastWet = chances.indexOfLast { it >= settings.minChance }
     if (lastWet < 0) return null
     // The first hour with the highest chance.

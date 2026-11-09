@@ -102,8 +102,10 @@ WorkManager, and CI on GitHub Actions.
   "The chance stays up past 12 AM.") and, from 0.5 mm (0.01 in), how much falls in all ("About 2.5
   mm in all."). Tap a bar for its hour, chance and amount. The hourly icon comes from Open-Meteo's
   best single model and the chance from its ensemble, so they can disagree; the chart shows the
-  outlook plainly. It only appears when some hour reaches 20%, and then takes the place of the
-  next-rain line, using its words as the headline. Rules in `util/RainOutlook.kt`;
+  outlook plainly. It reads each hour's chance as the hourly strip shows it (to the nearest 10%,
+  nothing under 10%), for the bars, the 20% minimum and "likely", so a 55% hour is a 60% bar. It only
+  appears when some hour reaches 20%, and then takes the place of the next-rain line, using its
+  words as the headline. Rules in `util/RainOutlook.kt`;
   `rain_outlook_enabled`, `rain_outlook_hours` and `rain_outlook_min_chance` tune it remotely.
 - **Today tiles**: Feels Like, Wind, Fluff Factor, Paw Check (with a dog) and Air Quality in pairs, then
   Daylight (with the UV index) and Misty's View (the sky and how far she can see; after dark,
@@ -542,7 +544,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `DistanceUnitsTest` | Visibility in miles or km: the unit choice, or the measurement system for "System default" |
 | `:app` | `AppConfigModuleTest` | The OpenWeather key: a Remote Config replacement wins over the built-in key |
 | `:app` | `CurrentSlotsTest` | `fromCurrentSlot`: drops past hourly and 3-hourly slots, keeps the one in progress |
-| `:app` | `RainOutlookTest` | When the rain outlook shows (minimum chance, switch, window size), its headline (now or around, likely or a chance, the next-rain line's words), drying out, the total in mm or inches, and the bars |
+| `:app` | `RainOutlookTest` | When the rain outlook shows (minimum chance, switch, window size), its headline (now or around, likely or a chance, the next-rain line's words), drying out, the total in mm or inches, and the bars at the chance the strip shows |
 | `:app` | `LocaleWeatherUnitsTest` | An explicit Celsius/Fahrenheit system preference beats the locale; unknown falls back to it |
 | `:app` | `WelcomeViewModelTest` | Onboarding state and persistence |
 | `:app` | `CityRepositoryTest` | Add, remove, reorder, active-city tracking, legacy single-city migration, and `city_added` firing |
