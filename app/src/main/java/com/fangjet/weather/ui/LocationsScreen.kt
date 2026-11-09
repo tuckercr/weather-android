@@ -177,19 +177,26 @@ internal fun DraggableLocationList(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                text = location.label,
-                                modifier = Modifier.weight(1f, fill = false),
-                            )
-                            if (index == notificationIndex) {
-                                Icon(
-                                    Icons.Default.Notifications,
-                                    contentDescription = stringResource(R.string.cd_notification_city),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(start = 6.dp).size(16.dp),
+                            // The name and the bell take all the room the delete button leaves, so
+                            // a long name wraps at the button, not halfway across (two weighted
+                            // children would split the row equally).
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = location.label,
+                                    modifier = Modifier.weight(1f, fill = false),
                                 )
+                                if (index == notificationIndex) {
+                                    Icon(
+                                        Icons.Default.Notifications,
+                                        contentDescription = stringResource(R.string.cd_notification_city),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(start = 6.dp).size(16.dp),
+                                    )
+                                }
                             }
-                            Spacer(Modifier.weight(1f))
                             // The last city stays, so the app always has one to show: no button
                             // for it, rather than one that does nothing (as on iOS).
                             if (locations.size > 1) {
