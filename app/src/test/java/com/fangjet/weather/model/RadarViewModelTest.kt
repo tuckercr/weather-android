@@ -8,9 +8,11 @@ import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -395,6 +397,28 @@ class RadarViewModelTest {
             mainDispatcherRule.testDispatcher.scheduler.runCurrent()
             assertEquals(0, viewModel.playback.value.frameIndex)
             player.cancel()
+        }
+
+    @Test
+    fun `the label changes in the same step as playback and the frames, through a refresh`() =
+        runTest {
+            val first = timeline("a")
+            val second = timeline("b")
+            val viewModel = viewModel(FakeSource(listOf(Result.success(first), Result.success(second))))
+            viewModel.load()
+            settle()
+            viewModel.scrub(0)
+            val shown = mutableListOf<ShownRadarFrame?>()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.shownFrame.toList(shown) }
+
+            now += RadarViewModel.STALE_AFTER_MS
+            viewModel.load()
+            settle()
+
+            // Only the scrubbed frame, then the new timeline's "now": no stale label first, and never
+            // "b-past", the new timeline at the old index. (Combining the two flows lagged a step.)
+            assertEquals(listOf("a-past", "b"), shown.map { it?.frame?.path })
+            assertEquals(ShownRadarFrame(second.frames[1], isNow = true), viewModel.shownFrame.value)
         }
 
     private fun timeline(nowPath: String) =
