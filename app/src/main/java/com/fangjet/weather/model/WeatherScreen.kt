@@ -257,6 +257,12 @@ private fun weatherScreenState(
             nowEpochSeconds = nowEpochSeconds,
             utcOffsetSeconds = offset,
             hasDog = hasDog,
+            // The sky as Misty's View reads it, without a cloud cover when the forecast stands in.
+            partlyCloudy = partlyCloudyCaptions(
+                weather.conditionMain,
+                weather.cloudPercent.takeUnless { showingForecast },
+                weather.iconCode,
+            ),
         ),
         today = today,
         high = high.roundToInt(),

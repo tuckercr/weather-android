@@ -240,12 +240,19 @@
 
     <!-- Pet scene captions, in the pets' voice: Sunny is the dog, Misty the cat. One is picked per day. -->
     <!-- Captions that suggest a walk now: left out when the walk verdict says now isn't the time
-         (PetScene's WALK_SUGGESTIONS lists them). -->
+         (HeroCaption's WALK_SUGGESTIONS lists them). -->
     <string name="caption_fair_walkies">Perfect walkies weather! Off we go.</string>
     <string name="caption_cloudy_keen">A bit grey, but Sunny is still keen for a walk.</string>
     <string name="caption_cloudy_stroll">No sun, no problem. Still time for a stroll.</string>
     <string name="caption_evening_last_stroll">Quiet night. Time for one last stroll before bed?</string>
     <string name="caption_evening_lap">Sunny thinks there\'s time for one more lap of the block.</string>
+    <string name="caption_partly_cloudy_sniffing">Bit of sun, bit of cloud. Good sniffing weather.</string>
+    <string name="caption_partly_cloudy_ready">Sun in, sun out. Sunny is ready either way.</string>
+    <!-- Afternoon-only captions: left out before 12:00 in the city's time zone
+         (HeroCaption's AFTERNOON_ONLY lists them). -->
+    <string name="caption_cloudy_nap">Nap weather, says Misty.</string>
+    <!-- In the partly cloudy lists with and without a dog. -->
+    <string name="caption_partly_cloudy_sunny_spot">Misty has found the one sunny spot on the floor.</string>
     <string-array name="pet_caption_fair">
         <item>@string/caption_fair_walkies</item>
         <item>Misty has claimed the sunniest windowsill.</item>
@@ -258,8 +265,14 @@
     </string-array>
     <string-array name="pet_caption_cloudy">
         <item>@string/caption_cloudy_keen</item>
-        <item>Nap weather, says Misty.</item>
+        <item>@string/caption_cloudy_nap</item>
         <item>@string/caption_cloudy_stroll</item>
+    </string-array>
+    <!-- The cloudy mood when the sky, as Misty's View reads it, is clear or partly cloudy. -->
+    <string-array name="pet_caption_partly_cloudy">
+        <item>@string/caption_partly_cloudy_sniffing</item>
+        <item>@string/caption_partly_cloudy_ready</item>
+        <item>@string/caption_partly_cloudy_sunny_spot</item>
     </string-array>
     <string-array name="pet_caption_rain">
         <item>Sunny wants puddles. Misty wants a towel.</item>
@@ -309,8 +322,13 @@
     </string-array>
     <string-array name="pet_caption_cloudy_no_dog">
         <item>A bit grey. Misty says it\'s a blanket sort of day.</item>
-        <item>Nap weather, says Misty.</item>
+        <item>@string/caption_cloudy_nap</item>
         <item>No sun, no problem. The birds are still out, says Misty.</item>
+    </string-array>
+    <string-array name="pet_caption_partly_cloudy_no_dog">
+        <item>Bit of sun, bit of cloud. Misty is chasing the sunny patches.</item>
+        <item>Sun in, sun out. Misty is supervising from the window.</item>
+        <item>@string/caption_partly_cloudy_sunny_spot</item>
     </string-array>
     <string-array name="pet_caption_rain_no_dog">
         <item>Rain on the window. Misty is watching every drop.</item>

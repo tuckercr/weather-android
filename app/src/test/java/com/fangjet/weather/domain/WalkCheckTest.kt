@@ -262,7 +262,7 @@ class WalkCheckTest {
         assertTrue(rulesOutWalkNow(check(slot(icon = "10n"), conditionNow = "Rain")))
         assertFalse(rulesOutWalkNow(check(slot(icon = "01n"))))
         assertFalse(rulesOutWalkNow(check(slot(airBand = 2))))
-        assertEquals(5, WALK_SUGGESTIONS.size)
+        assertEquals(7, WALK_SUGGESTIONS.size)
     }
 
     @Test
@@ -500,7 +500,7 @@ class WalkCheckTest {
         fun caption(
             walk: WalkCheck?,
             theme: String?,
-        ) = heroCaption(walk, theme, PetMood.FAIR, now, 0, hasDog = true)
+        ) = heroCaption(walk, theme, PetMood.FAIR, now, 0, hasDog = true, partlyCloudy = false)
         val smoky = check(slot(airBand = 3))
 
         assertTrue(caption(smoky, "Happy Halloween!") is HeroCaption.Walk)

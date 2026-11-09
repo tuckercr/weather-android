@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.SceneDecoration
+import com.fangjet.weather.model.AFTERNOON_ONLY
 import com.fangjet.weather.model.HeroCaption
 import com.fangjet.weather.model.WALK_SUGGESTIONS
 import com.fangjet.weather.model.captionOptions
@@ -121,6 +122,8 @@ fun HeroCaption.resolve(): String =
                 stringArrayResource(noDogCaptions).toList(),
                 suggestions,
                 leaveOutWalkSuggestions,
+                AFTERNOON_ONLY.map { stringResource(it) }.toSet(),
+                leaveOutAfternoonOnly,
             )
             options[day % options.size]
         }

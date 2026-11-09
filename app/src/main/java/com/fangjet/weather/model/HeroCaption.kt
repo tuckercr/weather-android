@@ -6,8 +6,10 @@ import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.WalkCheck
 import com.fangjet.weather.domain.WalkLevel
 import com.fangjet.weather.domain.WalkReason
+import com.fangjet.weather.util.SkyCondition
 import com.fangjet.weather.util.WindForce
 import com.fangjet.weather.util.airNameRes
+import com.fangjet.weather.util.skyCondition
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -28,20 +30,23 @@ sealed interface HeroCaption {
 
     /**
      * One of [captions], by the city's [day] of the year so it varies without flickering. When
-     * [leaveOutWalkSuggestions] (now isn't the time for a walk), the captions that suggest one are
-     * left out, and if that leaves none, [noDogCaptions] stand in.
+     * [leaveOutAfternoonOnly] (before noon in the city), the afternoon-only captions are left out.
+     * When [leaveOutWalkSuggestions] (now isn't the time for a walk), the captions that suggest one
+     * are left out, and if that leaves none, [noDogCaptions] stand in.
      */
     data class Weather(
         @param:ArrayRes val captions: Int,
         @param:ArrayRes val noDogCaptions: Int,
         val leaveOutWalkSuggestions: Boolean,
+        val leaveOutAfternoonOnly: Boolean,
         val day: Int,
     ) : HeroCaption
 }
 
 /**
- * The hero's caption for [mood] at [nowEpochSeconds], by the city's day and (at night) hour. Without a
- * dog ([hasDog] false), the captions leave out walks.
+ * The hero's caption for [mood] at [nowEpochSeconds], by the city's day and hour. Without a dog
+ * ([hasDog] false), the captions leave out walks. A cloudy mood under a [partlyCloudy] sky gets
+ * brighter captions than a grey one.
  */
 fun heroCaption(
     walk: WalkCheck?,
@@ -50,6 +55,7 @@ fun heroCaption(
     nowEpochSeconds: Long,
     utcOffsetSeconds: Int,
     hasDog: Boolean,
+    partlyCloudy: Boolean,
 ): HeroCaption {
     val local = Instant.ofEpochSecond(nowEpochSeconds).atOffset(ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
     val day = local.dayOfYear
@@ -57,12 +63,24 @@ fun heroCaption(
     themeCaption?.let { return HeroCaption.Theme(it) }
     val nightPart = nightPartAt(local.hour)
     return HeroCaption.Weather(
-        captions = mood.captionsRes(nightPart, hasDog),
-        noDogCaptions = mood.captionsRes(nightPart, hasDog = false),
+        captions = mood.captionsRes(nightPart, hasDog = hasDog, partlyCloudy = partlyCloudy),
+        noDogCaptions = mood.captionsRes(nightPart, hasDog = false, partlyCloudy = partlyCloudy),
         leaveOutWalkSuggestions = walk != null && rulesOutWalkNow(walk),
+        leaveOutAfternoonOnly = local.hour < 12,
         day = day,
     )
 }
+
+/**
+ * Whether the cloudy mood's captions are the partly cloudy ones: the sky as Misty's View reads it
+ * (no [cloudPercent] when the forecast's hour stands in) is clear or partly cloudy. Same rule as
+ * iOS's `PetMood.isPartlyCloudy`.
+ */
+fun partlyCloudyCaptions(
+    conditionMain: String,
+    cloudPercent: Int?,
+    iconCode: String,
+): Boolean = skyCondition(conditionMain, cloudPercent, iconCode).let { it == SkyCondition.CLEAR || it == SkyCondition.PARTLY_CLOUDY }
 
 /**
  * The part of the night it is, by the city's local hour. The night scene runs from sunset to
@@ -81,11 +99,15 @@ fun nightPartAt(localHour: Int): NightPart =
 internal fun PetMood.captionsRes(
     nightPart: NightPart,
     hasDog: Boolean,
+    partlyCloudy: Boolean,
 ): Int =
     when (this) {
         PetMood.FAIR -> if (hasDog) R.array.pet_caption_fair else R.array.pet_caption_fair_no_dog
         PetMood.SUNNY -> if (hasDog) R.array.pet_caption_sunny else R.array.pet_caption_sunny_no_dog
-        PetMood.CLOUDY -> if (hasDog) R.array.pet_caption_cloudy else R.array.pet_caption_cloudy_no_dog
+        PetMood.CLOUDY -> when {
+            partlyCloudy -> if (hasDog) R.array.pet_caption_partly_cloudy else R.array.pet_caption_partly_cloudy_no_dog
+            else -> if (hasDog) R.array.pet_caption_cloudy else R.array.pet_caption_cloudy_no_dog
+        }
         PetMood.RAIN -> if (hasDog) R.array.pet_caption_rain else R.array.pet_caption_rain_no_dog
         PetMood.STORM -> R.array.pet_caption_storm
         PetMood.SNOW -> if (hasDog) R.array.pet_caption_snow else R.array.pet_caption_snow_no_dog
@@ -100,17 +122,22 @@ internal fun PetMood.captionsRes(
     }
 
 /**
- * [options] without the captions that suggest a walk when [leaveOutWalkSuggestions] (now isn't
- * the time), or [noDog] if that leaves none.
+ * [options] without the [afternoonOnly] captions when [leaveOutAfternoonOnly] (before noon), and
+ * without the captions that suggest a walk when [leaveOutWalkSuggestions] (now isn't the time), or
+ * [noDog] (without the afternoon-only ones too) if that leaves none.
  */
 fun captionOptions(
     options: List<String>,
     noDog: List<String>,
     suggestions: Set<String>,
     leaveOutWalkSuggestions: Boolean,
+    afternoonOnly: Set<String> = emptySet(),
+    leaveOutAfternoonOnly: Boolean = false,
 ): List<String> {
-    if (!leaveOutWalkSuggestions) return options
-    return options.filterNot { it in suggestions }.ifEmpty { noDog }
+    val timely = { list: List<String> -> if (leaveOutAfternoonOnly) list.filterNot { it in afternoonOnly } else list }
+    val now = timely(options)
+    if (!leaveOutWalkSuggestions) return now
+    return now.filterNot { it in suggestions }.ifEmpty { timely(noDog) }
 }
 
 /** The captions that suggest a walk now, left out when now isn't the time. */
@@ -120,6 +147,13 @@ val WALK_SUGGESTIONS = listOf(
     R.string.caption_cloudy_stroll,
     R.string.caption_evening_last_stroll,
     R.string.caption_evening_lap,
+    R.string.caption_partly_cloudy_sniffing,
+    R.string.caption_partly_cloudy_ready,
+)
+
+/** The captions that only make sense from noon in the city ("Nap weather"), left out before. */
+val AFTERNOON_ONLY = listOf(
+    R.string.caption_cloudy_nap,
 )
 
 /** Anything but the dark at a wait or worse. */
