@@ -12,7 +12,8 @@ import kotlin.math.roundToInt
 /**
  * The walk card's headline category: [WalkCheck]'s verdict on now, and whether there's a better
  * time. WINDY is a gale or worse, STORMY thunderstorms now or likely, and DANGER hurricane force
- * wind, which the card shows as a warning even without a dog.
+ * wind now, which the card shows as a warning even without a dog. Hurricane force wind later is
+ * [WalkWarning.Hurricane], not DANGER: the rating is about the hour under way.
  */
 enum class WalkRating { GREAT, OKAY, POOR, PAWS_HOT, TOO_COLD, BAD_AIR, WINDY, STORMY, DANGER }
 
@@ -40,13 +41,30 @@ sealed interface WalkOutlook {
 enum class WalkChange { STORMS, MAYBE_STORMS, RAIN, MAYBE_RAIN, SNOW, MAYBE_SNOW, WIND, HEAT, HOT_PAVEMENT, COLD, BAD_AIR }
 
 /**
+ * A warning about the next few hours, apart from the verdict on now: hurricane force wind or likely
+ * thunderstorms from [timeLabel] (an hour, such as "6 PM"). Same as iOS's `WalkWarning`.
+ */
+sealed interface WalkWarning {
+    val timeLabel: String
+
+    data class Hurricane(
+        override val timeLabel: String,
+    ) : WalkWarning
+
+    data class Storms(
+        override val timeLabel: String,
+    ) : WalkWarning
+}
+
+/**
  * [bestTimeLabel] is null when now is a good time, or when there is no good window soon.
  * [pavementNow] is the estimated pavement temperature for the current hour, in the forecast's
  * units, when the source provides it. [bestTimeIsTomorrow] is true when [bestTimeLabel] falls on
  * the next calendar day in the city's own time zone. [bestTimeEpochSeconds] is when
  * [bestTimeLabel] starts, for the walk-time notification. [outlook] is set only when now is a great
  * time. [now] is the verdict on the hour under way, which [rating] sums up and whose reason the
- * card's caption gives.
+ * card's caption gives. [warning] is hurricane force wind or likely storms in the next few hours that
+ * aren't already happening now.
  */
 data class WalkAdvice(
     val rating: WalkRating,
@@ -56,7 +74,11 @@ data class WalkAdvice(
     val bestTimeEpochSeconds: Long? = null,
     val outlook: WalkOutlook? = null,
     val now: WalkCheck = WalkCheck.CLEAR,
-)
+    val warning: WalkWarning? = null,
+) {
+    /** Hurricane force wind now or ahead: the card turns into a warning, shown even without a dog. */
+    val isDanger: Boolean get() = rating == WalkRating.DANGER || warning is WalkWarning.Hurricane
+}
 
 private const val LOOKAHEAD_SLOTS = 24 // a day of hourly slots
 private const val LOOKAHEAD_SECONDS = 24 * 60 * 60L // and never more than a day, for 3-hourly slots
@@ -67,7 +89,7 @@ private const val OUTLOOK_SECONDS = 6 * 60 * 60L
 /** Sunset this close is worth a mention. */
 private const val DARK_SOON_SECONDS = 3 * 60 * 60L
 
-/** Hurricane force wind forecast this soon is a danger now: time to get everyone inside. */
+/** Hurricane force wind or likely storms forecast this soon are worth a warning: time to get everyone inside. */
 private const val DANGER_AHEAD_SECONDS = 6 * 60 * 60L
 
 /** A chance of rain at or above this is "rain"; from the walk limit up to it, "maybe rain". */
@@ -105,8 +127,8 @@ fun isPrecipitating(conditionMain: String): Boolean = conditionMain.lowercase() 
  * [conditionNow] is the current observation's condition group ("Rain", "Thunderstorm"). The hourly
  * forecast can say the hour in progress is dry while it is raining, so when it's raining now, now
  * is never the walk time. [windForceNow] and [gustForceNow] are the current reading's wind and
- * gusts, as the Wind tile shows them. Hurricane force wind forecast in the next few hours counts as
- * now. Without a dog ([hasDog] false) the verdict on now leaves the pavement out.
+ * gusts, as the Wind tile shows them. Hurricane force wind or likely storms in the next few hours
+ * are a [WalkWarning], leaving the verdict on now alone. Without a dog ([hasDog] false) the verdict on now leaves the pavement out.
  * [sunsetEpochSeconds] is today's sunset, for the "gets dark" line. [darkNow] is the clock's word
  * on darkness: the hour in progress keeps its daytime icon for the whole hour the sun sets in, so
  * without it now could be "a great time" for up to an hour after dark.
@@ -129,16 +151,7 @@ fun walkAdviceFor(
         .take(LOOKAHEAD_SLOTS)
         .filter { slot -> slot.epochSeconds.let { it == null || it < nowEpochSeconds + LOOKAHEAD_SECONDS } }
     if (slots.isEmpty()) return null
-    var check = walkCheckFor(slots.first(), thresholds, currentFeelsLikeC, conditionNow, windForceNow, gustForceNow, darkNow, hasDog)
-    val hurricaneSoon = slots.any { slot ->
-        // An hour without a time (a forecast cached before they were kept) isn't counted as soon.
-        (slot.epochSeconds ?: Long.MAX_VALUE) <= nowEpochSeconds + DANGER_AHEAD_SECONDS &&
-            windForce(slot.windSpeed, slot.units) == WindForce.HURRICANE
-    }
-    if (check.level < WalkLevel.DANGER && hurricaneSoon) {
-        val hurricane = WalkFactor(WalkReason.Wind(WindForce.HURRICANE), WalkLevel.DANGER)
-        check = WalkCheck(check.factors.filterNot { it.reason is WalkReason.Wind } + hurricane)
-    }
+    val check = walkCheckFor(slots.first(), thresholds, currentFeelsLikeC, conditionNow, windForceNow, gustForceNow, darkNow, hasDog)
     val firstGood = slots.drop(1).firstOrNull { it.isWalkable(thresholds) }
     val rating = walkRating(check, hasBetterTime = firstGood != null)
     val bestSlot = if (rating == WalkRating.GREAT) null else firstGood
@@ -152,7 +165,30 @@ fun walkAdviceFor(
         bestSlot?.epochSeconds,
         outlook,
         check,
+        walkWarning(slots, check, nowEpochSeconds, thresholds),
     )
+}
+
+/**
+ * Hurricane force wind, or else likely thunderstorms, in the hours after the one under way and
+ * within [DANGER_AHEAD_SECONDS], when now doesn't already have it. None at all under hurricane force
+ * now. An hour without a time (a forecast
+ * cached before they were kept) isn't counted as soon.
+ */
+private fun walkWarning(
+    slots: List<HourlySlot>,
+    check: WalkCheck,
+    nowEpochSeconds: Long,
+    t: PetWeatherThresholds,
+): WalkWarning? {
+    val ahead = slots.drop(1).filter { (it.epochSeconds ?: Long.MAX_VALUE) <= nowEpochSeconds + DANGER_AHEAD_SECONDS }
+    // Hurricane force now is already the card's warning: nothing ahead is worth adding.
+    if (check.level >= WalkLevel.DANGER) return null
+    ahead.firstOrNull { isHurricaneForce(it) }?.let { return WalkWarning.Hurricane(it.timeLabel) }
+    if (check.factors.none { it.reason is WalkReason.Storms }) {
+        ahead.firstOrNull { hasLikelyStorms(it, t) }?.let { return WalkWarning.Storms(it.timeLabel) }
+    }
+    return null
 }
 
 /**
@@ -265,4 +301,4 @@ private fun isNextDay(
 internal fun walkCardShown(
     advice: WalkAdvice,
     walkCardEnabled: Boolean,
-): Boolean = walkCardEnabled || advice.rating == WalkRating.DANGER
+): Boolean = walkCardEnabled || advice.isDanger

@@ -44,7 +44,12 @@ WorkManager, and CI on GitHub Actions.
   for paws."), heat or cold, the air by its pollutant ("Smoky air. Potty breaks only.", "High
   ozone", "Dusty air"), a gale ("Gale force winds. Potty breaks only.") or thunderstorms. At
   hurricane force the card becomes a "Danger" warning ("Hurricane force winds. Stay inside, away
-  from the windows."), shown even without a dog. Users can turn it off in Settings (*I have a
+  from the windows."), shown even without a dog. Hurricane force wind forecast in the next 6 hours
+  is a warning about later, not the verdict on now: the card says "Hurricane force winds from 6 PM /
+  Get everyone inside before then." with the same Danger look and for everyone, while the rating,
+  the hero and the caption for now stay on the hour under way. Likely thunderstorms (60% or more)
+  in the next 6 hours, when there are none now, add "Storms from 4 PM." to the caption ("Too hot
+  for paws. Storms from 4 PM."), unless it already reads "Good until 4 PM, then storms.". Users can turn it off in Settings (*I have a
   dog*, which hides the Paw Check tile too), and `walk_card_enabled` hides it remotely.
 - **Bad air in the walk planner**: hours at US "Unhealthy" or worse (Europe's "Poor" and up) are
   never suggested. The band is tunable with `walk_bad_air_band`.
@@ -60,7 +65,7 @@ WorkManager, and CI on GitHub Actions.
   | Wait | Rain or snow, a near gale (Beaufort 7), pavement getting hot, feels-like outside the comfort range, dark or outside the walking hours |
   | Potty breaks only | Pavement too hot, too hot or too cold for pets, bad air (`walk_bad_air_band`), a gale (Beaufort 8) |
   | Stay in | Dangerously hot pavement, the worst air band, thunderstorms, storm force wind (Beaufort 10) |
-  | Danger | Hurricane force wind (Beaufort 12) or gusts, or hurricane force wind forecast in the next 6 hours |
+  | Danger | Hurricane force wind (Beaufort 12) or gusts now |
 
   The reason carries its detail (the pollutant, the wind's force, the pavement's band) for each
   screen to word. At the same level storms come first, then rain and snow, wind, the pavement,
@@ -155,7 +160,11 @@ WorkManager, and CI on GitHub Actions.
   each with its own switch in Settings and its own Android channel:
   - *Morning briefing* at 8:30 AM device time (on): "52° and partly cloudy in Knoxville / High
     70°, low 45°, 60% chance of rain. Sunny's picked 1 PM for a walk." The walk sentence only comes
-    with a dog at home; the rain chance from 40%.
+    with a dog at home; the rain chance from 40%. From the hour under way to the end of the day,
+    hurricane force wind replaces the walk sentence, and is said without a dog too: "Hurricane force
+    winds. Stay inside, away from the windows." now (in the hour or the current reading), or
+    "Hurricane force winds from 2 PM. Get everyone inside before then." later. Otherwise likely
+    storms in a later hour add "Storms from 4 PM." before the walk sentence, for everyone.
   - *Walk time* (only with a dog): the morning run plans a nudge for the day's best walk time, which
     checks again when it's due and only goes if now is still a great time (and there's still a dog).
   - *Rain alerts* (off): the background refresh alerts up to an hour before rain or snow starts,
@@ -512,7 +521,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `PetWeatherThresholdsTest` | Remote Config threshold validation: ranges, non-finite values, and pair ordering fallbacks |
 | `:app` | `PetMoodTest` | Pet mood selection by conditions, temperature, and night, with configurable hot/cold cut-offs; night captions by the city's local hour |
 | `:app` | `WalkAdvisorTest` | Walk rating and best time: rain, comfort range, walking hours, daylight, raining now, pavement heat, imperial input, "tomorrow" in the city's calendar, 24-hour cap |
-| `:app` | `WalkCheckTest` | The walk verdict's levels for wind (near gale to hurricane force), air (by `walk_bad_air_band`), pavement, heat, cold, storms, rain and the dark; the order of reasons; pollutant names; the walk card's captions and danger rating; the hero's reason captions and leaving out walk captions; the Air Quality tile following the walk rules |
+| `:app` | `WalkCheckTest` | The walk verdict's levels for wind (near gale to hurricane force), air (by `walk_bad_air_band`), pavement, heat, cold, storms, rain and the dark; the order of reasons; pollutant names; the walk card's captions and danger rating; hurricane and storm warnings ahead; the hero's reason captions and leaving out walk captions; the Air Quality tile following the walk rules |
 | `:app` | `MoonPhaseTest` | The moon's phase from the date, checked against published phases |
 | `:app` | `WeatherIconTest` | Icon for each condition by day and night, moon phases, and southern-hemisphere mirroring |
 | `:app` | `CalmWindTest` | Calm wind reads as 0, and visibility at the 10 km cap reads as clear |
@@ -529,7 +538,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `AddLocationRulesTest` | Add location's button: the first row named what was typed (accents ignored), the size check that stops "Nas" adding Nås, saved places (label or within 2 km, never My Location) gone to, and failed or empty searches |
 | `:app` | `LocationPermissionViewModelTest` | Current-location lookup: permission denial, cached vs current location, failure, `LocationRepository`'s position reads, and permission answers: asking again after "Ask every time", an instant refusal opening the app's settings and the return from them, slow refusals, grants forgetting refusals |
 | `:app` | `WeatherScreenStepsTest` | The weather screen's refreshes and My Location steps |
-| `:app` | `NotificationWorkerLogicTest` | Briefing text, walk-time planning and nudge, rain alerts (lead, quiet hours, once per shower), city-timezone "today" matching, and the switches |
+| `:app` | `NotificationWorkerLogicTest` | Briefing text (with hurricane and storm warnings), walk-time planning and nudge, rain alerts (lead, quiet hours, once per shower), city-timezone "today" matching, and the switches |
 | `:app` | `UpdateWorkerLogicTest` | Background refresh result routing, caching, and resolved units |
 
 Compose UI tests live in `app/src/androidTest` and run on an emulator in CI via a separate

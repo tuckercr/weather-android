@@ -51,8 +51,9 @@ fun WalkCard(
 ) {
     val detail = content.headline.resolve()
     val caption = content.caption?.resolve()
-    val tint = ratingTint(content.rating)
     val danger = content.isDanger
+    // Hurricane force wind ahead takes the danger tint even when now itself is fine.
+    val tint = ratingTint(if (danger) WalkRating.DANGER else content.rating)
     // Baloo 2 leaves more room under its baseline than the small title leaves above its capitals,
     // so when the headline is the last line the text sits high beside the paw. Lowered to match.
     val headlineLastOffset = with(LocalDensity.current) { 3.sp.toDp() }
