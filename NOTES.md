@@ -20,16 +20,10 @@ Finished items move to Done at the bottom.
       and the in-app explanation, which the switch already shows. Google reviews it. App Store
       Connect: say in the review notes what "Always" is for (Settings › Notifications › Follow my
       location). (11-03)
-- [ ] **Add Jessica to the TestFlight "Family" group** once she accepts the App Store Connect
-      invitation (sent 10-31). (10-31)
 - [ ] **Storms in the dog walking line, and maybe the hero text.** Warn about thunder in the walk
       card ("Storms from 4 PM, walk before 3"), and possibly the pets' hero line. Check that both
       forecast providers give thunderstorm codes hourly. Should storm hours also be dropped from
       suggested walks, like bad air? (10-30)
-- [ ] **Manage Locations polish.** Android's rows wrap a long name at half the row's width
-      ("Paris," above "Ile-de-France, FR"), because the name and the space after it share the row
-      equally. iOS's Settings row says "Manage locations" where Android's says "Manage Locations",
-      the screen's title on both. (11-06)
 - [ ] **Android: the city search in SEARCH.md**, assigned to a new developer. iOS has had it since
       11-06, so until it lands the apps differ: Open-Meteo prefix search with the OpenWeather
       fallback, filtering, county labels, sorting with the size guard, text after a comma, US ZIP
@@ -341,9 +335,6 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
       breaks). iOS reuses keys with two meanings ("Moderate" for UV and air quality, "Calm" for
       wind); give them their own keys before translating. Do these when a first language is
       chosen. M.
-- [ ] **Radar label wrong for one moment after a refresh (Android).** `shownFrame` combines the new
-      timeline with the old frame index before playback resets to "now", so the chip can show the
-      wrong time briefly. Cosmetic. (11-07)
 - [ ] **Views still work things out (review of every view, 11-07).** Found by a pass over all
       views in both apps; none is a bug today, but each is logic a view model or the domain should
       own. The captions, the Today tiles, app start-up, the onboarding glue, the location flows, the
@@ -403,6 +394,13 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Manage Locations polish** (11-08): Android's rows wrap a long name at the delete button,
+      not halfway across, and iOS's Settings row says "Manage Locations" like the screen and
+      Android.
+- [x] **Jessica added to the TestFlight "Family" group** (11-08).
+- [x] **Radar label wrong for one moment after a refresh (Android)** (11-08): the label is worked
+      out in the same step as playback and the frames, and a refresh resets playback where it
+      stores the new timeline.
 - [x] **Hourly card the same height whatever the rain** (11-08): every hour has a fixed icon space,
       with the full-size icon on its own or a smaller one with the rain chance under it, so the
       card never changes height and never ends in a gap. Both apps.
