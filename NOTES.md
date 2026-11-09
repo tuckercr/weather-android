@@ -227,6 +227,12 @@ noted. Checked against the code, not fixed yet.
 
 ## Store and release
 
+- [ ] **Terms of use: a lawyer's review before release.** The page is at sunnyandmisty.com/terms
+      (11-09), linked from Settings › About in both apps, and says the walk advice and warnings are
+      a guide from forecasts that can be wrong, not a severe weather warning service. Still to
+      settle: a governing-law section (the state FangJet LLC is registered in), whether the
+      no-warranty and liability paragraphs need capitals to stand out, and that the App Store and
+      Play listings don't promise more than the terms do. (11-09)
 - [ ] Licences: RainViewer is personal and educational use only, and Open-Meteo's free tier is
       non-commercial. Emails were drafted on 10-24; no replies yet. Fallback: launch with
       `radar_enabled` / `open_meteo_enabled` off in Remote Config. Plan (11-05): buy an Open-Meteo

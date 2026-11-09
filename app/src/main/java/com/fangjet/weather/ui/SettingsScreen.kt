@@ -228,6 +228,16 @@ fun SettingsRoute(
                 },
             )
 
+            val termsUrl = stringResource(R.string.settings_terms_of_use_url)
+            SettingsLinkRow(
+                label = stringResource(R.string.settings_terms_of_use),
+                onClick = {
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW, termsUrl.toUri()),
+                    )
+                },
+            )
+
             // "Version 1.0", plus "· Debug build" in debug builds, so a screenshot says what
             // was tested. Debug's versionNameSuffix is left off: the line says it instead.
             Text(

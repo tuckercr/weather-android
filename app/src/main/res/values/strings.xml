@@ -153,6 +153,8 @@
     <string name="settings_share_usage_statistics">Share usage statistics</string>
     <string name="settings_share_usage_statistics_summary">Anonymous app usage to help improve Sunny &amp; Misty</string>
     <string name="settings_privacy_policy_url" translatable="false">https://sunnyandmisty.com/privacy</string>
+    <string name="settings_terms_of_use">Terms of Use</string>
+    <string name="settings_terms_of_use_url" translatable="false">https://sunnyandmisty.com/terms</string>
     <string name="settings_openweather_url" translatable="false">https://openweathermap.org</string>
     <!-- Notification channels: one per kind, so each can be silenced in system settings. -->
     <string name="notif_channel_briefing_name">Morning briefing</string>
