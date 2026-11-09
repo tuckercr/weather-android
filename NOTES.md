@@ -4,12 +4,6 @@ Open ideas, decisions and loose ends for Sunny & Misty, both apps. The same file
 repos (cats-dogs-iOS and cats-dogs); keep them in step. Dates are when the item came up (2026).
 Finished items move to Done at the bottom.
 
-## Open PRs (10-31)
-
-- iOS: #35 air quality, the high/low fix, README and fresh screenshots. #34 and #36 are merged.
-- Android: #94 tile gaps, then #95 air quality, the high/low fix, README and Play Store
-  screenshots. #96 is merged.
-
 ## Do soon
 
 - [ ] **App Store submission.** The listing is filled in (10-31). Before Add for Review: publish
@@ -32,11 +26,6 @@ Finished items move to Done at the bottom.
       card ("Storms from 4 PM, walk before 3"), and possibly the pets' hero line. Check that both
       forecast providers give thunderstorm codes hourly. Should storm hours also be dropped from
       suggested walks, like bad air? (10-30)
-- [ ] **Hourly card too tall when the rain chance is off screen.** Every hour keeps a line for
-      the rain chance if any hour has one, so with rain only later in the day the hours on screen
-      end in an empty band. With no rain at all it sizes correctly (checked 10-31). Better: the
-      same height for every hour, with the chance under a slightly smaller icon in the icon's own
-      space, so the card never changes height and never has a gap. Both apps. (10-31)
 - [ ] **Manage Locations polish.** Android's rows wrap a long name at half the row's width
       ("Paris," above "Ile-de-France, FR"), because the name and the space after it share the row
       equally. iOS's Settings row says "Manage locations" where Android's says "Manage Locations",
@@ -56,8 +45,6 @@ Finished items move to Done at the bottom.
       decided in SEARCH.md); and the dog answer and notification switches. Anonymous categories
       only, never a place or what was typed; keep the opt-out and kill switch gates. Each change
       updates README's analytics table, the privacy policy and the iOS app. Both apps. (11-05)
-- [ ] **Android location: "Ask every time" never clears the permanently-denied flag**, so
-      "Add My Location" stays hidden after a reset in system settings (review finding 3). (10-29)
 
 ## Air quality
 
@@ -396,15 +383,11 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
       on the home screen never drops below the "active" standby bucket, so its background jobs
       aren't held back (see "late when the app counts as rarely used"). (11-03)
 - [ ] Kotlin Multiplatform, as a learning project. Low priority. (09-24)
-- [ ] **Translate the apps?** Both are English only. Android's copy is already in `strings.xml`
-      (lint expects it), so translating there is mostly adding a `values-xx` file per language.
-      iOS writes every string in the code, with no String Catalog, and SwiftUI's `Text` only
-      translates literals and `LocalizedStringKey`, not strings passed in as `String`: tile labels
-      (`Tile(label:)`), `windNote`, `fluffLine`, the pets' captions and the notification text.
-      iOS would need a String Catalog, those parameters changed to `LocalizedStringKey` (or
-      `String(localized:)`), and the strings built in code moved: hundreds of strings. Also the
-      pets' voice in each language, the App Store and Play listings, the website and the privacy
-      policy. Decide whether, and which languages, first. (11-06)
+- [ ] **Translate the apps?** Both are English only. Since 11-08 both keep their text in resources
+      (iOS a String Catalog, Android strings.xml; see Done), so a language is mostly a new
+      translation, after the English-only leftovers under Architecture. Also the pets' voice in
+      each language, the App Store and Play listings, the website and the privacy policy. Decide
+      whether, and which languages, first. (11-06, 11-08)
 - [x] Pollen: free from Open-Meteo for Europe only. The US needs a paid provider (Google Pollen,
       Tomorrow.io, Ambee). Moved to version 2. (10-30, decided 10-31)
 - [x] Per-pet thresholds: small, short-haired and flat-faced dogs struggle sooner. Moved to
@@ -420,6 +403,13 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Hourly card the same height whatever the rain** (11-08): every hour has a fixed icon space,
+      with the full-size icon on its own or a smaller one with the rain chance under it, so the
+      card never changes height and never ends in a gap. Both apps.
+- [x] **Android: "Ask every time" offers My Location again** (11-08): the permanently-denied flag
+      is a guess Android can't confirm, so "Add My Location" is offered whenever access is off, and
+      the request itself decides: an answer back at once with no dialog opens the app's settings
+      page; a dialog answered clears the flag. (review finding 3)
 - [x] **Text in resources, ready to translate** (11-08): architecture item 4. iOS's text is in a
       String Catalog (`Localizable.xcstrings`, plus `InfoPlist.xcstrings` for the app name and the
       location prompts), with `String(localized:)` and whole sentences instead of glued fragments;
@@ -624,42 +614,27 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
       `seasonal_themes_enabled`). Each sets the hero colours and caption, card tint, section and
       tile header colours for light and dark mode, and the pets' decorations. Picked by the city's
       own date, so it ends by itself. Not yet deployed to Firebase. (10-31)
-- [x] Sunny and Misty drawn after the app icon: Misty's white blaze, pink nose, whiskers and inner
-      ears; Sunny's eyebrows, open smile and a blue collar with a sun tag. (10-31)
 - [x] UV tile: the index, today's peak while it's ahead ("Peak 8 at 1 PM"), then "Shade for pale
       noses" on a high day with a dog. Every Today tile now has a Remote Config switch
       (`tile_*_enabled`); UV starts off. (10-30, done 10-31)
-- [x] Notification stacks on iOS say "3 more briefings" (a category summary per kind). (10-29,
-      done 10-31)
-- [x] Bad air in the notifications: the briefing adds "Smoky air today, so keep it short." (or
-      "... so potty breaks only.") and the walk nudge "... so a short one."; ozone and other
-      pollutants read "High ozone" and "Poor air". (10-30, done 10-31)
-- [x] City search no longer shows a place twice. (10-30, done 10-31)
 - [x] First TestFlight build: 1.0 (1) uploaded from `main` with `xcodebuild`, internal group
       "Family". The next upload needs build 2. (10-31)
 - [x] App Store listing in App Store Connect: name "Sunny & Misty: Pet Weather", text, screenshots
       (6.3" and 6.9" iPhone, 13" iPad), age rating 4+, free in 174 countries (not China mainland),
       App Review contact and notes. (10-31)
-- [x] The day detail's empty row under the header (two dividers in a row) is gone. (10-30)
 - [x] iOS signing: FangJet LLC's team (`3V3NR8HP58`), your iPhone registered, and a Release archive
       that exports with App Store signing. (10-30)
 - [x] Update prompts: `ios_`/`android_min_supported_version` block the app until it's updated,
       `ios_`/`android_min_recommended_version` show a banner ("Not now" hides it a week). The keys
       are live in Remote Config, all empty. (10-30)
-- [x] Air quality tile, and bad air in the walk planner: hours at "Unhealthy" or worse are never
-      suggested, and the walk card says "Bad air. Potty breaks only." Heat still outranks it. (10-30)
-- [x] Air quality in one request: the forecast fetches each hour's full reading and the tile shows
-      the hour in progress, so it's cached and shows offline. (10-30)
-- [x] Remote Config: `air_quality_enabled` switch and `walk_bad_air_band` threshold. (10-30)
-- [x] An odd tile out (Air quality, with Paw check showing) takes the full width. (10-30)
-- [x] iOS "No cities added yet" fills the screen instead of showing as a box in dark mode. (10-30)
-- [x] The Android release build stops at the start and lists what's missing when the signing key
-      or weather API key isn't in `local.properties`. (10-27, done 10-30)
-- [x] iOS test runs left hundreds of `CatsDogsTests-*.plist` files; tests now reuse 8. 60 old
-      test-clone simulators (329 GB) deleted. (10-05, done 10-30)
-- [x] Xcode 27.1 recommended settings, and the `nilIfBlank` isolation error. (10-30)
-- [x] Old local and merged branches cleaned up. (10-26, done 10-30)
 - [x] The hero's high and low came from OpenWeather's current reading (the spread across nearby
       stations right now) and today's forecast only covered the hours left. Both now show the
       whole day from the forecast. (10-30)
-- [x] Fresh README, App Store and Play Store screenshots. (10-30)
+- [x] Also done 10-24 to 10-31, with the details in git history and the READMEs: the pets redrawn
+      after the app icon; iOS notification stacks ("3 more briefings"); bad air in the
+      notifications; city search without duplicates; the day detail's double divider; the Air
+      quality tile in one forecast request, with its Remote Config keys and bad air kept out of
+      suggested walks; the full-width odd tile; iOS "No cities added yet" in dark mode; Android's
+      release build listing missing keys; iOS tests reusing 8 preference files (and 60 old test
+      simulators, 329 GB, deleted); Xcode 27.1 settings; old branches cleaned up; fresh README and
+      store screenshots. (10-30, 10-31)
