@@ -50,9 +50,9 @@ class RainOutlookTest {
 
     @Test
     fun `hidden when no hour reaches the minimum chance`() {
-        assertNull(outlook(slots(0, 10, 19, 5)))
+        assertNull(outlook(slots(0, 10, 14, 5)))
         assertNotNull(outlook(slots(0, 10, 20, 5)))
-        assertNull(outlook(slots(0, 30, 39), RainOutlookSettings(minChance = 40)))
+        assertNull(outlook(slots(0, 30, 34), RainOutlookSettings(minChance = 40)))
     }
 
     @Test
@@ -93,7 +93,7 @@ class RainOutlookTest {
 
     @Test
     fun `a chance now or around the peak hour under 50 percent`() {
-        assertEquals(RainOutlookHeadline.Chance(null), outlook(slots(49, 30, 0))?.headline)
+        assertEquals(RainOutlookHeadline.Chance(null), outlook(slots(44, 30, 0))?.headline)
         assertEquals(RainOutlookHeadline.Chance("4 PM"), outlook(slots(10, 30, 20))?.headline)
     }
 
@@ -127,7 +127,37 @@ class RainOutlookTest {
 
     @Test
     fun `an hour counts as wet from the minimum chance`() {
-        assertEquals("4 PM", outlook(slots(50, 40, 39), RainOutlookSettings(minChance = 40))?.lastWetHour)
+        assertEquals("4 PM", outlook(slots(50, 40, 34), RainOutlookSettings(minChance = 40))?.lastWetHour)
+    }
+
+    // --- the chance as the hourly strip shows it ---
+
+    @Test
+    fun `a bar shows the chance as the hourly strip does`() {
+        val bars = outlook(slots(55, 5, 14, 96))?.bars
+        assertEquals(listOf(60, 0, 10, 100), bars?.map { it.chance })
+    }
+
+    @Test
+    fun `the minimum chance goes by the chance as shown`() {
+        val thirty = RainOutlookSettings(minChance = 30)
+        // 25% shows as 30%, 24% as 20%.
+        assertEquals("4 PM", outlook(slots(10, 25, 24), thirty)?.lastWetHour)
+        assertNull(outlook(slots(10, 24, 5), thirty))
+    }
+
+    @Test
+    fun `likely goes by the chance as shown`() {
+        // 45% shows as 50%, 44% as 40%.
+        assertEquals(RainOutlookHeadline.Likely("4 PM"), outlook(slots(20, 45, 30))?.headline)
+        assertEquals(RainOutlookHeadline.Chance("4 PM"), outlook(slots(20, 44, 30))?.headline)
+    }
+
+    @Test
+    fun `the peak is the first hour with the highest chance as shown`() {
+        // 52% and 55% show as 50% and 60%; 61% and 64% both show as 60%, so the first wins.
+        assertEquals(RainOutlookHeadline.Likely("4 PM"), outlook(slots(52, 55, 30))?.headline)
+        assertEquals(RainOutlookHeadline.Likely(null), outlook(slots(61, 64, 30))?.headline)
     }
 
     // --- the total ---

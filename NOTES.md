@@ -75,11 +75,6 @@ Finished items move to Done at the bottom.
       hour is cut off there by luck. Consider fading the edges, letting the last hour on screen
       always peek out half cut, or a small arrow; check it at large text sizes and on iPad, where
       more hours fit.
-- [ ] **Radar outside RainViewer's coverage.** Test a city whose coordinates are outside it
-      (RainViewer has no radar for much of Africa, central Asia and the oceans): do the tiles come
-      back empty (an empty map that reads as "no rain"), as a placeholder, or as errors? If it can
-      be told apart (RainViewer may offer a coverage layer; check its API), say "No radar here" or
-      hide the card rather than show an empty map.
 - [ ] **Tile design looks too much like other weather apps.** Review the Today tiles as a whole:
       shape, layout, icons and type, and what would make them ours (the pets' voice, the brand
       font, the colour scale above, the tile sizes above).
@@ -90,10 +85,6 @@ Finished items move to Done at the bottom.
       have already turned the text size up. Options: let both apps wrap to two lines; shorten the
       lines that run long; or shrink only a little, with a floor. Decide, then make both apps the
       same. (11-06)
-- [ ] **Misty's View at night.** Its line ignores the dark: "The end of the street looks fuzzy" or
-      "Misty can see the whole street" shows in the middle of the night and reads wrong. After dark
-      it could say what Misty sees by the streetlights, or the stars on a clear night. Both apps.
-      (11-07)
 
 ## More tiles to consider (10-30)
 
@@ -161,9 +152,6 @@ noted. Checked against the code, not fixed yet.
 - [ ] **Theme captions and the no-dog rule.** A theme's captions show whether or not there's a dog,
       so a future one about walks would reach people with Dog walking off (none mention walks yet).
       Both apps.
-- [ ] **Wording.** "Then rain" or "then maybe rain" goes by the raw rain chance while the hourly
-      strip rounds it (55% shows 60% but says "maybe rain"). Both apps. (Since 11-07 dust is
-      "Dusty air today", and the walk card and the Air tile follow `walk_bad_air_band` together.)
 - [ ] **City search.** Two places with the same name, state and country (two "Richmond, England,
       GB") show as one row, so the second can't be picked. The search design in SEARCH.md (agreed
       11-05) fixes it: rows merge only within 2 km, and same-label places get their county. Fixed
@@ -386,6 +374,25 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Radar outside RainViewer's coverage** (11-09): RainViewer's coverage layer is transparent
+      where it has radar and black where it doesn't (checked at London, Knoxville, Nairobi,
+      Ulaanbaatar and the mid-Atlantic). The radar card dims the areas without radar, and says
+      "No radar here" when the city itself has none, instead of an empty map that reads as no rain.
+- [x] **The rain chance as the hourly strip shows it** (11-09): the walk rules (the walk limit and
+      "then rain" against "then maybe rain") and the Rain outlook card (its bars, its minimum and
+      "likely") read the chance rounded to the nearest 10%, hidden under 10%, as the strip shows it.
+- [x] **Misty's View at night** (11-09): after dark her line is about the stars ("Misty can see the
+      stars", "Misty can spot a few stars", "No stars for Misty tonight") or the streetlights ("The
+      streetlights look fuzzy"); poor visibility keeps "Misty can't see past the garden".
+- [x] **Walk reminders warn about hurricanes and storms** (11-09): a reminder followed within 3
+      hours by hurricane force wind or likely storms ends "Hurricane force winds from 2 PM, so be
+      back by then." or "Storms from 4 PM, so be back by then.", in place of the bad-air sentence.
+      Android writes the reminder when it goes off, so its window moves if the worker is late; iOS
+      plans it ahead.
+- [x] **Cloudy captions** (11-09): partly cloudy has brighter captions of its own ("Bit of sun, bit
+      of cloud. Good sniffing weather."), and "Nap weather, says Misty." only shows from noon.
+- [x] **Terms of use page** (11-09): sunnyandmisty.com/terms, linked from every page's footer and
+      from Settings › About in both apps. The legal review is still open (Store and release).
 - [x] **Hurricane and storm warnings ahead** (11-09): hurricane force wind forecast in the next 6
       hours is a warning of its own on the walk card ("Hurricane force winds from 6 PM", "Get
       everyone inside before then.", for everyone, dog or not) instead of being treated as wind
