@@ -110,6 +110,37 @@ class WalkCheckTest {
     }
 
     @Test
+    fun `likely rain goes by the chance as shown`() {
+        // 55% shows as 60%: rain. 54% shows as 50%: maybe rain.
+        assertEquals(WalkReason.Rain(likely = true), check(slot(rain = 55, icon = "10d")).reason)
+        assertEquals(WalkReason.Rain(likely = false), check(slot(rain = 54, icon = "10d")).reason)
+        assertEquals(WalkReason.Storms(likely = true), check(slot(rain = 55, icon = "11d")).reason)
+        assertEquals(WalkLevel.STAY_IN, check(slot(rain = 55, icon = "11d")).level)
+        assertEquals(WalkReason.Storms(likely = false), check(slot(rain = 54, icon = "11d")).reason)
+    }
+
+    @Test
+    fun `the walk limit goes by the chance as shown`() {
+        val limit30 = default.copy(maxRainChancePercent = 30)
+        // 25% shows as 30% and meets the limit; 24% shows as 20% and doesn't.
+        assertEquals(WalkReason.Rain(likely = false), check(slot(rain = 25, icon = "10d"), thresholds = limit30).reason)
+        assertNull(check(slot(rain = 24, icon = "10d"), thresholds = limit30).reason)
+        // 5% shows as nothing: no rain, even with the limit at 5.
+        assertNull(check(slot(rain = 5, icon = "10d"), thresholds = default.copy(maxRainChancePercent = 5)).reason)
+    }
+
+    @Test
+    fun `the shown chance is nothing under 10 and otherwise the nearest 10`() {
+        assertEquals(0, slot(rain = 5).shownRainChance)
+        assertEquals(0, slot(rain = 9).shownRainChance)
+        assertEquals(10, slot(rain = 10).shownRainChance)
+        assertEquals(30, slot(rain = 25).shownRainChance)
+        assertEquals(20, slot(rain = 24).shownRainChance)
+        assertEquals(60, slot(rain = 55).shownRainChance)
+        assertEquals(50, slot(rain = 54).shownRainChance)
+    }
+
+    @Test
     fun `dark is a wait`() {
         assertEquals(WalkReason.Dark, check(slot(icon = "01n")).reason)
         assertEquals(WalkLevel.WAIT, check(slot(), darkNow = true).level)
@@ -330,8 +361,9 @@ class WalkCheckTest {
     fun `the slot rules for warnings`() {
         assertTrue(isHurricaneForce(slot(wind = 35.0)))
         assertFalse(isHurricaneForce(slot(wind = 30.0)))
-        assertTrue(hasLikelyStorms(slot(rain = 60, icon = "11d"), default))
-        assertFalse(hasLikelyStorms(slot(rain = 59, icon = "11d"), default))
+        // The chance as the hourly strip shows it: 55% shows as 60%, 54% as 50%.
+        assertTrue(hasLikelyStorms(slot(rain = 55, icon = "11d"), default))
+        assertFalse(hasLikelyStorms(slot(rain = 54, icon = "11d"), default))
         assertFalse(hasLikelyStorms(slot(rain = 90, icon = "10d"), default))
     }
 
