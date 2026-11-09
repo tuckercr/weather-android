@@ -1,7 +1,7 @@
 package com.fangjet.weather.worker
 
 import androidx.work.ListenableWorker.Result
-import com.fangjet.weather.R
+import com.fangjet.weather.StringsXml
 import com.fangjet.weather.data.testLocationWeatherRepository
 import com.fangjet.weather.data.weatherRequest
 import com.fangjet.weather.domain.AirQuality
@@ -16,7 +16,6 @@ import com.fangjet.weather.domain.WalkAdvice
 import com.fangjet.weather.domain.WalkRating
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.util.NextRain
-import com.fangjet.weather.util.airNameOrPoorRes
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -287,21 +286,23 @@ class NotificationWorkerLogicTest {
 
     @Test
     fun `the day's rain chance is mentioned from 40 percent, rounded`() {
-        val (_, wet) = buildBriefingContent(weather(), forecast(tempMin = 48.0, tempMax = 91.0, rainChance = 57), walk = null)
+        val (_, wet) = buildBriefingContent(StringsXml, weather(), forecast(tempMin = 48.0, tempMax = 91.0, rainChance = 57), walk = null)
         assertEquals("High 91°, low 48°, 60% chance of rain.", wet)
-        val (_, dry) = buildBriefingContent(weather(), forecast(tempMin = 48.0, tempMax = 91.0, rainChance = 34), walk = null)
+        val (_, dry) = buildBriefingContent(StringsXml, weather(), forecast(tempMin = 48.0, tempMax = 91.0, rainChance = 34), walk = null)
         assertEquals("High 91°, low 48°.", dry)
     }
 
     @Test
     fun `rain is named by its description, everything else by the sky`() {
         val (rainy, _) = buildBriefingContent(
+            StringsXml,
             weather(temperature = 61.0, cityName = "Tokyo", conditionMain = "Rain", description = "light rain"),
             null,
             walk = null,
         )
         assertEquals("61° and light rain in Tokyo", rainy)
         val (cloudy, _) = buildBriefingContent(
+            StringsXml,
             weather(temperature = 85.6, cityName = "Tokyo", conditionMain = "Clouds", cloudPercent = 40),
             null,
             walk = null,
@@ -311,7 +312,7 @@ class NotificationWorkerLogicTest {
 
     @Test
     fun `with a dog the briefing says when to walk`() {
-        fun body(walk: WalkAdvice) = buildBriefingContent(weather(tempMin = 50.0, tempMax = 70.0), null, walk).second
+        fun body(walk: WalkAdvice) = buildBriefingContent(StringsXml, weather(tempMin = 50.0, tempMax = 70.0), null, walk).second
 
         assertEquals("High 70°, low 50°. Sunny says now's a great time for a walk.", body(WalkAdvice(WalkRating.GREAT, null)))
         assertEquals("High 70°, low 50°. Sunny's picked 1 PM for a walk.", body(WalkAdvice(WalkRating.OKAY, "1 PM")))
@@ -327,7 +328,7 @@ class NotificationWorkerLogicTest {
         fun body(
             walk: WalkAdvice,
             badAir: String,
-        ) = buildBriefingContent(weather(tempMin = 50.0, tempMax = 70.0), null, walk, badAir).second
+        ) = buildBriefingContent(StringsXml, weather(tempMin = 50.0, tempMax = 70.0), null, walk, badAir).second
 
         assertEquals(
             "High 70°, low 50°. Sunny says now's a great time for a walk. Smoky air today, so keep it short.",
@@ -346,7 +347,7 @@ class NotificationWorkerLogicTest {
     @Test
     fun `bad air in notifications uses the hero's names for it`() {
         fun phrase(air: AirQuality.Pollutant) =
-            badAirPhrase(listOf(forecast(slots = listOf(slot(9, rain = 0, air = air)))), 0, NOW, PetWeatherThresholds.DEFAULT, ::airName)
+            badAirPhrase(StringsXml, listOf(forecast(slots = listOf(slot(9, rain = 0, air = air)))), 0, NOW, PetWeatherThresholds.DEFAULT)
         // The names come from strings.xml, through the same mapping as the hero's caption.
         assertEquals("${string("walk_air_smoky")} today", phrase(AirQuality.Pollutant.FINE_PARTICLES))
         assertEquals("${string("walk_air_dusty")} today", phrase(AirQuality.Pollutant.COARSE_PARTICLES))
@@ -357,7 +358,7 @@ class NotificationWorkerLogicTest {
     @Test
     fun `bad air is named by the worst walking hour left today`() {
         fun phrase(vararg slots: HourlySlot) =
-            badAirPhrase(listOf(forecast(slots = slots.toList())), 0, NOW, PetWeatherThresholds.DEFAULT, ::airName)
+            badAirPhrase(StringsXml, listOf(forecast(slots = slots.toList())), 0, NOW, PetWeatherThresholds.DEFAULT)
 
         assertEquals("Smoky air today", phrase(slot(9, rain = 0, air = AirQuality.Pollutant.FINE_PARTICLES)))
         assertEquals("Dusty air today", phrase(slot(9, rain = 0, air = AirQuality.Pollutant.COARSE_PARTICLES)))
@@ -474,7 +475,7 @@ class NotificationWorkerLogicTest {
                     refreshForecast = { kotlin.Result.success(listOf(forecast(slots = slots))) },
                     hasNotificationPermission = { true },
                     postNotification = { posted += it },
-                    airName = ::airName,
+                    strings = StringsXml,
                     isWalkTimeEnabled = { true },
                     nowEpochSeconds = { NOW },
                 )
@@ -521,6 +522,7 @@ class NotificationWorkerLogicTest {
                     lastAlertStart = { lastStart },
                     setLastAlertStart = { lastStart = it },
                     postNotification = { posted += it },
+                    strings = StringsXml,
                     nowEpochSeconds = { NOW },
                 )
 
@@ -542,15 +544,21 @@ class NotificationWorkerLogicTest {
     @Test
     fun `rain alert text names the time and the city, and mentions the walk only with a dog`() {
         val rain = NextRain.Starting(DAY_START + 15 * HOUR + 900, snow = false)
-        val (title, body) = buildRainAlertContent(rain, "Knoxville", 0, hasDog = true)
+        val (title, body) = buildRainAlertContent(StringsXml, rain, "Knoxville", 0, hasDog = true)
         assertEquals("Rain starting around 3:15 PM", title.replace('\u202F', ' '))
         assertEquals("Rain on the way in Knoxville. Walk now or wait it out.", body)
         assertEquals(
             "Rain on the way in Knoxville. Misty's staying in.",
-            buildRainAlertContent(rain, "Knoxville", 0, hasDog = false).second,
+            buildRainAlertContent(StringsXml, rain, "Knoxville", 0, hasDog = false).second,
         )
         assertTrue(
-            buildRainAlertContent(NextRain.Starting(DAY_START, snow = true), "Oslo", 0, hasDog = true).first.startsWith("Snow starting"),
+            buildRainAlertContent(
+                StringsXml,
+                NextRain.Starting(DAY_START, snow = true),
+                "Oslo",
+                0,
+                hasDog = true,
+            ).first.startsWith("Snow starting"),
         )
     }
 
@@ -642,7 +650,7 @@ class NotificationWorkerLogicTest {
         refreshForecast = testLocationWeatherRepository(units, fetchCurrentWeather, fetchForecast)::refreshForecast,
         hasNotificationPermission = hasNotificationPermission,
         postNotification = postNotification,
-        airName = ::airName,
+        strings = StringsXml,
         isDailyWeatherNotificationEnabled = isDailyWeatherNotificationEnabled,
         isBriefingEnabled = { isBriefingEnabled },
         isWalkTimeEnabled = { isWalkTimeEnabled },
@@ -653,18 +661,8 @@ class NotificationWorkerLogicTest {
     )
 
     private companion object {
-        val strings: String = java.io.File("src/main/res/values/strings.xml").readText()
-
-        fun string(name: String) = Regex("<string name=\"$name\">([^<]*)</string>").find(strings)!!.groupValues[1]
-
-        /** What the workers pass: the name from strings.xml for [airNameOrPoorRes]'s resource. */
-        fun airName(pollutant: AirQuality.Pollutant?): String =
-            when (airNameOrPoorRes(pollutant)) {
-                R.string.walk_air_smoky -> string("walk_air_smoky")
-                R.string.walk_air_dusty -> string("walk_air_dusty")
-                R.string.walk_air_ozone -> string("walk_air_ozone")
-                else -> string("walk_air_poor")
-            }
+        /** A string from strings.xml, as the workers get it. */
+        fun string(name: String) = StringsXml.raw(name)
 
         const val TODAY_LABEL = "Mon, Jan 1"
         const val DAY_START = 1_704_067_200L // Mon, Jan 1 2024, 00:00 UTC

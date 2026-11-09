@@ -11,6 +11,7 @@ import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.notificationLocation
 import com.fangjet.weather.util.NextRain
+import com.fangjet.weather.util.asStrings
 import com.fangjet.weather.worker.NotificationKind
 import com.fangjet.weather.worker.WalkTimeWorker
 import com.fangjet.weather.worker.WeatherNotification
@@ -65,13 +66,14 @@ class DebugNotifications : BroadcastReceiver() {
                 ?: "Knoxville"
         }
         when (mode) {
-            "sample" -> sample(kind, hasDog, city)?.let(context::postWeatherNotification)
+            "sample" -> sample(context, kind, hasDog, city)?.let(context::postWeatherNotification)
             "run" -> worker(kind)?.let { WorkManager.getInstance(context).enqueue(OneTimeWorkRequest.from(it)) }
             else -> null
         } ?: Log.w(TAG, "Unknown mode \"$mode\" or kind \"$kind\"")
     }
 
     private fun sample(
+        context: Context,
         kind: String,
         hasDog: Boolean,
         city: String,
@@ -96,7 +98,7 @@ class DebugNotifications : BroadcastReceiver() {
             val now = ZonedDateTime.now()
             val start = now.plusHours(1).toEpochSecond()
             val (title, body) =
-                buildRainAlertContent(NextRain.Starting(start, snow), city, now.offset.totalSeconds, hasDog)
+                buildRainAlertContent(context.resources.asStrings(), NextRain.Starting(start, snow), city, now.offset.totalSeconds, hasDog)
             WeatherNotification(
                 NotificationKind.RAIN,
                 title,

@@ -8,6 +8,7 @@ import com.fangjet.weather.data.LocationRepository
 import com.fangjet.weather.data.LocationWeatherRepository
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
+import com.fangjet.weather.util.asStrings
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
@@ -32,6 +33,7 @@ class WeatherUpdateWorker @AssistedInject constructor(
         lastAlertStart = { preferencesRepository.lastRainAlertStart() },
         setLastAlertStart = preferencesRepository::setLastRainAlertStart,
         postNotification = context::postWeatherNotification,
+        strings = context.resources.asStrings(),
     )
 
     private val logic = UpdateWorkerLogic(

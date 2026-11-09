@@ -1,7 +1,7 @@
 package com.fangjet.weather.worker
 
 import androidx.work.ListenableWorker.Result
-import com.fangjet.weather.domain.AirQuality
+import com.fangjet.weather.R
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
@@ -17,6 +17,7 @@ import com.fangjet.weather.domain.petMoodAt
 import com.fangjet.weather.domain.walkAdviceForReading
 import com.fangjet.weather.util.NextRain
 import com.fangjet.weather.util.SkyCondition
+import com.fangjet.weather.util.Strings
 import com.fangjet.weather.util.airNameOrPoorRes
 import com.fangjet.weather.util.dayOf
 import com.fangjet.weather.util.displayedRainChance
@@ -57,8 +58,8 @@ internal class NotificationWorkerLogic(
     private val refreshForecast: suspend (location: SavedLocation) -> kotlin.Result<List<DayForecast>>,
     private val hasNotificationPermission: () -> Boolean,
     private val postNotification: (WeatherNotification) -> Unit,
-    // Bad air's name from strings.xml ("Smoky air"), as the hero says it: airNameOrPoorRes.
-    private val airName: (AirQuality.Pollutant?) -> String,
+    // The notifications' text, from strings.xml.
+    private val strings: Strings,
     // Remote Config daily_weather_notifications_enabled: switches the briefing off for everyone.
     private val isDailyWeatherNotificationEnabled: () -> Boolean = { true },
     // Remote Config walk_time_notifications_enabled: switches the walk nudge off for everyone.
@@ -104,8 +105,8 @@ internal class NotificationWorkerLogic(
         }
 
         if (!briefingOn) return Result.success()
-        val badAir = forecast?.let { badAirPhrase(it, weather.offsetSeconds, now, thresholds, airName) }
-        val (title, body) = buildBriefingContent(weather, todayForecast, walk.takeIf { hasDog() }, badAir)
+        val badAir = forecast?.let { badAirPhrase(strings, it, weather.offsetSeconds, now, thresholds) }
+        val (title, body) = buildBriefingContent(strings, weather, todayForecast, walk.takeIf { hasDog() }, badAir)
         postNotification(
             WeatherNotification(
                 NotificationKind.MORNING_BRIEFING,
@@ -130,8 +131,8 @@ internal class WalkTimeLogic(
     private val refreshForecast: suspend (location: SavedLocation) -> kotlin.Result<List<DayForecast>>,
     private val hasNotificationPermission: () -> Boolean,
     private val postNotification: (WeatherNotification) -> Unit,
-    // Bad air's name from strings.xml ("Smoky air"), as the hero says it: airNameOrPoorRes.
-    private val airName: (AirQuality.Pollutant?) -> String,
+    // The notifications' text, from strings.xml.
+    private val strings: Strings,
     private val isWalkTimeEnabled: suspend () -> Boolean,
     private val petWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
     private val nowEpochSeconds: () -> Long = { Instant.now().epochSecond },
@@ -145,7 +146,7 @@ internal class WalkTimeLogic(
         val now = nowEpochSeconds()
         val walk = walkAdviceForReading(weather, forecast, thresholds, now)
         if (walk?.rating != WalkRating.GREAT) return Result.success()
-        val (title, body) = buildWalkTimeContent(weather, badAirPhrase(forecast, weather.offsetSeconds, now, thresholds, airName))
+        val (title, body) = buildWalkTimeContent(strings, weather, badAirPhrase(strings, forecast, weather.offsetSeconds, now, thresholds))
         postNotification(
             WeatherNotification(
                 NotificationKind.WALK_TIME,
@@ -164,16 +165,16 @@ private const val BRIEFING_RAIN_CHANCE = 40
 
 /**
  * "Smoky air today" when bad air rules out walking hours from the one under way to the end of the
- * city's day, named by the worst hour's main pollutant with [airName], the hero caption's names
- * from strings.xml ([airNameOrPoorRes]): fine particles read as smoke, coarse ones as dust, ozone
- * by name, anything else as poor air. Null on a clean day.
+ * city's day, named by the worst hour's main pollutant with the hero caption's names
+ * ([airNameOrPoorRes]): fine particles read as smoke, coarse ones as dust, ozone by name, anything
+ * else as poor air. Null on a clean day.
  */
 internal fun badAirPhrase(
+    strings: Strings,
     forecast: List<DayForecast>,
     utcOffsetSeconds: Int,
     nowEpochSeconds: Long,
     thresholds: PetWeatherThresholds,
-    airName: (AirQuality.Pollutant?) -> String,
 ): String? {
     fun localDay(epochSeconds: Long) = Math.floorDiv(epochSeconds + utcOffsetSeconds, 86_400L)
     val worst = forecast
@@ -182,7 +183,7 @@ internal fun badAirPhrase(
             val start = slot.epochSeconds ?: return@filter false
             start + 3600 > nowEpochSeconds && localDay(start) == localDay(nowEpochSeconds) && slot.hasBadAirForWalking(thresholds)
         }.maxByOrNull { it.airQuality?.index ?: 0 } ?: return null
-    return "${airName(worst.airQuality?.mainPollutant)} today"
+    return strings.get(R.string.notif_bad_air_today, strings.get(airNameOrPoorRes(worst.airQuality?.mainPollutant)))
 }
 
 /**
@@ -191,6 +192,7 @@ internal fun badAirPhrase(
  * hours are left out of the walk silently, so [badAir] ("Smoky air today") says why.
  */
 internal fun buildBriefingContent(
+    strings: Strings,
     weather: CurrentWeather,
     todayForecast: DayForecast?,
     walk: WalkAdvice?,
@@ -198,54 +200,68 @@ internal fun buildBriefingContent(
 ): Pair<String, String> {
     // As on the hero: today's forecast high and low, taking in the temperature now.
     val (high, low) = todayHighLow(weather, todayForecast).let { (h, l) -> h.roundToInt() to l.roundToInt() }
-    val title = "${weather.temperature.roundToInt()}° and ${conditionPhrase(weather)} in ${weather.cityName}"
-    val body = buildString {
-        append("High $high°, low $low°")
-        displayedRainChance(todayForecast?.precipitationChance ?: 0)
-            ?.takeIf { it >= BRIEFING_RAIN_CHANCE }
-            ?.let { append(", $it% chance of rain") }
-        append(".")
-        walkSentence(walk, badAir)?.let { append(" ").append(it) }
+    val title = strings.get(
+        R.string.notif_briefing_title,
+        weather.temperature.roundToInt(),
+        conditionPhrase(strings, weather),
+        weather.cityName,
+    )
+    val rainChance = displayedRainChance(todayForecast?.precipitationChance ?: 0)?.takeIf { it >= BRIEFING_RAIN_CHANCE }
+    val highLow = if (rainChance != null) {
+        strings.get(R.string.notif_briefing_high_low_rain, high, low, rainChance)
+    } else {
+        strings.get(R.string.notif_briefing_high_low, high, low)
     }
+    val body = listOfNotNull(highLow, walkSentence(strings, walk, badAir)).joinToString(" ")
     return title to body
 }
 
 private fun walkSentence(
+    strings: Strings,
     walk: WalkAdvice?,
     badAir: String?,
 ): String? {
-    val shortOne = badAir?.let { " $it, so keep it short." }.orEmpty()
-    return when {
-        walk == null -> null
-        walk.rating == WalkRating.GREAT -> "Sunny says now's a great time for a walk.$shortOne"
-        walk.bestTimeLabel != null && !walk.bestTimeIsTomorrow -> "Sunny's picked ${walk.bestTimeLabel} for a walk.$shortOne"
-        else -> badAir?.let { "$it, so potty breaks only." } ?: "Not a good day for walkies."
+    val shortOne = badAir?.let { strings.get(R.string.notif_briefing_bad_air_short, it) }
+    val walkNow = when {
+        walk == null -> return null
+        walk.rating == WalkRating.GREAT -> strings.get(R.string.notif_briefing_walk_now)
+        walk.bestTimeLabel != null && !walk.bestTimeIsTomorrow -> strings.get(R.string.notif_briefing_walk_at, walk.bestTimeLabel)
+        else -> return badAir?.let { strings.get(R.string.notif_briefing_bad_air_potty, it) }
+            ?: strings.get(R.string.notif_briefing_no_walk)
     }
+    return listOfNotNull(walkNow, shortOne).joinToString(" ")
 }
 
 /** "Time for a walk" / "64° and clear in Knoxville. Sunny's waiting by the door. Smoky air today, so a short one." */
 internal fun buildWalkTimeContent(
+    strings: Strings,
     weather: CurrentWeather,
     badAir: String? = null,
-): Pair<String, String> =
-    "Time for a walk" to
-        "${weather.temperature.roundToInt()}° and ${conditionPhrase(weather)} in ${weather.cityName}. Sunny's waiting by the door." +
-        badAir?.let { " $it, so a short one." }.orEmpty()
+): Pair<String, String> {
+    val body = strings.get(R.string.notif_walk_body, weather.temperature.roundToInt(), conditionPhrase(strings, weather), weather.cityName)
+    val shortOne = badAir?.let { strings.get(R.string.notif_walk_bad_air, it) }
+    return strings.get(R.string.notif_walk_title) to listOfNotNull(body, shortOne).joinToString(" ")
+}
 
 /** Rain, drizzle, snow and storms by their own description ("light rain"); otherwise the sky ("partly cloudy"). */
-internal fun conditionPhrase(weather: CurrentWeather): String {
+internal fun conditionPhrase(
+    strings: Strings,
+    weather: CurrentWeather,
+): String {
     if (isPrecipitating(weather.conditionMain)) return weather.description.lowercase()
-    return when (skyCondition(weather.conditionMain, weather.cloudPercent, weather.iconCode)) {
-        SkyCondition.CLEAR -> "clear"
-        SkyCondition.PARTLY_CLOUDY -> "partly cloudy"
-        SkyCondition.MOSTLY_CLOUDY -> "mostly cloudy"
-        SkyCondition.OVERCAST -> "overcast"
-        SkyCondition.MIST -> "misty"
-        SkyCondition.HAZE -> "hazy"
-        SkyCondition.FOG -> "foggy"
-        SkyCondition.SMOKE -> "smoky"
-        SkyCondition.DUST -> "dusty"
-    }
+    return strings.get(
+        when (skyCondition(weather.conditionMain, weather.cloudPercent, weather.iconCode)) {
+            SkyCondition.CLEAR -> R.string.notif_sky_clear
+            SkyCondition.PARTLY_CLOUDY -> R.string.notif_sky_partly_cloudy
+            SkyCondition.MOSTLY_CLOUDY -> R.string.notif_sky_mostly_cloudy
+            SkyCondition.OVERCAST -> R.string.notif_sky_overcast
+            SkyCondition.MIST -> R.string.notif_sky_mist
+            SkyCondition.HAZE -> R.string.notif_sky_haze
+            SkyCondition.FOG -> R.string.notif_sky_fog
+            SkyCondition.SMOKE -> R.string.notif_sky_smoke
+            SkyCondition.DUST -> R.string.notif_sky_dust
+        },
+    )
 }
 
 /** Alert this far ahead of the rain at most. */
@@ -280,15 +296,22 @@ internal fun rainAlertFor(
  * without a dog, "Misty's staying in."
  */
 internal fun buildRainAlertContent(
+    strings: Strings,
     rain: NextRain.Starting,
     cityName: String,
     utcOffsetSeconds: Int,
     hasDog: Boolean,
 ): Pair<String, String> {
-    val what = if (rain.snow) "Snow" else "Rain"
     val time = formatEpochTime(rain.epochSeconds, utcOffsetSeconds)
-    val advice = if (hasDog) "Walk now or wait it out." else "Misty's staying in."
-    return "$what starting around $time" to "$what on the way in $cityName. $advice"
+    // The title is the screen's next-rain line.
+    val title = strings.get(if (rain.snow) R.string.next_snow_starting else R.string.next_rain_starting, time)
+    val body = when {
+        rain.snow && hasDog -> R.string.notif_snow_body_dog
+        rain.snow -> R.string.notif_snow_body_no_dog
+        hasDog -> R.string.notif_rain_body_dog
+        else -> R.string.notif_rain_body_no_dog
+    }
+    return title to strings.get(body, cityName)
 }
 
 /**
@@ -302,6 +325,8 @@ internal class RainAlertLogic(
     private val lastAlertStart: suspend () -> Long?,
     private val setLastAlertStart: suspend (epochSeconds: Long) -> Unit,
     private val postNotification: (WeatherNotification) -> Unit,
+    // The notifications' text, from strings.xml.
+    private val strings: Strings,
     private val nowEpochSeconds: () -> Long = { Instant.now().epochSecond },
 ) {
     suspend fun check(
@@ -311,7 +336,7 @@ internal class RainAlertLogic(
     ) {
         if (weather == null || forecast == null || !isEnabled()) return
         val rain = rainAlertFor(forecast, nowEpochSeconds(), weather.offsetSeconds, lastAlertStart()) ?: return
-        val (title, body) = buildRainAlertContent(rain, weather.cityName, weather.offsetSeconds, hasDog())
+        val (title, body) = buildRainAlertContent(strings, rain, weather.cityName, weather.offsetSeconds, hasDog())
         val mood = if (rain.snow) PetMood.SNOW else PetMood.RAIN
         postNotification(WeatherNotification(NotificationKind.RAIN, title, body, mood, (location.latitude ?: 0.0) < 0))
         setLastAlertStart(rain.epochSeconds)
