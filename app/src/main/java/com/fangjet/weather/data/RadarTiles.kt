@@ -59,6 +59,33 @@ data class RadarTile(
 }
 
 /**
+ * Whether RainViewer has radar where the card is centred. Its coverage layer is transparent where
+ * there is radar and opaque black where there isn't; there its radar tiles are empty, which would
+ * read as "no rain". Same as iOS's `RadarCoverage`.
+ */
+object RadarCoverage {
+    /**
+     * Covered unless the coverage pixel at the city is at all opaque. Null (no coverage image, or
+     * no pixel there) counts as covered, so a failed coverage load leaves the card as it was.
+     */
+    fun isCovered(alphaAt: Int?): Boolean = alphaAt == null || alphaAt <= 0
+
+    /** The city's pixel in the stitched 3 by 3 image: the point the card centres on. */
+    fun cityPixel(tile: RadarTile): Pair<Int, Int> {
+        val last = 3 * RADAR_TILE_PX - 1
+        val x = ((1 + tile.subFracX) * RADAR_TILE_PX).toInt().coerceIn(0, last)
+        val y = ((1 + tile.subFracY) * RADAR_TILE_PX).toInt().coerceIn(0, last)
+        return x to y
+    }
+}
+
+/** The stitched coverage layer around a city, and whether the city itself has radar. */
+data class RadarCoverageMap(
+    val image: Bitmap,
+    val cityCovered: Boolean,
+)
+
+/**
  * Loads the radar card's images: the OpenStreetMap tiles around a location, and each radar frame's
  * tiles over them, stitched into one bitmap per 3 by 3 block. Tiles go through Coil, which caches
  * them. The data layer for `RadarViewModel`; same as iOS's `RadarTileLoader`.
@@ -78,6 +105,19 @@ class RadarTileLoader
             timeline: RadarTimeline,
             tile: RadarTile,
         ): Bitmap? = stitchTilesWithRetry(tile) { x, y -> timeline.tileUrl(frame, RADAR_ZOOM, x, y) }
+
+        /**
+         * RainViewer's coverage layer around [tile], and whether the city's own pixel has radar;
+         * null when none of it loads, so the card shows as it did without it.
+         */
+        suspend fun coverage(
+            timeline: RadarTimeline,
+            tile: RadarTile,
+        ): RadarCoverageMap? {
+            val image = stitchTilesWithRetry(tile) { x, y -> timeline.coverageTileUrl(RADAR_ZOOM, x, y) } ?: return null
+            val (x, y) = RadarCoverage.cityPixel(tile)
+            return RadarCoverageMap(image, RadarCoverage.isCovered(android.graphics.Color.alpha(image.getPixel(x, y))))
+        }
 
         /**
          * Stitches the 3x3 tile grid, retrying with backoff while any tile fails so a network blip

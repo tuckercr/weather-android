@@ -154,7 +154,11 @@ WorkManager, and CI on GitHub Actions.
   an OpenStreetMap base, with a timeline scrubber, colour legend, play/pause, and an
   "© OpenStreetMap contributors · Radar by RainViewer" credit linked under the map. The timeline is
   refetched once it is 10 minutes old (on resume and while the screen stays resumed), and the whole
-  section can be switched off remotely with `radar_enabled`.
+  section can be switched off remotely with `radar_enabled`. RainViewer has no radar for much of
+  Africa, central Asia and the oceans, where its tiles are simply empty: its coverage layer is drawn
+  over the map at 35% so those areas are dimmed, and when the city itself is outside it a "No radar
+  here" label sits in the middle of the map. If the coverage layer doesn't load, the card shows as
+  before.
 - **Multiple saved cities** with a scrollable tab row (once two or more are saved) and a Manage
   Locations screen: tap a city to make it active, drag to reorder (TalkBack users get Move up and
   Move down actions), or remove it.
@@ -315,7 +319,8 @@ emulator with a clean status bar:
    caption. All frame times display in the selected city's timezone. RainViewer publishes a frame
    every 10 minutes, so a timeline that old is refetched on resume and every 10 minutes while the
    screen is resumed; the current loop stays on screen during the refresh, and a failed refresh
-   keeps it.
+   keeps it. RainViewer's coverage layer (fetched once per city) dims the areas it has no radar
+   for, and "No radar here" shows when the city is one of them.
 7. **Settings**, top to bottom:
    - **My Pets**: *I have a dog* turns on the walk card, the Paw Check tile, the briefing's walk
      sentence and the Walk time notification ("Walk times, pavement checks and walk reminders").
@@ -521,11 +526,12 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:weather-api` | `GeocodingRepositoryTest` | City search: input trimming, label formatting (and the name, rest of the label and short label Add location shows), short-query and missing-key short-circuits, failure wrapping |
 | `:weather-api` | `WeatherRepositoryTest` | Repository contract: coordinate routing (incl. `open_meteo_enabled` on/off and a failing `ForecastSourcePolicy`), Open-Meteo's reading with OpenWeather as the backup, My Location's name, city-query trimming, error mapping |
 | `:weather-api` | `OpenMeteoCurrentTest` | Open-Meteo's current reading mapped for the hero, today's range holding the reading |
-| `:weather-api` | `RadarRepositoryTest` | RainViewer timeline parsing, past/nowcast frame ordering, and tile URLs |
+| `:weather-api` | `RadarRepositoryTest` | RainViewer timeline parsing, past/nowcast frame ordering, and radar and coverage tile URLs |
 | `:weather-api` | `CurrentWeatherTest` | UTC-offset handling, including caches written before the offset existed |
 | `:weather-api` | `WeatherUnitsTest` | Celsius conversion and locale-to-unit mapping (US and territories imperial, others metric) |
 | `:app` | `WeatherForecastViewModelTest` | Cache-first loading, refresh races, background-refresh staleness guards, the `foreground_refresh_min_minutes` throttle, `walk_card_enabled`, the section switches, `temperature_units_shown`, and Remote Config pet thresholds |
-| `:app` | `RadarViewModelTest` | Stale-timeline refresh (10 minutes, measured from the request), keeping the old timeline on a failed refresh, and `radar_enabled` gating |
+| `:app` | `RadarViewModelTest` | Stale-timeline refresh (10 minutes, measured from the request), keeping the old timeline on a failed refresh, the coverage layer loaded once per city and tile host, and `radar_enabled` gating |
+| `:app` | `RadarCoverageTest` | Whether the city has radar from its pixel in RainViewer's coverage layer, and where that pixel is |
 | `:app` | `SettingsViewModelTest` | Unit-override selection, *Share usage statistics*, the walk card setting, and cache clearing |
 | `:app` | `AnalyticsRepositoryTest` | Analytics gates: kill switch, user opt-out, both on, and never crashing |
 | `:app` | `AnalyticsCollectionControllerTest` | SDK collection flag follows the opt-out and kill switch, at start and on change |

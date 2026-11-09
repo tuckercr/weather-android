@@ -1,6 +1,7 @@
 package com.fangjet.weather.model
 
 import android.graphics.Bitmap
+import com.fangjet.weather.data.RadarCoverageMap
 import com.fangjet.weather.data.RadarTile
 import com.fangjet.weather.domain.RadarFrame
 import com.fangjet.weather.domain.RadarTimeline
@@ -17,6 +18,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestWatcher
@@ -54,6 +56,7 @@ class RadarViewModelTest {
         radarEnabled: Boolean = true,
         loadBaseMap: suspend (RadarTile) -> Bitmap? = { null },
         loadOverlay: suspend (RadarTile, RadarTimeline, RadarFrame) -> Bitmap? = { _, _, _ -> null },
+        loadCoverage: suspend (RadarTile, RadarTimeline) -> RadarCoverageMap? = { _, _ -> null },
     ) = RadarViewModel(
         getTimeline = source::fetch,
         frameIntervalMs = { 850 },
@@ -61,6 +64,7 @@ class RadarViewModelTest {
         nowMillis = { now },
         loadBaseMap = loadBaseMap,
         loadOverlay = loadOverlay,
+        loadCoverage = loadCoverage,
     )
 
     // --- the city's images ---
@@ -124,6 +128,91 @@ class RadarViewModelTest {
             settle()
             assertEquals(5, asked.size)
             assertEquals(setOf("/v2/radar/0750", "/v2/radar/0800"), viewModel.overlays.value.keys)
+        }
+
+    @Test
+    fun `the coverage loads once per city and host, after the timeline, and a new city starts from scratch`() =
+        runTest {
+            val asked = mutableListOf<Pair<RadarTile, String>>()
+            val uncovered = RadarCoverageMap(mockk(), cityCovered = false)
+            val viewModel = viewModel(
+                FakeSource(listOf(Result.success(morning), Result.success(noon))),
+                loadCoverage = { tile, timeline ->
+                    asked += tile to timeline.host
+                    uncovered
+                },
+            )
+            viewModel.show(london)
+            settle()
+            // It needs the timeline's tile host.
+            assertEquals(emptyList<Pair<RadarTile, String>>(), asked)
+            assertNull(viewModel.coverage.value)
+
+            viewModel.load()
+            settle()
+            assertEquals(uncovered, viewModel.coverage.value)
+            assertEquals(listOf(london to morning.host), asked)
+
+            // A refreshed timeline on the same host leaves it alone, and so does showing the city again.
+            now += RadarViewModel.STALE_AFTER_MS
+            viewModel.load()
+            viewModel.show(london)
+            settle()
+            assertEquals(1, asked.size)
+            assertEquals(uncovered, viewModel.coverage.value)
+
+            viewModel.show(tokyo)
+            settle()
+            assertEquals(listOf(london to morning.host, tokyo to morning.host), asked)
+        }
+
+    @Test
+    fun `a failed coverage load leaves no coverage, and the radar loads as before`() =
+        runTest {
+            val image = mockk<Bitmap>()
+            val viewModel = viewModel(
+                FakeSource(listOf(Result.success(morning))),
+                loadBaseMap = { image },
+                loadOverlay = { _, _, _ -> image },
+                loadCoverage = { _, _ -> null },
+            )
+            viewModel.load()
+            viewModel.show(london)
+            settle()
+
+            assertNull(viewModel.coverage.value)
+            assertEquals(image, viewModel.baseMap.value)
+            assertEquals(2, viewModel.overlays.value.size)
+        }
+
+    @Test
+    fun `a new city drops the old city's coverage while its own loads`() =
+        runTest {
+            val gate = CompletableDeferred<Unit>()
+            val londonMap = RadarCoverageMap(mockk(), cityCovered = true)
+            val tokyoMap = RadarCoverageMap(mockk(), cityCovered = false)
+            val viewModel = viewModel(
+                FakeSource(listOf(Result.success(morning))),
+                loadCoverage = { tile, _ ->
+                    if (tile == tokyo) {
+                        gate.await()
+                        tokyoMap
+                    } else {
+                        londonMap
+                    }
+                },
+            )
+            viewModel.load()
+            viewModel.show(london)
+            settle()
+            assertEquals(londonMap, viewModel.coverage.value)
+
+            viewModel.show(tokyo)
+            settle()
+            assertNull(viewModel.coverage.value)
+            gate.complete(Unit)
+            settle()
+            assertEquals(tokyoMap, viewModel.coverage.value)
         }
 
     private fun settle() = mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()

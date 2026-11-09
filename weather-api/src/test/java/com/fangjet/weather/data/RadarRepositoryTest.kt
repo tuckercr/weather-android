@@ -62,6 +62,18 @@ class RadarRepositoryTest {
     }
 
     @Test
+    fun `builds a rainviewer coverage tile url from host and tile coordinates`() {
+        val timeline = com.fangjet.weather.domain
+            .RadarTimeline(host = "https://tilecache.rainviewer.com", frames = emptyList())
+        val zoom = com.fangjet.weather.domain.RadarTimeline.MAX_ZOOM
+
+        assertEquals(
+            "https://tilecache.rainviewer.com/v2/coverage/0/256/$zoom/34/50/0/0_0.png",
+            timeline.coverageTileUrl(z = zoom, x = 34, y = 50),
+        )
+    }
+
+    @Test
     fun `throws when there are no frames`() {
         val body = """{ "host": "https://tilecache.rainviewer.com", "radar": { "past": [], "nowcast": [] } }"""
         assertThrows(IllegalStateException::class.java) {

@@ -47,6 +47,7 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -68,6 +69,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.fangjet.weather.R
 import com.fangjet.weather.data.RADAR_TILE_PX
+import com.fangjet.weather.data.RadarCoverageMap
 import com.fangjet.weather.data.RadarTile
 import com.fangjet.weather.domain.RadarTimeline
 import com.fangjet.weather.domain.SavedLocation
@@ -163,6 +165,7 @@ private fun RadarMapCard(
         val timelineState by viewModel.timeline.collectAsStateWithLifecycle()
         val baseMap by viewModel.baseMap.collectAsStateWithLifecycle()
         val overlays by viewModel.overlays.collectAsStateWithLifecycle()
+        val coverage by viewModel.coverage.collectAsStateWithLifecycle()
         val playback by viewModel.playback.collectAsStateWithLifecycle()
         val shownFrame by viewModel.shownFrame.collectAsStateWithLifecycle()
 
@@ -173,6 +176,7 @@ private fun RadarMapCard(
                 modifier = Modifier.onGloballyPositioned { viewModel.setVisible(it.boundsInWindow().height > 0f) },
                 tileInfo = tile,
                 baseMap = baseMap,
+                coverage = coverage,
                 overlay = shownFrame?.let { overlays[it.frame.path] },
                 timelineState = timelineState,
                 playback = playback,
@@ -202,6 +206,7 @@ private fun CenteredMessage(text: String) {
 private fun RadarView(
     tileInfo: RadarTile,
     baseMap: Bitmap?,
+    coverage: RadarCoverageMap?,
     overlay: Bitmap?,
     timelineState: LoadingState<RadarTimeline>,
     playback: RadarPlayback,
@@ -214,26 +219,46 @@ private fun RadarView(
 ) {
     val frames = (timelineState as? LoadingState.Success)?.data?.frames.orEmpty()
     val baseImage = remember(baseMap) { baseMap?.asImageBitmap() }
+    val coverageImage = remember(coverage) { coverage?.image?.asImageBitmap() }
     val currentOverlay = remember(overlay) { overlay?.asImageBitmap() }
     val frameLabel = shownFrame?.let { frameTimeLabel(it, utcOffsetSeconds) }
 
     Box(modifier = modifier.fillMaxSize()) {
-        RadarCanvas(tileInfo = tileInfo, baseMap = baseImage, overlay = currentOverlay)
+        RadarCanvas(tileInfo = tileInfo, baseMap = baseImage, coverage = coverageImage, overlay = currentOverlay)
 
-        // Timestamp chip (top-start), rendered in the selected city's local time (via its UTC
-        // offset) rather than the device's timezone.
-        frameLabel?.let { label ->
-            OverlayChip(modifier = Modifier.align(Alignment.TopStart)) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
+        // Time chip and legend along the top, and below them, centred, the no-radar label: RainViewer
+        // has no radar at the city, so an empty map there doesn't mean no rain. The label sits up
+        // here so it doesn't cover the city's name on the map.
+        Column(
+            modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                // Timestamp chip, in the selected city's local time (via its UTC offset) rather than
+                // the device's timezone.
+                frameLabel?.let { label ->
+                    OverlayChip {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                RadarLegend()
+            }
+            if (coverage?.cityCovered == false) {
+                val noRadar = stringResource(R.string.radar_no_coverage)
+                OverlayChip(modifier = Modifier.clearAndSetSemantics { contentDescription = noRadar }) {
+                    Text(
+                        text = noRadar,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
-
-        // Legend (top-end)
-        RadarLegend(modifier = Modifier.align(Alignment.TopEnd))
 
         // Status / controls (bottom)
         when (timelineState) {
@@ -282,6 +307,7 @@ private fun RadarView(
 private fun RadarCanvas(
     tileInfo: RadarTile,
     baseMap: ImageBitmap?,
+    coverage: ImageBitmap?,
     overlay: ImageBitmap?,
 ) {
     Canvas(
@@ -303,9 +329,14 @@ private fun RadarCanvas(
         val dstSize = IntSize((bitmapTotalPx * scale).toInt(), (bitmapTotalPx * scale).toInt())
 
         baseMap?.let { drawImage(it, dstOffset = dst, dstSize = dstSize) }
+        // Black where RainViewer has no radar, so those areas are dimmed rather than looking dry.
+        coverage?.let { drawImage(it, dstOffset = dst, dstSize = dstSize, alpha = COVERAGE_ALPHA) }
         overlay?.let { drawImage(it, dstOffset = dst, dstSize = dstSize, alpha = 0.8f) }
     }
 }
+
+/** How strongly the coverage layer dims the areas without radar. Same as iOS. */
+private const val COVERAGE_ALPHA = 0.35f
 
 @Composable
 private fun OverlayChip(
