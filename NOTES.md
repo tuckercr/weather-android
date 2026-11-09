@@ -333,19 +333,10 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 - [ ] **Architecture decisions to review (11-07).** From an MVVM audit of both apps after the
       refactors (iOS judged about 80-85% of the way; Android "MVVM with one unfinished seam").
-      Decide 4 and 11 first, since they change where things go. 1, 2 and 8 are done (see Done):
+      1, 2, 4, 5, 6 and 8 are done (see Done). Left:
   3. **Dependency wiring.** iOS view models fall back to `.shared` singletons in their
      initialisers (a service locator); `AppViewModels` could take one dependencies container.
      Android uses lambda constructors behind `@Inject`, which is consistent but unusual. M.
-  4. **Where the words live.** iOS keeps English in view models and domain; Android puts string
-     resources in screen state but writes notification text in Kotlin. Settle translation first.
-  5. **Notifications built two ways.** Plan-ahead on iOS, at-the-time workers on Android, forced
-     by the platforms, but the rules and wording are kept in step by hand. iOS's scheduler still
-     holds rules (mood per kind, walk-nudge records), reads singletons and can't be tested, and
-     asks a view (`PetSceneIcon.png`) for the picture. M.
-  6. **Screen state recomputed rather than stored.** iOS rebuilds `WeatherScreen` on every redraw;
-     Android reads Remote Config once when the view model is made, so a later fetch applies after
-     a restart. S-M.
   7. **The clock moves only when told.** `tick()` is called from several hooks; a clock service
      publishing ticks would be harder to get wrong. S.
   9. **Weather cached in settings storage** (UserDefaults, DataStore preferences). Fine at today's
@@ -354,6 +345,15 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
       `Services`, Android's `NotificationKind` in `worker/`. S.
   11. **Two native codebases kept in step by hand.** Shared rules in Kotlin Multiplatform
       (version 2 below) would remove most of the duplication.
+- [ ] **Translation: what's still English only (11-08).** Both apps keep their text in
+      resources now (see Done), but some isn't translatable yet: weather descriptions
+      (OpenWeather is asked without `lang`, Open-Meteo's WMO names are English, and the geocoder
+      asks for `language=en`), the fixed date patterns ("EEE, MMM d", "h:mm a"), seasonal theme
+      captions (built-in JSON and Remote Config `seasonal_themes`), the debug sample notifications,
+      lower-casing of sky words in notification titles, and joins between sentences (" · ", line
+      breaks). iOS reuses keys with two meanings ("Moderate" for UV and air quality, "Calm" for
+      wind); give them their own keys before translating. Do these when a first language is
+      chosen. M.
 - [ ] **Radar label wrong for one moment after a refresh (Android).** `shownFrame` combines the new
       timeline with the old frame index before playback resets to "now", so the chip can show the
       wrong time briefly. Cosmetic. (11-07)
@@ -363,10 +363,8 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
       radar and view models made in views are done (see Done). Left:
   - **Smaller rules in views.** The stale banner's text and the offline check (iOS
     `WeatherErrorViews`), "the last city can't be removed" and the "X added" toast
-    (`LocationsView`), the notifications row's "Off / N on", adding a city when location is
-    granted in Settings (iOS `SettingsView`), switch visibility from `remotelyEnabled` (Android
-    `NotificationSettingsScreen`), the southern-hemisphere check, and `uvLevelRes` and
-    `moonPhaseAt` in Android's ui. Small each.
+    (`LocationsView`), the notifications row's "Off / N on", and `uvLevelRes` and `moonPhaseAt`
+    in Android's ui. Small each.
   - **Clock reads in views.** `WeatherIconView`/`WeatherIcon` and the pets' default moon fall
     back to the device clock, not the screen's. Small.
 
@@ -422,12 +420,30 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Text in resources, ready to translate** (11-08): architecture item 4. iOS's text is in a
+      String Catalog (`Localizable.xcstrings`, plus `InfoPlist.xcstrings` for the app name and the
+      location prompts), with `String(localized:)` and whole sentences instead of glued fragments;
+      the old stringsdict plurals live in the catalog. Android's notification text moved from
+      Kotlin into strings.xml, read through a small `Strings` interface that tests fill from
+      strings.xml. English wording unchanged. Both READMEs say how to add a language. What's
+      still English only is under Architecture.
+- [x] **iOS notification scheduler testable** (11-08): architecture item 5. The picture's mood per
+      kind, the walk-nudge and rain-alert records and the southern-hemisphere check are the
+      planner's (or `SavedLocation`'s), with tests; the scheduler takes its notification centre,
+      preferences, Remote Config, clock and picture renderer, so it has its own tests with a fake
+      centre; the pets' picture comes through a renderer instead of the scheduler calling a view.
+- [x] **Screen state kept, and Remote Config followed while open** (11-08): architecture item 6.
+      iOS's weather view model keeps `WeatherScreen` and rebuilds it when an input changes, not
+      on every redraw; Remote Config posts when a fetch activates and the screen rebuilds. On
+      Android the weather screen, Settings' switches, onboarding and the radar follow
+      `activationCount`, so a value deployed while the app is open (like the paw bands) applies
+      without a restart.
 - [x] **Paw Check bands lowered** (11-08): 115 °F pavement showed the orange "Getting hot" paw,
       though that's already too hot for paws. `walk_hot_pavement_c` 52 → 46 (about 115 °F) and
       `walk_warm_pavement_c` 45 → 40 (about 104 °F), in both apps, the template and the READMEs.
       Dangerous (57.2, 135 °F) and icy (0) are unchanged. Hours with pavement at 40 °C or more are
       no longer suggested for walks, so hot sunny afternoons offer fewer walk times. Remote Config
-      still serves 52 and 45 until the template is deployed.
+      deployed with 46 and 40 on 11-08.
 - [x] **Privacy policy for `city_added`'s `source` and `provider`** (11-08): already live since
       11-06 (sunny-misty-web #3); the store privacy answers are still in Store and release.
 - [x] **Location and cities in the data layer, one weather screen view model** (11-08):
