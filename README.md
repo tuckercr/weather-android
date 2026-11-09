@@ -489,7 +489,7 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `analytics_enabled` | boolean | `true` | Analytics kill switch; see [Gates](#gates) |
 | `tile_feels_like_enabled`, `tile_wind_enabled`, `tile_humidity_enabled`, `tile_paw_check_enabled`, `tile_daylight_enabled`, `tile_sky_enabled` | boolean | `true` | One switch per Today tile (`tile_sky_enabled` is Misty's View, the sky and visibility tile); false hides that tile for everyone |
 | `tile_uv_enabled` | boolean | `false` | The UV index tile; while off, UV stays in the Daylight tile's header (it still gets its own tile when there's no Daylight tile) |
-| `seasonal_themes_enabled` | boolean | `true` | Seasonal themes (Halloween and so on); false switches them all off |
+| `seasonal_themes_enabled` | boolean | `true` | Seasonal themes (Halloween, Thanksgiving); false switches them all off |
 | `seasonal_themes` | string | the built-in list | The themes as a JSON list (format: `SeasonalTheme`), replacing the list built into the apps (`res/raw/seasonal_themes.json`) when valid; empty keeps it. A new theme for a fixed date, a date range or an nth weekday needs no app update |
 
 The walk and pet-mood thresholds are always Celsius, whatever units the user picks. A value outside
