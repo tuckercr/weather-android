@@ -1,9 +1,11 @@
 package com.fangjet.weather.model
 
+import com.fangjet.weather.R
 import com.fangjet.weather.domain.AirQuality
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
+import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.util.HourlyStripItem
 import org.junit.Assert.assertEquals
@@ -178,6 +180,27 @@ class WeatherScreenTest {
         assertNull(state.tiles.uvIndex)
     }
 
+    // --- Hero caption ---
+
+    @Test
+    fun `a cloudy hero's captions follow the sky as Misty's View reads it`() {
+        fun captions(
+            cloudPercent: Int,
+            iconCode: String,
+        ): HeroCaption.Weather {
+            val state = weatherState(make(LoadingState.Success(reading(noon, iconCode, "Clouds", cloudPercent))))
+            assertEquals(PetMood.CLOUDY, state.mood)
+            return state.heroCaption as HeroCaption.Weather
+        }
+        val fewClouds = captions(20, "02d")
+        assertEquals(R.array.pet_caption_partly_cloudy, fewClouds.captions)
+        assertEquals(R.array.pet_caption_partly_cloudy_no_dog, fewClouds.noDogCaptions)
+        assertEquals(R.array.pet_caption_cloudy, captions(70, "04d").captions)
+        val overcast = captions(100, "04d")
+        assertEquals(R.array.pet_caption_cloudy, overcast.captions)
+        assertEquals(R.array.pet_caption_cloudy_no_dog, overcast.noDogCaptions)
+    }
+
     // --- Helpers ---
 
     private fun make(
@@ -194,9 +217,11 @@ class WeatherScreenTest {
     private fun reading(
         observedAt: Long,
         iconCode: String = "01d",
+        conditionMain: String = "Clear",
+        cloudPercent: Int = 10,
     ) = CurrentWeather(
         cityName = "Austin",
-        conditionMain = "Clear",
+        conditionMain = conditionMain,
         description = "Clear sky",
         iconCode = iconCode,
         temperature = 20.0,
@@ -208,7 +233,7 @@ class WeatherScreenTest {
         windSpeed = 3.0,
         windDeg = 90,
         visibilityMeters = 10_000,
-        cloudPercent = 10,
+        cloudPercent = cloudPercent,
         units = WeatherUnits.METRIC,
         sunriseEpoch = dayStart + 7 * hour,
         sunsetEpoch = dayStart + 17 * hour,

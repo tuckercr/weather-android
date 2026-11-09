@@ -28,7 +28,9 @@ WorkManager, and CI on GitHub Actions.
   chilly or mild, sunny (amber, Sunny in sunglasses) when it's warm, above `walk_comfort_max_c`,
   and hot from `pet_hot_threshold_c`. Captions
   name them ("Sunny wants puddles. Misty wants a towel."), and at night follow the city's time of
-  night (evening, late night, before dawn). The caption follows the walk verdict (see **One walk
+  night (evening, late night, before dawn). A cloudy day under a clear or partly cloudy sky (as
+  Misty's View reads it) gets brighter captions than a grey one ("Bit of sun, bit of cloud. Good
+  sniffing weather."), and "Nap weather, says Misty." only shows from noon, city time. The caption follows the walk verdict (see **One walk
   verdict** below): when now isn't the time for a walk, captions that suggest one ("Perfect walkies
   weather! Off we go.") are left out, and when the reason is one the scene can't show it speaks to
   that instead, in place of a seasonal theme's caption too: bad air by its pollutant ("Smoky air
@@ -525,6 +527,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `AnalyticsCollectionControllerTest` | SDK collection flag follows the opt-out and kill switch, at start and on change |
 | `:app` | `PetWeatherThresholdsTest` | Remote Config threshold validation: ranges, non-finite values, and pair ordering fallbacks |
 | `:app` | `PetMoodTest` | Pet mood selection by conditions, temperature, and night, with configurable hot/cold cut-offs; night captions by the city's local hour |
+| `:app` | `HeroCaptionTest` | The cloudy mood's partly cloudy captions (with and without a dog) by the sky as Misty's View reads it, their walk suggestions left out when now isn't the time, and no nap caption before noon city time |
 | `:app` | `WalkAdvisorTest` | Walk rating and best time: rain, comfort range, walking hours, daylight, raining now, pavement heat, imperial input, "tomorrow" in the city's calendar, 24-hour cap |
 | `:app` | `WalkCheckTest` | The walk verdict's levels for wind (near gale to hurricane force), air (by `walk_bad_air_band`), pavement, heat, cold, storms, rain and the dark; the order of reasons; pollutant names; the walk card's captions and danger rating; hurricane and storm warnings ahead; the hero's reason captions and leaving out walk captions; the Air Quality tile following the walk rules |
 | `:app` | `MoonPhaseTest` | The moon's phase from the date, checked against published phases |
