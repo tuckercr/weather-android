@@ -5,6 +5,7 @@ import com.fangjet.weather.data.DeviceLocation
 import com.fangjet.weather.data.LocationDenialStore
 import com.fangjet.weather.data.LocationFetcher
 import com.fangjet.weather.data.LocationRepository
+import com.fangjet.weather.data.NO_DIALOG_MILLIS
 import com.fangjet.weather.domain.SavedLocation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,11 +31,13 @@ class LocationPermissionViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     @Test
-    fun `use my location asks only while Android still will, and otherwise reports a denial`() {
+    fun `use my location asks without access, even after a refusal that seemed final`() {
         assertEquals(true, viewModel(hasLocationPermission = false).useMyLocation())
-        val refused = viewModel(hasLocationPermission = false, denials = FakeDenialStore(permanentlyDenied = true))
-        assertEquals(false, refused.useMyLocation())
-        assertEquals(LocationFetchState.PermissionDenied, refused.state.value)
+        // The user may have picked "Ask every time" in system settings since: the request tells.
+        val refused = viewModel(hasLocationPermission = false, denials = FakeDenialStore(deniedBefore = true, permanentlyDenied = true))
+        assertEquals(true, refused.useMyLocation())
+        assertEquals(true, refused.addMyLocation())
+        assertEquals(LocationFetchState.Idle, refused.state.value)
     }
 
     @Test
@@ -58,16 +61,6 @@ class LocationPermissionViewModelTest {
             assertEquals(1, failures)
             failed.cancel()
         }
-
-    @Test
-    fun `my location is offered while access is on or Android will still ask`() {
-        val allowed = viewModel()
-        allowed.refreshAccess()
-        assertEquals(true, allowed.myLocationOffered.value)
-        val refused = viewModel(hasLocationPermission = false, denials = FakeDenialStore(permanentlyDenied = true))
-        refused.refreshAccess()
-        assertEquals(false, refused.myLocationOffered.value)
-    }
 
     @Test
     fun `fetchLocation without permission denies immediately and does not query location`() =
@@ -229,44 +222,158 @@ class LocationPermissionViewModelTest {
 
     // --- permission answers ---
 
+    private val clock = FakeClock()
+
+    /** A request answered [millis] after it went out, as the screen makes it. */
+    private fun LocationPermissionViewModel.answer(
+        granted: Boolean = false,
+        rationaleBefore: Boolean = false,
+        rationaleAfter: Boolean,
+        millis: Long = 2_000,
+    ) {
+        permissionRequestStarted()
+        clock.now += millis
+        onPermissionResult(granted, rationaleBefore, rationaleAfter)
+    }
+
     @Test
     fun `a first refusal can still be asked again`() {
-        val viewModel = viewModel(hasLocationPermission = false)
+        val denials = FakeDenialStore()
+        val viewModel = viewModel(hasLocationPermission = false, denials = denials)
 
-        viewModel.onPermissionResult(granted = false, rationaleBefore = false, rationaleAfter = true)
+        viewModel.answer(rationaleAfter = true)
 
         assertEquals(LocationFetchState.PermissionDenied, viewModel.state.value)
-        assertTrue(viewModel.canRequestPermission())
+        assertFalse(denials.permanentlyDenied)
+        assertTrue(denials.deniedBefore)
     }
 
     @Test
-    fun `a second refusal stops the asking`() {
-        val viewModel = viewModel(hasLocationPermission = false)
-        viewModel.onPermissionResult(granted = false, rationaleBefore = false, rationaleAfter = true)
+    fun `a second refusal in the dialog is taken as final`() {
+        val denials = FakeDenialStore()
+        val viewModel = viewModel(hasLocationPermission = false, denials = denials)
+        viewModel.answer(rationaleAfter = true)
 
-        viewModel.onPermissionResult(granted = false, rationaleBefore = true, rationaleAfter = false)
+        viewModel.answer(rationaleBefore = true, rationaleAfter = false)
 
-        assertFalse(viewModel.canRequestPermission())
+        assertTrue(denials.permanentlyDenied)
+        assertEquals(LocationFetchState.PermissionDenied, viewModel.state.value)
     }
 
     @Test
-    fun `a dialog dismissed without an answer doesn't stop the asking`() {
-        val viewModel = viewModel(hasLocationPermission = false)
+    fun `a dialog dismissed without an answer isn't taken as final`() {
+        val denials = FakeDenialStore()
+        val viewModel = viewModel(hasLocationPermission = false, denials = denials)
 
-        viewModel.onPermissionResult(granted = false, rationaleBefore = false, rationaleAfter = false)
+        viewModel.answer(rationaleAfter = false)
 
-        assertTrue(viewModel.canRequestPermission())
+        assertFalse(denials.permanentlyDenied)
+        assertEquals(LocationFetchState.PermissionDenied, viewModel.state.value)
     }
 
     @Test
-    fun `a refusal with no dialog after an earlier one stops the asking`() {
-        // "Don't allow" chosen in system settings: Android refuses at once, rationale stays false.
+    fun `a slow refusal after an earlier one follows the old rule, with no trip to settings`() =
+        runTest {
+            val denials = FakeDenialStore(deniedBefore = true)
+            val viewModel = viewModel(hasLocationPermission = false, denials = denials)
+            var settingsOpened = 0
+            val job = launch { viewModel.appSettingsRequested.collect { settingsOpened++ } }
+
+            viewModel.answer(rationaleAfter = false, millis = NO_DIALOG_MILLIS)
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+
+            assertTrue(denials.permanentlyDenied)
+            assertEquals(LocationFetchState.PermissionDenied, viewModel.state.value)
+            assertEquals(0, settingsOpened)
+            job.cancel()
+        }
+
+    @Test
+    fun `after "Ask every time" the dialog shows again, and its answer clears the final refusal`() {
+        // Refused for good earlier, then reset in system settings: still not granted.
+        val denials = FakeDenialStore(deniedBefore = true, permanentlyDenied = true)
+        val viewModel = viewModel(hasLocationPermission = false, denials = denials)
+        assertTrue(viewModel.addMyLocation())
+
+        // The dialog showed and was refused once more: Android will ask again.
+        viewModel.answer(rationaleAfter = true)
+
+        assertFalse(denials.permanentlyDenied)
+        assertTrue(denials.deniedBefore)
+        assertEquals(LocationFetchState.PermissionDenied, viewModel.state.value)
+    }
+
+    @Test
+    fun `an instant refusal opens the app's settings, and allowing it there adds my location`() =
+        runTest {
+            var granted = false
+            val denials = FakeDenialStore()
+            val viewModel = viewModel(
+                permission = { granted },
+                locationFetcher = FakeLocationFetcher(lastLocation = DeviceLocation(40.0, -83.0)),
+                denials = denials,
+            )
+            var settingsOpened = 0
+            val added = mutableListOf<SavedLocation>()
+            val jobs = listOf(
+                launch { viewModel.appSettingsRequested.collect { settingsOpened++ } },
+                launch { viewModel.myLocationAdded.collect { added += it } },
+            )
+            assertTrue(viewModel.addMyLocation())
+
+            viewModel.answer(rationaleAfter = false, millis = 40)
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(1, settingsOpened)
+            assertTrue(denials.permanentlyDenied)
+            // Not a "no" yet: onboarding would skip ahead under the settings page.
+            assertEquals(LocationFetchState.Idle, viewModel.state.value)
+
+            viewModel.appSettingsOpened()
+            // The resume after the request's answer comes before the screen stops: not the return.
+            viewModel.refreshAccess()
+            viewModel.leftApp()
+            granted = true
+            viewModel.refreshAccess()
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(listOf(40.0), added.map { it.latitude })
+            assertFalse(denials.permanentlyDenied || denials.deniedBefore)
+            jobs.forEach { it.cancel() }
+        }
+
+    @Test
+    fun `back from the app's settings without allowing it is a refusal`() {
         val viewModel = viewModel(hasLocationPermission = false)
-        viewModel.onPermissionResult(granted = false, rationaleBefore = false, rationaleAfter = false)
+        viewModel.useMyLocation()
+        viewModel.answer(rationaleAfter = false, millis = 40)
+        viewModel.appSettingsOpened()
+        viewModel.leftApp()
+
+        viewModel.refreshAccess()
+
+        assertEquals(LocationFetchState.PermissionDenied, viewModel.state.value)
+    }
+
+    @Test
+    fun `resuming without a trip to the app's settings changes nothing`() {
+        val viewModel = viewModel(hasLocationPermission = false)
+        viewModel.leftApp()
+
+        viewModel.refreshAccess()
+
+        assertEquals(LocationFetchState.Idle, viewModel.state.value)
+    }
+
+    @Test
+    fun `an answer with no request timed, after the app was restarted, follows the old rule`() {
+        val denials = FakeDenialStore(deniedBefore = true)
+        val viewModel = viewModel(hasLocationPermission = false, denials = denials)
 
         viewModel.onPermissionResult(granted = false, rationaleBefore = false, rationaleAfter = false)
 
-        assertFalse(viewModel.canRequestPermission())
+        assertTrue(denials.permanentlyDenied)
+        assertEquals(LocationFetchState.PermissionDenied, viewModel.state.value)
     }
 
     @Test
@@ -276,7 +383,7 @@ class LocationPermissionViewModelTest {
             val fetcher = FakeLocationFetcher(lastLocation = DeviceLocation(40.0, -83.0))
             val viewModel = viewModel(locationFetcher = fetcher, denials = denials)
 
-            viewModel.onPermissionResult(granted = true, rationaleBefore = false, rationaleAfter = false)
+            viewModel.answer(granted = true, rationaleAfter = false)
             mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
 
             assertTrue(viewModel.state.value is LocationFetchState.Located)
@@ -285,8 +392,10 @@ class LocationPermissionViewModelTest {
         }
 
     @Test
-    fun `nothing to ask for while access is on`() {
-        assertFalse(viewModel(hasLocationPermission = true).canRequestPermission())
+    fun `the guess at whether Android will ask`() {
+        assertFalse(repository(hasLocationPermission = true).canRequestPermission())
+        assertTrue(repository(hasLocationPermission = false).canRequestPermission())
+        assertFalse(repository(hasLocationPermission = false, denials = FakeDenialStore(permanentlyDenied = true)).canRequestPermission())
     }
 
     @Test
@@ -302,20 +411,27 @@ class LocationPermissionViewModelTest {
         hasLocationPermission: Boolean = true,
         locationFetcher: LocationFetcher = FakeLocationFetcher(),
         denials: LocationDenialStore = FakeDenialStore(),
-    ) = LocationPermissionViewModel(repository(hasLocationPermission, locationFetcher, denials))
+        permission: () -> Boolean = { hasLocationPermission },
+    ) = LocationPermissionViewModel(repository(locationFetcher = locationFetcher, denials = denials, permission = permission))
 
     private fun repository(
         hasLocationPermission: Boolean = true,
         locationFetcher: LocationFetcher = FakeLocationFetcher(),
         denials: LocationDenialStore = FakeDenialStore(),
+        permission: () -> Boolean = { hasLocationPermission },
     ) = LocationRepository(
-        hasPermissionProvider = { hasLocationPermission },
+        hasPermissionProvider = permission,
         hasBackgroundPermissionProvider = { false },
         fetcher = locationFetcher,
         denials = denials,
         backgroundAnswers = object : BackgroundAnswerStore {
             override var refusals = 0
         },
+        clock = { clock.now },
+    )
+
+    private class FakeClock(
+        var now: Long = 1_000_000,
     )
 
     private class FakeDenialStore(

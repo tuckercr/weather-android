@@ -278,7 +278,13 @@ emulator with a clean status bar:
    is marked *Saved* and its button reads "Go to London, GB", which shows its weather. If the search
    fails (offline, say), the button adds the typed name and its coordinates are looked up later.
    *Add My Location* shows while My Location isn't saved. After adding, the app goes back to where
-   it was opened from; Manage Locations confirms with "Malmö added".
+   it was opened from; Manage Locations confirms with "Malmö added". Without location access it
+   asks first, every time: Android doesn't say when it has stopped showing its dialog (after a
+   second "Don't allow", or "Don't allow" in system settings) or started again ("Ask every time"),
+   so the request is the test. A refusal that comes back within 350 ms had no dialog, so it opens
+   the app's page in system settings instead, and My Location is added on return if location was
+   allowed there. Onboarding's *Use my location* works the same way; coming back without allowing
+   it moves on to entering a city.
 5. **Forecast**: cities with coordinates use [Open-Meteo](https://open-meteo.com) (true hourly,
    with UV); cities without coordinates, or all cities when the `open_meteo_enabled` Remote Config
    switch is off, use OpenWeatherMap's `data/2.5/forecast` (free tier, 3-hour slots). Each calendar
@@ -519,7 +525,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `CityRepositoryTest` | Add, remove, reorder, active-city tracking, legacy single-city migration, and `city_added` firing |
 | `:app` | `GeoLocationViewModelTest` | City autocomplete: short input, latest search wins, a failed search told apart from finding nothing |
 | `:app` | `AddLocationRulesTest` | Add location's button: the first row named what was typed (accents ignored), the size check that stops "Nas" adding Nås, saved places (label or within 2 km, never My Location) gone to, and failed or empty searches |
-| `:app` | `LocationPermissionViewModelTest` | Current-location lookup: permission denial, cached vs current location, failure, and `LocationRepository`'s position reads |
+| `:app` | `LocationPermissionViewModelTest` | Current-location lookup: permission denial, cached vs current location, failure, `LocationRepository`'s position reads, and permission answers: asking again after "Ask every time", an instant refusal opening the app's settings and the return from them, slow refusals, grants forgetting refusals |
 | `:app` | `WeatherScreenStepsTest` | The weather screen's refreshes and My Location steps |
 | `:app` | `NotificationWorkerLogicTest` | Briefing text, walk-time planning and nudge, rain alerts (lead, quiet hours, once per shower), city-timezone "today" matching, and the switches |
 | `:app` | `UpdateWorkerLogicTest` | Background refresh result routing, caching, and resolved units |

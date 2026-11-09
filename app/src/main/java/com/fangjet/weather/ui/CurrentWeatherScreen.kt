@@ -140,9 +140,9 @@ import kotlin.math.roundToInt
 
 /**
  * "My Location" for screens that can add it. Returns the Add location screen's "Add My Location"
- * action, or null when it's already in the list or the system won't ask for location any more. Without
- * access it asks first, so "Only this time" / "Ask every time" users can still add it. Access is
- * re-read on every resume, so changing it in system settings shows or hides the action on return.
+ * action, or null when it's already in the list. Without access it asks first, so "Only this time" /
+ * "Ask every time" users can still add it; when Android won't ask any more, it opens the app's
+ * settings page and adds it on return if allowed there (see [rememberLocationPermissionRequest]).
  * The weather screen adds and moves My Location by itself: see [WeatherForecastViewModel].
  */
 @Composable
@@ -151,9 +151,7 @@ internal fun rememberAddMyLocation(
     onLocated: (SavedLocation) -> Unit,
     viewModel: LocationPermissionViewModel = hiltViewModel(),
 ): (() -> Unit)? {
-    val offered by viewModel.myLocationOffered.collectAsStateWithLifecycle()
     val requestPermission = rememberLocationPermissionRequest(viewModel)
-    OnResume(viewModel::refreshAccess)
     val currentLocations by rememberUpdatedState(locations)
     val currentOnLocated by rememberUpdatedState(onLocated)
     val context = LocalContext.current
@@ -164,7 +162,7 @@ internal fun rememberAddMyLocation(
     LaunchedEffect(viewModel) {
         viewModel.addMyLocationFailed.collect { Toast.makeText(context, R.string.add_my_location_failed, Toast.LENGTH_LONG).show() }
     }
-    if (locations.any { it.isCurrentLocation } || !offered) return null
+    if (locations.any { it.isCurrentLocation }) return null
     return { if (viewModel.addMyLocation()) requestPermission() }
 }
 

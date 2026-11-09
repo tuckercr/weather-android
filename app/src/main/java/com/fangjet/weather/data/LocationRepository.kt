@@ -3,6 +3,7 @@ package com.fangjet.weather.data
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import com.fangjet.weather.domain.SavedLocation
@@ -40,6 +41,7 @@ class LocationRepository internal constructor(
     private val fetcher: LocationFetcher,
     private val denials: LocationDenialStore,
     private val backgroundAnswers: BackgroundAnswerStore,
+    private val clock: () -> Long,
 ) : DevicePositioning {
     @Inject
     constructor(
@@ -50,6 +52,7 @@ class LocationRepository internal constructor(
         fetcher = PlayServicesLocationFetcher(context),
         denials = SharedPreferencesLocationDenialStore(context),
         backgroundAnswers = SharedPreferencesBackgroundAnswerStore(context),
+        clock = SystemClock::elapsedRealtime,
     )
 
     override fun hasLocationPermission(): Boolean = hasPermissionProvider()
@@ -58,30 +61,60 @@ class LocationRepository internal constructor(
     fun hasBackgroundLocationPermission(): Boolean = hasBackgroundPermissionProvider()
 
     /**
-     * Whether asking would still show the system dialog. Android doesn't say once it has stopped
-     * (a second "Don't allow", or "Don't allow" chosen in system settings), so this goes on what
-     * the earlier requests came back with; see [permissionAnswered].
+     * The guess at whether asking would still show the system dialog. Android doesn't say once it
+     * has stopped (a second "Don't allow", or "Don't allow" chosen in system settings), and the
+     * guess goes stale when the user picks "Ask every time" or resets the app in system settings,
+     * so nothing is hidden or skipped on it: the request itself is the probe. See [permissionAnswered].
      */
     fun canRequestPermission(): Boolean = !hasLocationPermission() && !denials.permanentlyDenied
 
+    /** When the system request went out, to tell a refusal with no dialog from an answered one. */
+    private var requestedAt: Long? = null
+
+    /** The system request is about to go out: [permissionAnswered] times its answer from here. */
+    fun permissionRequested() {
+        requestedAt = clock()
+    }
+
     /**
-     * The system dialog's answer. [rationaleBefore]/[rationaleAfter] are
-     * `shouldShowRequestPermissionRationale` either side of the request: Android only shows the
-     * dialog again after a refusal while it's true, so a refusal that leaves it false, following
-     * an earlier refusal or one it was true for, means it won't ask any more. A dialog dismissed
-     * without an answer leaves it false too, which is why a first refusal alone doesn't count.
+     * The system request's answer. [rationaleBefore]/[rationaleAfter] are
+     * `shouldShowRequestPermissionRationale` either side of the request.
+     * - A grant forgets earlier refusals.
+     * - A refusal that leaves it true means the dialog was shown and Android will ask again, even
+     *   after an earlier refusal that seemed final (the user picked "Ask every time" since).
+     * - A refusal that leaves it false and came back within [NO_DIALOG_MILLIS] had no dialog:
+     *   Android won't ask any more, so the user can only allow it in the app's settings.
+     * - A slower one had a dialog, refused or dismissed: Android only shows it again after a
+     *   refusal while the rationale is true, so following an earlier refusal or one it was true
+     *   for, it won't ask any more. A dialog dismissed without an answer leaves it false too,
+     *   which is why a first refusal alone doesn't count.
      */
     fun permissionAnswered(
         granted: Boolean,
         rationaleBefore: Boolean,
         rationaleAfter: Boolean,
-    ) {
+    ): PermissionAnswer {
+        val startedAt = requestedAt.also { requestedAt = null }
         if (granted) {
             forgetRefusals()
-            return
+            return PermissionAnswer.GRANTED
         }
-        if (!rationaleAfter && (rationaleBefore || denials.deniedBefore)) denials.permanentlyDenied = true
+        val answer = when {
+            rationaleAfter -> {
+                denials.permanentlyDenied = false
+                PermissionAnswer.REFUSED
+            }
+            startedAt != null && clock() - startedAt < NO_DIALOG_MILLIS -> {
+                denials.permanentlyDenied = true
+                PermissionAnswer.REFUSED_WITHOUT_ASKING
+            }
+            else -> {
+                if (rationaleBefore || denials.deniedBefore) denials.permanentlyDenied = true
+                PermissionAnswer.REFUSED
+            }
+        }
         denials.deniedBefore = true
+        return answer
     }
 
     /**
@@ -128,6 +161,24 @@ class LocationRepository internal constructor(
     private fun DeviceLocation.toSavedLocation() =
         SavedLocation(label = PlaceNaming.MY_LOCATION_LABEL, latitude = latitude, longitude = longitude, isCurrentLocation = true)
 }
+
+/** What a location permission request came back with. */
+enum class PermissionAnswer {
+    GRANTED,
+
+    /** Refused in the dialog, or the dialog was dismissed. */
+    REFUSED,
+
+    /** Refused at once with no dialog: Android won't ask any more, only the app's settings can allow it. */
+    REFUSED_WITHOUT_ASKING,
+}
+
+/**
+ * A refusal that comes back faster than this had no dialog: nobody reads the dialog and taps
+ * "Don't allow" this quickly (its own animation takes about as long), while Android's refusal
+ * without one comes back in a few tens of milliseconds, a frame or two after the request.
+ */
+internal const val NO_DIALOG_MILLIS = 350L
 
 internal data class DeviceLocation(
     val latitude: Double,
