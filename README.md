@@ -36,7 +36,8 @@ WorkManager, and CI on GitHub Actions.
   sky shows the moon's real phase, lit from the other side in the southern hemisphere.
 - **Best Walk Time** card: "Now is a great time", the next good hour ("Around 8 AM"), or "Not a good
   day for walkies" when nothing in the next 24 hours qualifies. A good hour is under 30% rain
-  chance, at a comfortable feels-like temperature, within walking hours and in daylight, and
+  chance (the chance as the hourly strip shows it, so 25% counts as 30%; from 60% shown it's
+  "rain", below that "maybe rain"), at a comfortable feels-like temperature, within walking hours and in daylight, and
   below the warm-pavement limit (estimated, with Open-Meteo); when it is raining now, now never counts,
   whatever the hourly forecast says. A suggestion on the city's next calendar day reads "Tomorrow
   around…", judged in the city's own UTC offset. The paw is tinted by the rating, and a caption
@@ -438,7 +439,7 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `walk_warm_pavement_c` | number | `40` | Pavement °C at or above which the Today Paw Check tile says *Getting hot* and that hour is not suggested for a walk (a walk now rates *Okay*); valid 30–65, and below `walk_hot_pavement_c` (otherwise 7 below it) |
 | `walk_dangerous_pavement_c` | number | `57.2` | Pavement °C (57.2 is 135 °F) at or above which the Today Paw Check tile says *Dangerously hot*; valid 45–80, and above `walk_hot_pavement_c` (otherwise 5 above it) |
 | `walk_icy_pavement_c` | number | `0` | Pavement °C below which the Today Paw Check tile says *Icy, watch for salt* after rain or snow in the last 12 hours or with snow on the ground, and *Below freezing* otherwise; valid -20–10 |
-| `walk_max_rain_chance` | number | `30` | An hour is walkable only below this rain chance (%); whole number, valid 0–100 |
+| `walk_max_rain_chance` | number | `30` | An hour is walkable only below this rain chance (%), compared with the chance as shown (nearest 10%, nothing under 10%); whole number, valid 0–100 |
 | `walk_comfort_min_c` | number | `3` | Coldest comfortable walking temperature (°C, feels-like); valid -20–20, and below `walk_comfort_max_c` |
 | `walk_comfort_max_c` | number | `27` | Warmest comfortable walking temperature (°C, feels-like); valid 15–40, and above `walk_comfort_min_c` |
 | `walk_hours_start` | number | `7` | First local hour a walk may be suggested (inclusive); whole number, valid 0–23, and before `walk_hours_end` |

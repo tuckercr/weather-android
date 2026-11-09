@@ -2,6 +2,7 @@ package com.fangjet.weather.domain
 
 import com.fangjet.weather.util.PavementBand
 import com.fangjet.weather.util.WindForce
+import com.fangjet.weather.util.displayedRainChance
 import com.fangjet.weather.util.pavementBand
 import com.fangjet.weather.util.windForce
 
@@ -260,8 +261,9 @@ private fun precipitation(
         "rain", "drizzle" -> WalkReason.Rain(likely = true) to WalkLevel.WAIT
         else -> null
     }
-    val likely = slot.precipitationChance >= LIKELY_RAIN_CHANCE
-    val forecast = if (slot.precipitationChance < t.maxRainChancePercent) {
+    val chance = slot.shownRainChance
+    val likely = chance >= LIKELY_RAIN_CHANCE
+    val forecast = if (chance < t.maxRainChancePercent) {
         null
     } else {
         when (slot.iconCode.take(2)) {
@@ -272,6 +274,14 @@ private fun precipitation(
     }
     return if (now != null && (forecast == null || forecast.second <= now.second)) now else forecast
 }
+
+/**
+ * The hour's chance of rain as the hourly strip shows it ([displayedRainChance]: nothing under 10%,
+ * otherwise to the nearest 10%), and 0 where it shows none. The walk rules read this, so an hour
+ * shown as 60% is "rain" rather than "maybe rain", and one shown as 30% meets a 30% walk limit.
+ */
+internal val HourlySlot.shownRainChance: Int
+    get() = displayedRainChance(precipitationChance) ?: 0
 
 /**
  * Within the walking hours and in daylight. The walking hours alone are a fixed clock window, so on
