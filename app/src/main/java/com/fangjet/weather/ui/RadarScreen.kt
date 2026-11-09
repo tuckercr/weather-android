@@ -226,36 +226,39 @@ private fun RadarView(
     Box(modifier = modifier.fillMaxSize()) {
         RadarCanvas(tileInfo = tileInfo, baseMap = baseImage, coverage = coverageImage, overlay = currentOverlay)
 
-        // RainViewer has no radar at the city, so an empty map there doesn't mean no rain.
-        if (coverage?.cityCovered == false) {
-            val noRadar = stringResource(R.string.radar_no_coverage)
-            OverlayChip(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .clearAndSetSemantics { contentDescription = noRadar },
-            ) {
-                Text(
-                    text = noRadar,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
+        // Time chip and legend along the top, and below them, centred, the no-radar label: RainViewer
+        // has no radar at the city, so an empty map there doesn't mean no rain. The label sits up
+        // here so it doesn't cover the city's name on the map.
+        Column(
+            modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                // Timestamp chip, in the selected city's local time (via its UTC offset) rather than
+                // the device's timezone.
+                frameLabel?.let { label ->
+                    OverlayChip {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                RadarLegend()
+            }
+            if (coverage?.cityCovered == false) {
+                val noRadar = stringResource(R.string.radar_no_coverage)
+                OverlayChip(modifier = Modifier.clearAndSetSemantics { contentDescription = noRadar }) {
+                    Text(
+                        text = noRadar,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
-
-        // Timestamp chip (top-start), rendered in the selected city's local time (via its UTC
-        // offset) rather than the device's timezone.
-        frameLabel?.let { label ->
-            OverlayChip(modifier = Modifier.align(Alignment.TopStart)) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-        }
-
-        // Legend (top-end)
-        RadarLegend(modifier = Modifier.align(Alignment.TopEnd))
 
         // Status / controls (bottom)
         when (timelineState) {
