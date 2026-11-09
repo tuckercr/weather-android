@@ -54,8 +54,9 @@ fun OnboardingLocationScreen(
                 Timber.d("location resolved: lat=${location.latitude} lon=${location.longitude}")
                 onLocationResolved(location)
             }
-            // A "no" is an answer: move on to entering a city rather than asking again. This also
-            // covers a tap after Android stops showing the dialog, which reports denied at once.
+            // A "no" is an answer: move on to entering a city rather than asking again. When Android
+            // won't show the dialog any more, the tap opens the app's settings instead, and coming
+            // back without allowing it there counts as a "no".
             LocationFetchState.PermissionDenied -> onSkip()
             else -> Unit
         }

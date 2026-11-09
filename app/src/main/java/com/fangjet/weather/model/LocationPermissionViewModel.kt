@@ -3,6 +3,7 @@ package com.fangjet.weather.model
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fangjet.weather.data.LocationRepository
+import com.fangjet.weather.data.PermissionAnswer
 import com.fangjet.weather.domain.SavedLocation
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -45,35 +46,18 @@ class LocationPermissionViewModel
 
         fun hasLocationPermission(): Boolean = location.hasLocationPermission()
 
-        fun canRequestPermission(): Boolean = location.canRequestPermission()
-
-        private val _myLocationOffered = MutableStateFlow(false)
-
-        /** Whether "Add My Location" can do anything: access is on, or Android will still ask. */
-        val myLocationOffered: StateFlow<Boolean> = _myLocationOffered.asStateFlow()
-
-        /** Re-reads access: on every resume, since it changes in system settings. */
-        fun refreshAccess() {
-            _myLocationOffered.value = hasLocationPermission() || canRequestPermission()
-        }
-
         /**
          * "Use my location": fetches the position when allowed (the outcome arrives in [state]), and
-         * otherwise reports a denial when Android won't ask any more. True when the screen should show
-         * the system dialog, whose answer goes to [onPermissionResult].
+         * otherwise returns true for the screen to make the system request, whose answer goes to
+         * [onPermissionResult]. It asks even after a refusal that seemed final, since the user may
+         * have picked "Ask every time" in system settings since and Android doesn't say: the
+         * answer tells, and sends the user to the app's settings when Android won't ask.
          */
-        fun useMyLocation(): Boolean =
-            when {
-                hasLocationPermission() -> {
-                    fetchLocation()
-                    false
-                }
-                canRequestPermission() -> true
-                else -> {
-                    onPermissionDenied()
-                    false
-                }
-            }
+        fun useMyLocation(): Boolean {
+            if (!hasLocationPermission()) return true
+            fetchLocation()
+            return false
+        }
 
         /** Adding My Location from Add location is under way: its result goes to [myLocationAdded] or [addMyLocationFailed]. */
         private var adding = false
@@ -89,7 +73,7 @@ class LocationPermissionViewModel
         /** "Add My Location": as [useMyLocation], with the result as a one-off [myLocationAdded]. */
         fun addMyLocation(): Boolean {
             adding = true
-            return useMyLocation().also { askFirst -> if (!askFirst && !hasLocationPermission()) adding = false }
+            return useMyLocation()
         }
 
         /** Back to idle once a [LocationFetchState.Located] has been acted on, so it isn't acted on twice. */
@@ -97,20 +81,66 @@ class LocationPermissionViewModel
             if (_state.value is LocationFetchState.Located) _state.value = LocationFetchState.Idle
         }
 
-        /** The system dialog's answer: a grant fetches the position, a refusal is remembered. See [LocationRepository.permissionAnswered]. */
+        private val settingsRequests = Channel<Unit>(Channel.CONFLATED)
+
+        /** Android refused without asking: the screen opens the app's settings page, then calls [appSettingsOpened]. */
+        val appSettingsRequested: Flow<Unit> = settingsRequests.receiveAsFlow()
+
+        private enum class SettingsTrip { NONE, OPENED, AWAY }
+
+        private var settingsTrip = SettingsTrip.NONE
+
+        /** The app's settings page is opening, for the step under way to carry on when the user is back. */
+        fun appSettingsOpened() {
+            settingsTrip = SettingsTrip.OPENED
+        }
+
+        /**
+         * The screen stopped: with the settings page opening, the user is now on it. The resume that
+         * follows the system request's answer comes before this, so it doesn't count as the return.
+         */
+        fun leftApp() {
+            if (settingsTrip == SettingsTrip.OPENED) settingsTrip = SettingsTrip.AWAY
+        }
+
+        /**
+         * Re-reads access on every resume. Back from the app's settings page, access granted there
+         * finishes the step under way (adding My Location, or onboarding's), and none is a refusal.
+         * The location read forgets earlier refusals: see [LocationRepository.knownPosition].
+         */
+        fun refreshAccess() {
+            if (settingsTrip != SettingsTrip.AWAY) return
+            settingsTrip = SettingsTrip.NONE
+            if (hasLocationPermission()) {
+                fetchLocation()
+            } else {
+                adding = false
+                onPermissionDenied()
+            }
+        }
+
+        /** The system request is going out: see [LocationRepository.permissionRequested]. */
+        fun permissionRequestStarted() {
+            location.permissionRequested()
+        }
+
+        /**
+         * The system request's answer: a grant fetches the position, a refusal is remembered, and a
+         * refusal without a dialog sends the user to the app's settings. See [LocationRepository.permissionAnswered].
+         */
         fun onPermissionResult(
             granted: Boolean,
             rationaleBefore: Boolean,
             rationaleAfter: Boolean,
         ) {
-            location.permissionAnswered(granted, rationaleBefore, rationaleAfter)
-            refreshAccess()
-            if (granted) {
-                fetchLocation()
-                return
+            when (location.permissionAnswered(granted, rationaleBefore, rationaleAfter)) {
+                PermissionAnswer.GRANTED -> fetchLocation()
+                PermissionAnswer.REFUSED -> {
+                    adding = false
+                    onPermissionDenied()
+                }
+                PermissionAnswer.REFUSED_WITHOUT_ASKING -> settingsRequests.trySend(Unit)
             }
-            adding = false
-            onPermissionDenied()
         }
 
         fun onPermissionDenied() {
