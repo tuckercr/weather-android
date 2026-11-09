@@ -87,6 +87,62 @@ fun skyCondition(
     }
 }
 
+/** Misty's line on the Misty's View tile: one per visibility band by day, and the night ones. */
+enum class MistyLine {
+    WHOLE_STREET,
+    DOWN_THE_BLOCK,
+    END_OF_STREET_FUZZY,
+    PAST_THE_GARDEN,
+    STREETLIGHTS_FUZZY,
+    STARS,
+    FEW_STARS,
+    NO_STARS,
+}
+
+/** Misty's daytime line: how far down the street she can see. */
+val VisibilityBand.mistyLine: MistyLine
+    get() = when (this) {
+        VisibilityBand.EXCELLENT -> MistyLine.WHOLE_STREET
+        VisibilityBand.GOOD -> MistyLine.DOWN_THE_BLOCK
+        VisibilityBand.MODERATE -> MistyLine.END_OF_STREET_FUZZY
+        VisibilityBand.POOR -> MistyLine.PAST_THE_GARDEN
+    }
+
+/**
+ * Misty's line after dark, when how far down the street she can see means little: poor visibility
+ * keeps its line, moderate visibility or a murky sky (mist, haze, fog, smoke, dust) blurs the
+ * streetlights, and otherwise the cloud says how many stars she can see. Same rule as iOS's
+ * `TodayDetails.mistyNightLine(band:sky:)`.
+ */
+fun mistyNightLine(
+    band: VisibilityBand,
+    sky: SkyCondition,
+): MistyLine =
+    when {
+        band == VisibilityBand.POOR -> MistyLine.PAST_THE_GARDEN
+        band == VisibilityBand.MODERATE || sky in MURKY_SKIES -> MistyLine.STREETLIGHTS_FUZZY
+        sky == SkyCondition.CLEAR -> MistyLine.STARS
+        sky == SkyCondition.PARTLY_CLOUDY -> MistyLine.FEW_STARS
+        else -> MistyLine.NO_STARS
+    }
+
+private val MURKY_SKIES = setOf(SkyCondition.MIST, SkyCondition.HAZE, SkyCondition.FOG, SkyCondition.SMOKE, SkyCondition.DUST)
+
+/**
+ * Misty's line for the tile, or null without a visibility to go on ([band]). After dark ([dark])
+ * it's [mistyNightLine], otherwise the band's daytime line.
+ */
+fun mistyLine(
+    band: VisibilityBand?,
+    sky: SkyCondition,
+    dark: Boolean,
+): MistyLine? =
+    when {
+        band == null -> null
+        dark -> mistyNightLine(band, sky)
+        else -> band.mistyLine
+    }
+
 /**
  * What the pavement means for paws, from the Remote Config thresholds the walk advice uses.
  * [PAVEMENT_OK] is pavement that's fine while the air itself is too hot or too cold for paws, so

@@ -104,8 +104,10 @@ WorkManager, and CI on GitHub Actions.
   next-rain line, using its words as the headline. Rules in `util/RainOutlook.kt`;
   `rain_outlook_enabled`, `rain_outlook_hours` and `rain_outlook_min_chance` tune it remotely.
 - **Today tiles**: Feels Like, Wind, Fluff Factor, Paw Check (with a dog) and Air Quality in pairs, then
-  Daylight (with the UV index) and Misty's View (the sky and how far she can see) across the full width. An odd tile out, usually Air Quality
-  when Paw Check is showing, takes the full width rather than leaving a gap.
+  Daylight (with the UV index) and Misty's View (the sky and how far she can see; after dark,
+  Misty's line is about the stars or the streetlights instead, unless she can't see past the
+  garden) across the full width. An odd tile out, usually Air Quality when Paw Check is showing,
+  takes the full width rather than leaving a gap.
 - **Feels Like** tile: the feels-like temperature with its band beside it (Cold, Chilly, Mild, Warm
   or Hot), a five-colour bar and how far it is from the actual temperature ("8° warmer than it is",
   or "Same as it is" within a degree). The bands come from the pets' thresholds in Remote Config:

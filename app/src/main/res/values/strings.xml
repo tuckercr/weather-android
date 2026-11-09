@@ -555,6 +555,10 @@
     <string name="misty_visibility_good">Misty can see down the block</string>
     <string name="misty_visibility_moderate">The end of the street looks fuzzy</string>
     <string name="misty_visibility_poor">Misty can\'t see past the garden</string>
+    <string name="misty_night_streetlights_fuzzy">The streetlights look fuzzy</string>
+    <string name="misty_night_stars">Misty can see the stars</string>
+    <string name="misty_night_few_stars">Misty can spot a few stars</string>
+    <string name="misty_night_no_stars">No stars for Misty tonight</string>
     <string name="pavement_dangerous">Dangerously hot</string>
     <string name="pavement_too_hot">Too hot for paws</string>
     <string name="pavement_warm">Getting hot</string>

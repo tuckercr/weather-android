@@ -45,6 +45,48 @@ class TodayDetailsTest {
     }
 
     @Test
+    fun `Misty's day lines go by how far she can see`() {
+        assertEquals(MistyLine.WHOLE_STREET, VisibilityBand.EXCELLENT.mistyLine)
+        assertEquals(MistyLine.DOWN_THE_BLOCK, VisibilityBand.GOOD.mistyLine)
+        assertEquals(MistyLine.END_OF_STREET_FUZZY, VisibilityBand.MODERATE.mistyLine)
+        assertEquals(MistyLine.PAST_THE_GARDEN, VisibilityBand.POOR.mistyLine)
+        // By day the sky doesn't change the line.
+        assertEquals(MistyLine.WHOLE_STREET, mistyLine(VisibilityBand.EXCELLENT, SkyCondition.OVERCAST, dark = false))
+        assertEquals(MistyLine.END_OF_STREET_FUZZY, mistyLine(VisibilityBand.MODERATE, SkyCondition.CLEAR, dark = false))
+    }
+
+    @Test
+    fun `poor visibility keeps its line at night`() {
+        SkyCondition.entries.forEach {
+            assertEquals(MistyLine.PAST_THE_GARDEN, mistyNightLine(VisibilityBand.POOR, it))
+        }
+    }
+
+    @Test
+    fun `moderate visibility or a murky sky blurs the streetlights at night`() {
+        assertEquals(MistyLine.STREETLIGHTS_FUZZY, mistyNightLine(VisibilityBand.MODERATE, SkyCondition.CLEAR))
+        listOf(SkyCondition.MIST, SkyCondition.HAZE, SkyCondition.FOG, SkyCondition.SMOKE, SkyCondition.DUST).forEach {
+            assertEquals(MistyLine.STREETLIGHTS_FUZZY, mistyNightLine(VisibilityBand.GOOD, it))
+            assertEquals(MistyLine.STREETLIGHTS_FUZZY, mistyNightLine(VisibilityBand.EXCELLENT, it))
+        }
+    }
+
+    @Test
+    fun `otherwise the cloud says how many stars Misty can see`() {
+        assertEquals(MistyLine.STARS, mistyNightLine(VisibilityBand.EXCELLENT, SkyCondition.CLEAR))
+        assertEquals(MistyLine.FEW_STARS, mistyNightLine(VisibilityBand.GOOD, SkyCondition.PARTLY_CLOUDY))
+        assertEquals(MistyLine.NO_STARS, mistyNightLine(VisibilityBand.EXCELLENT, SkyCondition.MOSTLY_CLOUDY))
+        assertEquals(MistyLine.NO_STARS, mistyNightLine(VisibilityBand.GOOD, SkyCondition.OVERCAST))
+    }
+
+    @Test
+    fun `no visibility, no line, day or night`() {
+        assertNull(mistyLine(null, SkyCondition.CLEAR, dark = false))
+        assertNull(mistyLine(null, SkyCondition.CLEAR, dark = true))
+        assertEquals(MistyLine.STARS, mistyLine(VisibilityBand.EXCELLENT, SkyCondition.CLEAR, dark = true))
+    }
+
+    @Test
     fun `obscured skies are named for what's in the air, the rest by cloud cover`() {
         assertEquals(SkyCondition.FOG, skyCondition("Fog", 100, "50d"))
         assertEquals(SkyCondition.MIST, skyCondition("Mist", 100, "50d"))
