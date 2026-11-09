@@ -36,6 +36,19 @@ WorkManager, and CI on GitHub Actions.
   that instead, in place of a seasonal theme's caption too: bad air by its pollutant ("Smoky air
   today. Quick potty breaks, then back on the sofa."), hot pavement, or a gale and worse. The night
   sky shows the moon's real phase, lit from the other side in the southern hemisphere.
+- **Seasonal themes**: on Halloween (31 October) and Thanksgiving (the fourth Thursday of November),
+  by the city's own date, the hero takes the theme's colours and caption, the cards below a warmer
+  tint, and the scene the theme's decorations: bats, Misty's witch hat, Sunny's bandana and a
+  jack-o'-lantern for Halloween; autumn leaves and a pie for Thanksgiving. The theme's night look
+  (night colours, costumes off, the pumpkin lit, the leaves dimmer, no steam on the pie) follows the
+  clock, after sunset or before sunrise in the city, whatever the weather, so a rainy Halloween
+  evening is still a Halloween night; the pets' weather (the umbrella, scarves) still follows the
+  conditions. The night caption shows from sunset on the theme's day: from midnight to sunrise the
+  night colours show with the day's caption. A costume replaces only what it covers on its own pet
+  (the witch hat Misty's head, the bandana Sunny's scarf), and the umbrella is drawn in front of the
+  hat. Themes are data (`res/raw/seasonal_themes.json`, replaceable from Remote Config
+  `seasonal_themes`): a decoration name this version can't draw is skipped, keeping the rest of the
+  theme and the list.
 - **Best Walk Time** card: "Now is a great time", the next good hour ("Around 8 AM"), or "Not a good
   day for walkies" when nothing in the next 24 hours qualifies. A good hour is under 30% rain
   chance (the chance as the hourly strip shows it, so 25% counts as 30%; from 60% shown it's

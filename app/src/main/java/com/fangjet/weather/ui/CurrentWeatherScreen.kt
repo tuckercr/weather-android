@@ -443,8 +443,9 @@ private fun CurrentWeatherContent(
     val todayForecast = state.today
     val seasonalTheme = state.seasonalTheme
     val mood = state.mood
-    val night = state.night
-    val heroInk = seasonalTheme?.heroInk(night) ?: mood.inkColor
+    // A theme's night look goes by the clock, whatever the weather.
+    val dark = state.dark
+    val heroInk = seasonalTheme?.heroInk(dark) ?: mood.inkColor
     var selectedDay by remember { mutableStateOf<DayForecast?>(null) }
     val heroCaption = state.heroCaption.resolve()
 
@@ -464,7 +465,7 @@ private fun CurrentWeatherContent(
                                 Modifier
                             },
                         ),
-                    colors = CardDefaults.cardColors(containerColor = seasonalTheme?.heroBackground(night) ?: mood.skyColor),
+                    colors = CardDefaults.cardColors(containerColor = seasonalTheme?.heroBackground(dark) ?: mood.skyColor),
                 ) {
                     Column(
                         modifier = Modifier
@@ -480,6 +481,7 @@ private fun CurrentWeatherContent(
                                 .fillMaxWidth(PET_SCENE_WIDTH_FRACTION)
                                 .widthIn(max = PET_SCENE_MAX_WIDTH),
                             decorations = seasonalTheme?.decorations.orEmpty(),
+                            dark = dark,
                         )
                         // Medium weight on the small lines so they hold up on the brighter hero colours.
                         Text(

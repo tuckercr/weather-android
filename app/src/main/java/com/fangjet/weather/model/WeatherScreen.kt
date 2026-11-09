@@ -24,12 +24,14 @@ import com.fangjet.weather.util.hourlyStrip
 import com.fangjet.weather.util.iconCodeAt
 import com.fangjet.weather.util.isDayOf
 import com.fangjet.weather.util.isTooOldToShowAsNow
-import com.fangjet.weather.util.localDate
 import com.fangjet.weather.util.nextRain
 import com.fangjet.weather.util.rainOutlook
 import com.fangjet.weather.util.sunEvents
 import com.fangjet.weather.util.todayHighLow
 import com.fangjet.weather.util.withSunTimesToday
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import kotlin.math.roundToInt
 
 /** The Remote Config switches and settings the weather screen goes by. Same as iOS's `WeatherScreenConfig`. */
@@ -129,6 +131,12 @@ data class WeatherScreenState(
     val mood: PetMood,
     /** Today's seasonal theme by the city's own date, so it ends by itself when its day does. */
     val seasonalTheme: SeasonalTheme?,
+    /**
+     * Dark at the city by the clock ([iconCodeNow], as the hero's night mood goes by), whatever the
+     * weather: the seasonal theme's night look follows this, so a rainy Halloween evening is still
+     * a Halloween night. The pets' weather still follows [mood].
+     */
+    val dark: Boolean,
     /** Which caption the hero shows: the walk's reason, the theme's, or the mood's. */
     val heroCaption: HeroCaption,
     /** Today's forecast, by the city's own date; null before the forecast has today. */
@@ -156,6 +164,11 @@ data class WeatherScreenState(
 ) {
     val night: Boolean get() = mood == PetMood.NIGHT
 }
+
+private fun localDateTime(
+    epochSeconds: Long,
+    offsetSeconds: Int,
+): LocalDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(epochSeconds), ZoneOffset.ofTotalSeconds(offsetSeconds))
 
 /** The hourly strip covers the next 24 hours. */
 const val HOURLY_STRIP_COUNT = 24
@@ -216,6 +229,7 @@ private fun weatherScreenState(
     val weatherToday = weather.withSunTimesToday(nowEpochSeconds)
     val iconCodeNow = weather.iconCodeAt(nowEpochSeconds)
     val mood = weather.petMoodAt(nowEpochSeconds, config.thresholds)
+    val dark = iconCodeNow.endsWith("n")
     val seasonalTheme = SeasonalThemes.themeOn(nowEpochSeconds, offset, config.seasonalThemes)
     val today = forecastDays.firstOrNull()?.takeIf { it.isDayOf(nowEpochSeconds, offset) }
     val (high, low) = todayHighLow(weather, today)
@@ -250,9 +264,10 @@ private fun weatherScreenState(
         iconCodeNow = iconCodeNow,
         mood = mood,
         seasonalTheme = seasonalTheme,
+        dark = dark,
         heroCaption = heroCaption(
             walk = walkAdvice?.now,
-            themeCaption = seasonalTheme?.caption(mood == PetMood.NIGHT, localDate(nowEpochSeconds, offset)),
+            themeCaption = seasonalTheme?.captionAt(dark, localDateTime(nowEpochSeconds, offset)),
             mood = mood,
             nowEpochSeconds = nowEpochSeconds,
             utcOffsetSeconds = offset,

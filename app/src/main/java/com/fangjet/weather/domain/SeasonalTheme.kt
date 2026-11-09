@@ -6,14 +6,14 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneOffset
 
 /**
  * A look for a day or a stretch of days: the pets' props, the hero card's colours and caption, and
  * a warmer tint on the cards below. Themes are data, not code: the app ships them in
  * res/raw/seasonal_themes.json and Remote Config's `seasonal_themes` can replace the whole list, so a
- * new theme (Thanksgiving, say) needs no app update as long as it uses decorations the app can
- * draw. `seasonal_themes_enabled` switches them all off. Today's theme comes from the city's own
+ * new theme needs no app update as long as it uses decorations the app can draw. `seasonal_themes_enabled` switches them all off. Today's theme comes from the city's own
  * date, so it ends by itself when its day does. Same format and rules as iOS's SeasonalTheme.
  */
 data class SeasonalTheme(
@@ -45,6 +45,18 @@ data class SeasonalTheme(
         val day: List<String>,
         val night: List<String>,
     )
+
+    /**
+     * The caption at [local] time in the city when it's [dark] there by the clock: the night one
+     * from sunset on the theme's day, the day one before. From midnight to sunrise it's dark (the
+     * night colours show) but the night is the one before, so the caption is still the day's ("Too
+     * many doorbells" at 3 AM would be wrong). Any dark hour before noon is before dawn. Same rule
+     * as iOS's.
+     */
+    fun captionAt(
+        dark: Boolean,
+        local: LocalDateTime,
+    ): String? = caption(night = dark && local.hour >= 12, date = local.toLocalDate())
 
     /** One caption per day, picked by the city's date; null when the theme has none. */
     fun caption(
@@ -117,6 +129,58 @@ enum class SceneDecoration(
 
     // A jack-o'-lantern on Misty's side, lit after dark.
     JACK_O_LANTERN("jackOLantern"),
+
+    // Autumn leaves drifting through the sky, where the bats go; dimmer after dark.
+    AUTUMN_LEAVES("autumnLeaves"),
+
+    // A pie on the ground on Misty's side, where the jack-o'-lantern goes; steaming by day.
+    PIE("pie"),
+}
+
+/**
+ * What the pets wear or hold in the scene, and whose it is. A costume takes the place of only its
+ * own pet's accessory in the same spot; the umbrella is over both of them and is never replaced.
+ */
+enum class PetAccessory(
+    val pet: Pet?,
+    val spot: Spot?,
+) {
+    UMBRELLA(null, null),
+    SUNNY_SUNGLASSES(Pet.SUNNY, Spot.HEAD),
+    SUNNY_SCARF(Pet.SUNNY, Spot.NECK),
+    MISTY_SCARF(Pet.MISTY, Spot.NECK),
+    MISTY_WITCH_HAT(Pet.MISTY, Spot.HEAD),
+    SUNNY_BANDANA(Pet.SUNNY, Spot.NECK),
+    ;
+
+    enum class Pet { SUNNY, MISTY }
+
+    enum class Spot { HEAD, NECK }
+}
+
+/**
+ * The accessories the scene draws for [mood] with today's [decorations]: the mood's own (the
+ * umbrella, Sunny's sunglasses, the scarves) and, while it's light by the clock ([dark] false), the
+ * theme's costumes. Asleep after dark the pets have taken their costumes off. A costume replaces
+ * only what it covers on its own pet: Misty's witch hat her head accessory, Sunny's bandana his
+ * neck one (his scarf), so the other pet keeps theirs. Same rule as iOS's.
+ */
+fun sceneAccessories(
+    mood: PetMood,
+    decorations: Set<SceneDecoration>,
+    dark: Boolean,
+): Set<PetAccessory> {
+    val costumes = buildSet {
+        if (!dark && SceneDecoration.WITCH_HAT in decorations) add(PetAccessory.MISTY_WITCH_HAT)
+        if (!dark && SceneDecoration.BANDANA in decorations) add(PetAccessory.SUNNY_BANDANA)
+    }
+    val moodOwn = when (mood) {
+        PetMood.RAIN -> listOf(PetAccessory.UMBRELLA)
+        PetMood.SUNNY -> listOf(PetAccessory.SUNNY_SUNGLASSES)
+        PetMood.SNOW, PetMood.COLD -> listOf(PetAccessory.SUNNY_SCARF, PetAccessory.MISTY_SCARF)
+        else -> emptyList()
+    }
+    return costumes + moodOwn.filter { own -> costumes.none { it.pet == own.pet && it.spot == own.spot } }
 }
 
 object SeasonalThemes {

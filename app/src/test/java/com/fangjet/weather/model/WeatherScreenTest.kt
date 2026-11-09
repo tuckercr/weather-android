@@ -3,9 +3,11 @@ package com.fangjet.weather.model
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.AirQuality
 import com.fangjet.weather.domain.CurrentWeather
+import com.fangjet.weather.domain.DateRule
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetMood
+import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.util.HourlyStripItem
 import org.junit.Assert.assertEquals
@@ -202,6 +204,65 @@ class WeatherScreenTest {
     }
 
     // --- Helpers ---
+
+    // --- Seasonal theme by the clock ---
+
+    // A theme on the readings' day, 1 January.
+    private val newYear = SeasonalTheme(
+        id = "newyear",
+        dates = DateRule.Fixed(1, 1),
+        colors = SeasonalTheme.Colors(0x111111, 0x222222, 0x333333, 0x444444, 0x555555, 0x666666, null, null),
+        captions = SeasonalTheme.Captions(day = listOf("Day"), night = listOf("Night")),
+        decorations = emptySet(),
+    )
+
+    private fun themed(
+        now: Long,
+        iconCode: String,
+        conditionMain: String = "Clear",
+    ) = weatherState(
+        make(
+            LoadingState.Success(reading(observedAt = now, iconCode = iconCode, conditionMain = conditionMain)),
+            now = now,
+            config = WeatherScreenConfig(seasonalThemes = listOf(newYear)),
+        ),
+    )
+
+    @Test
+    fun `a rainy evening on the theme's day gets the night look`() {
+        val state = themed(dayStart + 19 * hour, iconCode = "10n", conditionMain = "Rain")
+        assertEquals(PetMood.RAIN, state.mood)
+        assertTrue(state.dark)
+        assertEquals(HeroCaption.Theme("Night"), state.heroCaption)
+    }
+
+    @Test
+    fun `3 AM on the theme's day is dark with the day caption`() {
+        val state = themed(dayStart + 3 * hour, iconCode = "01n")
+        assertTrue(state.dark)
+        assertEquals(HeroCaption.Theme("Day"), state.heroCaption)
+    }
+
+    @Test
+    fun `noon on the theme's day gets the day look`() {
+        val state = themed(noon, iconCode = "01d")
+        assertFalse(state.dark)
+        assertEquals(HeroCaption.Theme("Day"), state.heroCaption)
+    }
+
+    @Test
+    fun `an old reading from before sunset is dark by the clock`() {
+        // Cached at 4 PM, shown at 8 PM: the hero and the theme both go by the clock.
+        val state = weatherState(
+            make(
+                LoadingState.Success(reading(observedAt = dayStart + 16 * hour, iconCode = "10d", conditionMain = "Rain")),
+                now = dayStart + 20 * hour,
+                config = WeatherScreenConfig(seasonalThemes = listOf(newYear)),
+            ),
+        )
+        assertTrue(state.dark)
+        assertEquals(HeroCaption.Theme("Night"), state.heroCaption)
+    }
 
     private fun make(
         current: LoadingState<CurrentWeather>,

@@ -29,8 +29,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import com.fangjet.weather.R
+import com.fangjet.weather.domain.PetAccessory
 import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.SceneDecoration
+import com.fangjet.weather.domain.sceneAccessories
 import com.fangjet.weather.model.AFTERNOON_ONLY
 import com.fangjet.weather.model.HeroCaption
 import com.fangjet.weather.model.WALK_SUGGESTIONS
@@ -56,9 +58,15 @@ import com.fangjet.weather.ui.theme.PetGround
 import com.fangjet.weather.ui.theme.PetHatBand
 import com.fangjet.weather.ui.theme.PetInk
 import com.fangjet.weather.ui.theme.PetInkOnNight
+import com.fangjet.weather.ui.theme.PetLeafGold
+import com.fangjet.weather.ui.theme.PetLeafOrange
+import com.fangjet.weather.ui.theme.PetLeafRust
+import com.fangjet.weather.ui.theme.PetLeafVein
 import com.fangjet.weather.ui.theme.PetMoon
 import com.fangjet.weather.ui.theme.PetMoonUnlit
 import com.fangjet.weather.ui.theme.PetOutline
+import com.fangjet.weather.ui.theme.PetPieCrust
+import com.fangjet.weather.ui.theme.PetPieTop
 import com.fangjet.weather.ui.theme.PetPumpkin
 import com.fangjet.weather.ui.theme.PetPumpkinFace
 import com.fangjet.weather.ui.theme.PetPumpkinGlow
@@ -79,6 +87,7 @@ import com.fangjet.weather.ui.theme.PetSkySnow
 import com.fangjet.weather.ui.theme.PetSkyStorm
 import com.fangjet.weather.ui.theme.PetSkySunny
 import com.fangjet.weather.ui.theme.PetStar
+import com.fangjet.weather.ui.theme.PetSteam
 import com.fangjet.weather.ui.theme.PetStormCloud
 import com.fangjet.weather.ui.theme.PetSun
 import com.fangjet.weather.ui.theme.PetSunHot
@@ -132,8 +141,10 @@ fun HeroCaption.resolve(): String =
 /**
  * Sunny (the dog) and Misty (the cat) acting out [mood], drawn with simple shapes after the app
  * icon: a golden retriever with a blue collar and a grey-and-white tuxedo cat. [decorations] are
- * today's seasonal theme's extras (costumes, a jack-o'-lantern, bats). Same shapes and colours as
- * iOS's PetScene.
+ * today's seasonal theme's extras (costumes, a jack-o'-lantern, bats, leaves, a pie), whose night
+ * look follows [dark], whether it's dark at the city by the clock, rather than the mood: on a rainy
+ * Halloween evening the pumpkin is lit and the costumes are off, under the umbrella. Same shapes and
+ * colours as iOS's PetScene.
  */
 @Composable
 fun PetScene(
@@ -147,6 +158,7 @@ fun PetScene(
     // The offline error: the Wi-Fi router lies on its side next to Misty.
     knockedOverRouter: Boolean = false,
     decorations: Set<SceneDecoration> = emptySet(),
+    dark: Boolean = mood == PetMood.NIGHT,
 ) {
     val description = stringResource(R.string.cd_pet_scene)
     val southernHemisphere = LocalSouthernHemisphere.current
@@ -156,7 +168,7 @@ fun PetScene(
             .aspectRatio(SCENE_W / SCENE_H)
             .semantics { contentDescription = description },
     ) {
-        drawPetScene(mood, size.width / SCENE_W, moonPhase, southernHemisphere, knockedOverRouter, decorations)
+        drawPetScene(mood, size.width / SCENE_W, moonPhase, southernHemisphere, knockedOverRouter, decorations, dark)
     }
 }
 
@@ -171,6 +183,7 @@ private fun DrawScope.drawPetScene(
     southernHemisphere: Boolean,
     knockedOverRouter: Boolean = false,
     decorations: Set<SceneDecoration> = emptySet(),
+    dark: Boolean = mood == PetMood.NIGHT,
 ) {
     fun p(
         x: Float,
@@ -178,18 +191,16 @@ private fun DrawScope.drawPetScene(
     ) = Offset(x * s, y * s)
 
     drawSky(mood, s, ::p, moonPhase, southernHemisphere)
-    if (SceneDecoration.BATS in decorations) drawBats(mood == PetMood.NIGHT, s)
+    if (SceneDecoration.BATS in decorations) drawBats(dark, s)
+    if (SceneDecoration.AUTUMN_LEAVES in decorations) drawAutumnLeaves(dark, s)
     drawOval(PetGround, topLeft = p(20f, 132f), size = Size(220f * s, 16f * s))
     // The pets are authored cat-left, dog-right; mirrored so Sunny (the dog) stands on the left,
     // matching the name. The sky stays put, and the ground shadow is symmetrical.
     scale(scaleX = -1f, scaleY = 1f, pivot = Offset(SCENE_W / 2 * s, 0f)) {
         drawCat(mood, s, ::p)
         drawDog(mood, s, ::p)
-        // A costume replaces the weather's own props (sunglasses, scarves); the umbrella stays.
-        val dressedUp = mood != PetMood.NIGHT &&
-            (SceneDecoration.WITCH_HAT in decorations || SceneDecoration.BANDANA in decorations)
-        if (!dressedUp || mood == PetMood.RAIN) drawProps(mood, s, ::p)
-        drawDecorations(decorations, mood, s, ::p)
+        drawGroundDecorations(decorations, dark, s, ::p)
+        drawAccessories(sceneAccessories(mood, decorations, dark), mood, s, ::p)
     }
     if (knockedOverRouter) drawKnockedOverRouter(s, ::p)
 }
@@ -464,62 +475,136 @@ private fun DrawScope.drawBats(
 }
 
 /**
- * The costumes and props in [decorations]. Asleep at night the pets have taken their costumes off;
- * the jack-o'-lantern on Misty's side is lit then. Drawn in the pets' mirrored space, so Misty is
- * at x 95 and the pumpkin at x 38.
+ * The theme's things on the ground on Misty's side: the jack-o'-lantern, lit after dark, and the
+ * pie, steaming by day. Drawn in the pets' mirrored space, so Misty is at x 95 and they're at x 38.
  */
-private fun DrawScope.drawDecorations(
+private fun DrawScope.drawGroundDecorations(
     decorations: Set<SceneDecoration>,
-    mood: PetMood,
+    dark: Boolean,
     s: Float,
     p: (Float, Float) -> Offset,
 ) {
-    val night = mood == PetMood.NIGHT
-    val dy = if (mood == PetMood.STORM) 14f else 0f
-    if (SceneDecoration.WITCH_HAT in decorations && !night) {
-        poly(PetWitchHat, s, 80f, 62f + dy, 99f, 22f + dy, 111f, 62f + dy)
-        oval(PetWitchHat, 95f, 63f + dy, 27f, 4.5f, s)
-        drawRect(PetHatBand, p(81f, 56f + dy), Size(29f * s, 5f * s))
-    }
-    if (SceneDecoration.BANDANA in decorations && !night) {
-        poly(PetBandana, s, 142f, 97f, 178f, 97f, 160f, 111f)
-        drawCircle(PetPumpkinFace, 1.6f * s, p(153f, 101f))
-        drawCircle(PetPumpkinFace, 1.6f * s, p(167f, 101f))
-    }
     if (SceneDecoration.JACK_O_LANTERN in decorations) {
-        val face = if (night) PetPumpkinGlow else PetPumpkinFace
-        oval(if (night) PetPumpkinLit else PetPumpkin, 38f, 126f, 21f, 16f, s)
+        val face = if (dark) PetPumpkinGlow else PetPumpkinFace
+        oval(if (dark) PetPumpkinLit else PetPumpkin, 38f, 126f, 21f, 16f, s)
         drawRect(PetPumpkinStem, p(35.5f, 104f), Size(5f * s, 8f * s))
         poly(face, s, 26f, 123f, 31f, 116f, 36f, 123f)
         poly(face, s, 40f, 123f, 45f, 116f, 50f, 123f)
         poly(face, s, 25f, 130f, 51f, 130f, 47f, 136f, 43f, 133f, 38f, 137f, 33f, 133f, 29f, 136f)
     }
+    if (SceneDecoration.PIE in decorations) drawPie(dark, s, p)
 }
 
-private fun DrawScope.drawProps(
+/** A pie in its crust, seen from a little above, with a wisp of steam by day. */
+private fun DrawScope.drawPie(
+    dark: Boolean,
+    s: Float,
+    p: (Float, Float) -> Offset,
+) {
+    // The dish's side, then the filling with the crimped rim round it and two vents.
+    poly(PetPieCrust, s, 19f, 128f, 57f, 128f, 53f, 139f, 23f, 139f)
+    oval(PetPieTop, 38f, 128f, 18f, 5f, s)
+    drawOval(
+        PetPieCrust,
+        topLeft = p(20f, 123f),
+        size = Size(36f * s, 10f * s),
+        style = Stroke(width = 2.4f * s),
+    )
+    listOf(31f to 127f, 43f to 128.5f).forEach { (x, y) ->
+        drawLine(PetPumpkinFace.copy(alpha = 0.5f), p(x, y), p(x + 4f, y - 1f), 1.2f * s, StrokeCap.Round)
+    }
+    if (!dark) {
+        val steam = Path().apply {
+            moveTo(33f * s, 120f * s)
+            quadraticTo(29f * s, 115f * s, 33f * s, 110f * s)
+            quadraticTo(37f * s, 105f * s, 33f * s, 100f * s)
+            moveTo(42f * s, 119f * s)
+            quadraticTo(38f * s, 114.5f * s, 42f * s, 110f * s)
+            quadraticTo(46f * s, 105.5f * s, 42f * s, 101f * s)
+        }
+        drawPath(steam, PetSteam.copy(alpha = 0.7f), style = Stroke(width = 1.6f * s, cap = StrokeCap.Round))
+    }
+}
+
+/** A leaf [length] scene units from tip to tip, turned [degrees], with a pale midrib. */
+private fun DrawScope.leaf(
+    color: Color,
+    x: Float,
+    y: Float,
+    length: Float,
+    degrees: Float,
+    alpha: Float,
+    s: Float,
+) {
+    val h = length / 2
+    rotate(degrees = degrees, pivot = Offset(x * s, y * s)) {
+        val path = Path().apply {
+            moveTo((x - h) * s, y * s)
+            quadraticTo(x * s, (y - h * 0.9f) * s, (x + h) * s, y * s)
+            quadraticTo(x * s, (y + h * 0.9f) * s, (x - h) * s, y * s)
+            close()
+        }
+        drawPath(path, color.copy(alpha = alpha))
+        drawLine(
+            PetLeafVein.copy(alpha = 0.55f * alpha),
+            Offset((x - h - 1.5f) * s, y * s),
+            Offset((x + h * 0.7f) * s, y * s),
+            0.9f * s,
+            StrokeCap.Round,
+        )
+    }
+}
+
+/** Autumn leaves drifting through the sky, clear of the sun, the moon and the pets; dimmer after dark. */
+private fun DrawScope.drawAutumnLeaves(
+    dark: Boolean,
+    s: Float,
+) {
+    val alpha = if (dark) 0.6f else 1f
+    leaf(PetLeafOrange, 24f, 28f, 12f, -30f, alpha, s)
+    leaf(PetLeafGold, 62f, 56f, 10f, 25f, alpha, s)
+    leaf(PetLeafRust, 124f, 16f, 11f, -15f, alpha, s)
+    leaf(PetLeafGold, 170f, 36f, 9f, 40f, alpha, s)
+    leaf(PetLeafOrange, 236f, 74f, 10f, -20f, alpha, s)
+}
+
+/**
+ * What the pets wear or hold: the theme's costumes, then the mood's own props, with the umbrella
+ * last so it's in front of everything under it. Misty's witch hat is a shorter one under the
+ * umbrella, so its point doesn't poke through the canopy. Drawn in the pets' mirrored space.
+ */
+private fun DrawScope.drawAccessories(
+    accessories: Set<PetAccessory>,
     mood: PetMood,
     s: Float,
     p: (Float, Float) -> Offset,
 ) {
-    when (mood) {
-        PetMood.RAIN -> {
-            val canopy = Path().apply {
-                moveTo(70f * s, 56f * s)
-                quadraticTo(128f * s, 0f, 190f * s, 56f * s)
-                close()
-            }
-            drawPath(canopy, PetUmbrella)
-            drawRect(PetOutline, p(128f, 54f), Size(3f * s, 42f * s))
+    val dy = if (mood == PetMood.STORM) 14f else 0f
+    if (PetAccessory.MISTY_WITCH_HAT in accessories) {
+        val tip = if (PetAccessory.UMBRELLA in accessories) 40f else 22f
+        poly(PetWitchHat, s, 80f, 62f + dy, 99f, tip + dy, 111f, 62f + dy)
+        oval(PetWitchHat, 95f, 63f + dy, 27f, 4.5f, s)
+        drawRect(PetHatBand, p(81f, 56f + dy), Size(29f * s, 5f * s))
+    }
+    if (PetAccessory.SUNNY_BANDANA in accessories) {
+        poly(PetBandana, s, 142f, 97f, 178f, 97f, 160f, 111f)
+        drawCircle(PetPumpkinFace, 1.6f * s, p(153f, 101f))
+        drawCircle(PetPumpkinFace, 1.6f * s, p(167f, 101f))
+    }
+    if (PetAccessory.SUNNY_SUNGLASSES in accessories) {
+        drawRoundRect(PetOutline, p(146f, 68f), Size(12f * s, 7f * s))
+        drawRoundRect(PetOutline, p(162f, 68f), Size(12f * s, 7f * s))
+        drawRect(PetOutline, p(157f, 70f), Size(6f * s, 2f * s))
+    }
+    if (PetAccessory.SUNNY_SCARF in accessories) drawRoundRect(PetScarf, p(136f, 94f), Size(48f * s, 9f * s))
+    if (PetAccessory.MISTY_SCARF in accessories) drawRoundRect(PetScarfAlt, p(72f, 96f), Size(46f * s, 8f * s))
+    if (PetAccessory.UMBRELLA in accessories) {
+        val canopy = Path().apply {
+            moveTo(70f * s, 56f * s)
+            quadraticTo(128f * s, 0f, 190f * s, 56f * s)
+            close()
         }
-        PetMood.SUNNY -> {
-            drawRoundRect(PetOutline, p(146f, 68f), Size(12f * s, 7f * s))
-            drawRoundRect(PetOutline, p(162f, 68f), Size(12f * s, 7f * s))
-            drawRect(PetOutline, p(157f, 70f), Size(6f * s, 2f * s))
-        }
-        PetMood.SNOW, PetMood.COLD -> {
-            drawRoundRect(PetScarf, p(136f, 94f), Size(48f * s, 9f * s))
-            drawRoundRect(PetScarfAlt, p(72f, 96f), Size(46f * s, 8f * s))
-        }
-        else -> Unit
+        drawPath(canopy, PetUmbrella)
+        drawRect(PetOutline, p(128f, 54f), Size(3f * s, 42f * s))
     }
 }

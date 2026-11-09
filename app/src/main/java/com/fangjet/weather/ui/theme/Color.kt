@@ -107,6 +107,13 @@ val PetPumpkinLit = Color(0xFFEF9F27)
 val PetPumpkinFace = Color(0xFF412402)
 val PetPumpkinGlow = Color(0xFFFAEEDA)
 val PetPumpkinStem = Color(0xFF3B6D11)
+val PetLeafOrange = Color(0xFFE39B3A)
+val PetLeafRust = Color(0xFFC9572A)
+val PetLeafGold = Color(0xFFF2C14E)
+val PetLeafVein = Color(0xFFFFF2E2)
+val PetPieCrust = Color(0xFFE8A23A)
+val PetPieTop = Color(0xFFD2862A)
+val PetSteam = Color(0xFFFFFFFF)
 
 // "Showing weather from ..." banner over cached data (background, text: 8.9:1). Fixed in both
 // themes, like the hero card it sits above.
