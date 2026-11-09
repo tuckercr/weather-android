@@ -13,16 +13,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -107,14 +104,6 @@ class RadarViewModel internal constructor(
     val overlays: StateFlow<Map<String, Bitmap>> = _overlays.asStateFlow()
 
     init {
-        // Each new set of frames starts on "now", playing.
-        viewModelScope.launch {
-            timeline
-                .map { (it as? LoadingState.Success)?.data?.frames }
-                .filterNotNull()
-                .distinctUntilChanged()
-                .collect { frames -> _playback.value = RadarPlayback(frameIndex = nowIndex(frames)) }
-        }
         // A new city's map, loaded once per tile.
         viewModelScope.launch {
             tile.filterNotNull().collectLatest {
@@ -160,14 +149,26 @@ class RadarViewModel internal constructor(
     /** The frame on screen and whether it's playing. Starts on "now", playing, for each timeline. */
     val playback: StateFlow<RadarPlayback> = _playback.asStateFlow()
 
-    /** The frame on screen, its time and what it is; null before there are frames. */
-    val shownFrame: StateFlow<ShownRadarFrame?> =
-        combine(timeline, _playback) { state, playback ->
-            val frames = (state as? LoadingState.Success)?.data?.frames.orEmpty()
+    private val _shownFrame = MutableStateFlow<ShownRadarFrame?>(null)
+
+    /**
+     * The frame on screen, its time and what it is; null before there are frames. Worked out in
+     * the same step as each change to [playback] or the frames, so the label never pairs a new
+     * timeline with the old frame index (combining the two flows briefly did, after a refresh).
+     */
+    val shownFrame: StateFlow<ShownRadarFrame?> = _shownFrame.asStateFlow()
+
+    /** Sets what's playing and the frame on screen together. */
+    private fun setPlayback(
+        playback: RadarPlayback,
+        frames: List<RadarFrame> = this.frames,
+    ) {
+        _playback.value = playback
+        _shownFrame.value =
             frames.getOrNull(playback.frameIndex)?.let { frame ->
                 ShownRadarFrame(frame, isNow = playback.frameIndex == nowIndex(frames))
             }
-        }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    }
 
     private val frames: List<RadarFrame> get() = (timeline.value as? LoadingState.Success)?.data?.frames.orEmpty()
 
@@ -180,21 +181,21 @@ class RadarViewModel internal constructor(
             delay(frameIntervalMs())
             val count = frames.size
             if (_playback.value.playing && count > 0) {
-                _playback.update { it.copy(frameIndex = (it.frameIndex + 1) % count) }
+                setPlayback(_playback.value.let { it.copy(frameIndex = (it.frameIndex + 1) % count) })
             }
         }
     }
 
     /** The card came back on screen: playback starts again on "now", as it did before the card left. */
     fun restartPlayback() {
-        _playback.value = RadarPlayback(frameIndex = nowIndex(frames))
+        setPlayback(RadarPlayback(frameIndex = nowIndex(frames)))
     }
 
-    fun togglePlaying() = _playback.update { it.copy(playing = !it.playing) }
+    fun togglePlaying() = setPlayback(_playback.value.let { it.copy(playing = !it.playing) })
 
     /** The slider: shows that frame, and pauses. */
     fun scrub(index: Int) {
-        _playback.value = RadarPlayback(frameIndex = index.coerceIn(0, (frames.size - 1).coerceAtLeast(0)), playing = false)
+        setPlayback(RadarPlayback(frameIndex = index.coerceIn(0, (frames.size - 1).coerceAtLeast(0)), playing = false))
     }
 
     /**
@@ -243,6 +244,10 @@ class RadarViewModel internal constructor(
             getTimeline().fold(
                 onSuccess = {
                     _timeline.value = LoadingState.Success(it)
+                    // Each new set of frames starts on "now", playing.
+                    if (it.frames != (current as? LoadingState.Success)?.data?.frames) {
+                        setPlayback(RadarPlayback(frameIndex = nowIndex(it.frames)), it.frames)
+                    }
                     loadedAtMillis = requestedAt
                 },
                 onFailure = {
