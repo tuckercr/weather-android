@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -645,10 +646,14 @@ private fun HourlyStrip(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = seasonalCardColor()),
     ) {
+        // The edges fade where there are more hours to scroll to, so the strip shows it scrolls.
+        val listState = rememberLazyListState()
         LazyRow(
+            state = listState,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp),
+                .padding(vertical = 12.dp)
+                .scrollEdgeFade(rememberScrollEdgeFades(listState)),
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
