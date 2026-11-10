@@ -1,6 +1,7 @@
 package com.fangjet.weather.model
 
 import com.fangjet.weather.data.FakePosition
+import com.fangjet.weather.data.ForecastWithAirQuality
 import com.fangjet.weather.data.LocationWeatherRepository
 import com.fangjet.weather.data.testCityRepository
 import com.fangjet.weather.data.weatherRequest
@@ -515,7 +516,7 @@ class WeatherForecastViewModelTest {
         repository = LocationWeatherRepository(
             resolveUnits = resolveWeatherUnits,
             fetchCurrentWeather = { location, units -> fetchCurrentWeather(units, location) },
-            fetchForecast = { location, units -> fetchForecast(units, location) },
+            fetchForecast = { location, units, _ -> fetchForecast(units, location).map { ForecastWithAirQuality(it, null) } },
             readCachedWeather = getCachedCurrentWeather,
             readCachedForecast = getCachedForecast,
             writeCachedWeather = setCachedCurrentWeather,

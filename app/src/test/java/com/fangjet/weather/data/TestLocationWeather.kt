@@ -19,7 +19,7 @@ internal fun testLocationWeatherRepository(
 ) = LocationWeatherRepository(
     resolveUnits = resolveUnits,
     fetchCurrentWeather = { location, u -> fetchCurrentWeather(u, location) },
-    fetchForecast = { location, u -> fetchForecast(u, location) },
+    fetchForecast = { location, u, _ -> fetchForecast(u, location).map { ForecastWithAirQuality(it, null) } },
     readCachedWeather = getCachedCurrentWeather,
     readCachedForecast = getCachedForecast,
     writeCachedWeather = cacheCurrentWeather,

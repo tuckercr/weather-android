@@ -5,6 +5,7 @@ import com.fangjet.weather.data.remote.dto.AirQualityHourlyResponse
 import com.fangjet.weather.domain.AirQuality
 import com.fangjet.weather.domain.AirQuality.Pollutant
 import com.fangjet.weather.domain.AirQuality.Scale
+import com.fangjet.weather.domain.AirQualityHours
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -22,17 +23,28 @@ class AirQualitySource @Inject constructor(
 ) {
     /**
      * Each hour's air quality for the next two days (the walk planner's day ahead), by its start in
-     * Unix seconds, with every index the tile needs for the hour in progress.
+     * Unix seconds, with every index the tile needs for the hour in progress. Asks only for [scale]'s
+     * fields when it's known (the city's, from the forecast's time zone), and for both otherwise.
      */
     suspend fun fetchHourly(
         latitude: Double,
         longitude: Double,
-    ): Result<Map<Long, AirQuality>> =
+        scale: Scale?,
+        nowEpochSeconds: Long = System.currentTimeMillis() / 1000,
+    ): Result<AirQualityHours> =
         get(
             latitude,
             longitude,
-            mapOf("hourly" to AirQualityHourlyDto.FIELDS, "timeformat" to "unixtime", "forecast_days" to "2"),
-        ) { body -> toHourly(json.decodeFromString(AirQualityHourlyResponse.serializer(), body)) }
+            mapOf(
+                "hourly" to AirQualityHourlyDto.fields(scale).joinToString(","),
+                "timeformat" to "unixtime",
+                "forecast_days" to "2",
+            ),
+        ) { body ->
+            val response = json.decodeFromString(AirQualityHourlyResponse.serializer(), body)
+            val responseScale = scale ?: Scale.forTimeZone(response.timezone)
+            AirQualityHours(nowEpochSeconds, responseScale, toHourly(response, responseScale))
+        }
 
     private suspend fun <T> get(
         latitude: Double,
@@ -47,7 +59,7 @@ class AirQualitySource @Inject constructor(
                     .newBuilder()
                     .addQueryParameter("latitude", latitude.toString())
                     .addQueryParameter("longitude", longitude.toString())
-                    // The response's time zone picks the scale (European or US).
+                    // The response's time zone picks the scale (European or US) when it isn't given.
                     .addQueryParameter("timezone", "auto")
                     .apply { fields.forEach { (name, value) -> addQueryParameter(name, value) } }
                     .build()
@@ -61,8 +73,14 @@ class AirQualitySource @Inject constructor(
     companion object {
         private const val BASE_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
-        internal fun toHourly(response: AirQualityHourlyResponse): Map<Long, AirQuality> {
-            val scale = Scale.forTimeZone(response.timezone)
+        /**
+         * Each hour's reading on [scale], by default the one for the response's time zone. Only that
+         * scale's fields need to be in the response.
+         */
+        internal fun toHourly(
+            response: AirQualityHourlyResponse,
+            scale: Scale = Scale.forTimeZone(response.timezone),
+        ): Map<Long, AirQuality> {
             val h = response.hourly
             return h.time
                 .mapIndexedNotNull { row, time ->

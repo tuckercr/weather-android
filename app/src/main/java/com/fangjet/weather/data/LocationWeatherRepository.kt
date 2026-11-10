@@ -1,6 +1,7 @@
 package com.fangjet.weather.data
 
 import android.content.Context
+import com.fangjet.weather.domain.AirQualityHours
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.SavedLocation
@@ -20,12 +21,19 @@ class LocationWeatherRepository internal constructor(
     private val resolveUnits: suspend () -> WeatherUnits,
     // A saved location's weather, by the data layer's rule (WeatherRepository.fetchCurrentWeather(location)).
     private val fetchCurrentWeather: suspend (location: SavedLocation, units: WeatherUnits) -> Result<CurrentWeather>,
-    private val fetchForecast: suspend (location: SavedLocation, units: WeatherUnits) -> Result<List<DayForecast>>,
+    // The forecast, reusing the cached air quality when it can (WeatherRepository.fetchForecast(location)).
+    private val fetchForecast: suspend (
+        location: SavedLocation,
+        units: WeatherUnits,
+        cachedAirQuality: AirQualityHours?,
+    ) -> Result<ForecastWithAirQuality>,
     private val readCachedWeather: suspend (cacheKey: String) -> CurrentWeather?,
     private val readCachedForecast: suspend (cacheKey: String) -> List<DayForecast>?,
     private val writeCachedWeather: suspend (cacheKey: String, weather: CurrentWeather) -> Unit,
     private val writeCachedForecast: suspend (cacheKey: String, forecast: List<DayForecast>) -> Unit,
     private val setLastCity: suspend (cityName: String) -> Unit,
+    private val readCachedAirQuality: suspend (cacheKey: String) -> AirQualityHours? = { null },
+    private val writeCachedAirQuality: suspend (cacheKey: String, airQuality: AirQualityHours) -> Unit = { _, _ -> },
 ) {
     @Inject
     constructor(
@@ -35,12 +43,14 @@ class LocationWeatherRepository internal constructor(
     ) : this(
         resolveUnits = { context.resolveWeatherUnits(preferencesRepository.unitOverride.first()) },
         fetchCurrentWeather = weatherRepository::fetchCurrentWeather,
-        fetchForecast = weatherRepository::fetchForecast,
+        fetchForecast = { location, units, air -> weatherRepository.fetchForecast(location, units, air) },
         readCachedWeather = preferencesRepository::getCachedWeather,
         readCachedForecast = preferencesRepository::getCachedForecast,
         writeCachedWeather = preferencesRepository::setCachedWeather,
         writeCachedForecast = preferencesRepository::setCachedForecast,
         setLastCity = preferencesRepository::setLastCity,
+        readCachedAirQuality = preferencesRepository::getCachedAirQuality,
+        writeCachedAirQuality = preferencesRepository::setCachedAirQuality,
     )
 
     /** The user's units: Settings' choice, or the device's. */
@@ -60,10 +70,19 @@ class LocationWeatherRepository internal constructor(
         return fetchCurrentWeather(location, units).onSuccess { if (units() == units) writeCachedWeather(location.cacheKey, it) }
     }
 
-    /** Fetches [location]'s forecast and caches it, unless the units changed meanwhile. */
+    /**
+     * Fetches [location]'s forecast and caches it, unless the units changed meanwhile. Its air
+     * quality is reused from the cache for up to 3 hours ([AirQualityHours.reusable]), and cached
+     * whatever the units, which it doesn't depend on.
+     */
     suspend fun refreshForecast(location: SavedLocation): Result<List<DayForecast>> {
         val units = units()
-        return fetchForecast(location, units).onSuccess { if (units() == units) writeCachedForecast(location.cacheKey, it) }
+        val cachedAirQuality = readCachedAirQuality(location.cacheKey)
+        return fetchForecast(location, units, cachedAirQuality)
+            .onSuccess { fetched ->
+                fetched.airQuality?.takeIf { it != cachedAirQuality }?.let { writeCachedAirQuality(location.cacheKey, it) }
+                if (units() == units) writeCachedForecast(location.cacheKey, fetched.days)
+            }.map { it.days }
     }
 
     /** Keeps the city last shown, which the city list falls back to when it has none. */

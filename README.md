@@ -156,8 +156,12 @@ WorkManager, and CI on GitHub Actions.
   particles are dust ("coarse particles") when PM2.5 is under a third of PM10 by mass, since a dust
   storm can push PM2.5's index off the scale while PM10 gets none. The walk card, hero and
   notifications name it ("Smoky air", "Dusty air", "High ozone"). It comes from Open-Meteo's hourly
-  air quality forecast, fetched with the forecast in one request and cached with it, so it shows
-  offline too. `air_quality_enabled` switches it off.
+  air quality forecast for two days, fetched after the forecast and asking only for the city's own
+  scale (both when the forecast doesn't give a time zone), which keeps it to one Open-Meteo API call.
+  It changes slowly, so it's fetched at most every 3 hours: a forecast refresh (pull to refresh
+  and retry included) reuses the city's last air quality while it's under 3 hours old, on the same
+  scale and still covers the next 24 hours. It's cached per city, apart from the forecast and
+  whatever the units, so it shows offline too. `air_quality_enabled` switches it off.
 - **Update prompts**: below `android_min_supported_version` the app shows only "Time for an update";
   below `android_min_recommended_version` a banner offers the update, and *Not now* hides it for a
   week. Both open the Play Store listing.
@@ -469,7 +473,7 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `rain_outlook_min_chance` | number | `20` | The rain outlook only shows when some hour reaches this rain chance (%), which is also the chance from which an hour counts as wet ("Drying out after …"); whole number, valid 1–100 |
 | `temperature_units_shown` | boolean | `false` | True shows the unit with temperatures ("89 °F"); false shows "89°" wherever a temperature carries its unit: the hero, week rows, day details, and the Feels Like and Paw Check tiles ("About 81°"). Temperatures already shown without one (the hero's high and low, the hourly strip, the walk card, notifications) stay as they are, and the units themselves don't change. See [Units](#units) |
 | `open_meteo_enabled` | boolean | `true` | The current reading and forecasts for cities with coordinates come from Open-Meteo; false falls back to OpenWeatherMap's reading and 3-hourly forecast by lat/lon (foreground, background refresh, and notifications) |
-| `air_quality_enabled` | boolean | `true` | Fetches hourly air quality alongside the Open-Meteo forecast; false hides the Air quality tile and the walk planner ignores the air |
+| `air_quality_enabled` | boolean | `true` | Fetches hourly air quality after the Open-Meteo forecast (at most every 3 hours per city); false hides the Air quality tile and the walk planner ignores the air |
 | `openweather_api_key` | string | `""` | Replacement OpenWeather API key, used from the next app start; empty uses the key built into the app. Lets a leaked key be rotated without an update. Not secret: Remote Config values reach every device |
 | `android_min_supported_version` | string | `""` | Below this version (e.g. `1.1`) the app shows only "Time for an update" until it's updated. Empty never asks. iOS has its own key |
 | `android_min_recommended_version` | string | `""` | Below this version a banner under the city tabs suggests updating; "Not now" hides it for a week. Empty never asks |
@@ -538,6 +542,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:weather-api` | `ForecastAggregatorTest` | Noon-slot selection, grouping by the city's local days (not UTC), daily min/max and rain chance, chronological hourly slots |
 | `:weather-api` | `OpenMeteoForecastSourceTest` | Open-Meteo mapping: drops past hours, city-timezone grouping and labels (half-hour offsets, DST), weather codes, UV, pavement heat, each hour's rain amount |
 | `:weather-api` | `HourlySlotTest` | A forecast cached before hourly rain amounts still decodes, and the amount is cached |
+| `:weather-api` | `AirQualityRequestTest` | Air quality asks only for the city's scale (both without a time zone), parses one scale's fields, leaves the forecast standing when it fails, and is reused for 3 hours on the same scale while it covers the next 24 hours |
 | `:weather-api` | `WeatherHelpersTest` | WMO weather-code mapping to conditions and day/night icons; pavement-heat estimate |
 | `:weather-api` | `OpenWeatherParsingTest` | Kotlinx Serialization parsing of OpenWeatherMap current-weather and forecast payloads, including the UTC offset |
 | `:weather-api` | `GeocodingDirectParsingTest` | Geocoding payload parsing when `state` is omitted |

@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.fangjet.weather.domain.AirQualityHours
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.SavedLocation
@@ -182,6 +183,35 @@ class PreferencesRepository internal constructor(
         }
     }
 
+    /**
+     * [locationKey]'s air quality hours as last fetched, with when and on which scale; null when
+     * there are none or they can't be read. Kept apart from the forecast, which is cached in the
+     * user's units, so a forecast refresh can reuse them ([AirQualityHours.reusable]).
+     */
+    suspend fun getCachedAirQuality(locationKey: String): AirQualityHours? =
+        cachedMap(KEY_AIR_QUALITY_CACHE)[locationKey]?.let { runCatching { json.decodeFromString<AirQualityHours>(it) }.getOrNull() }
+
+    suspend fun setCachedAirQuality(
+        locationKey: String,
+        airQuality: AirQualityHours,
+    ) = editCachedMap(KEY_AIR_QUALITY_CACHE) { it + (locationKey to json.encodeToString(airQuality)) }
+
+    private suspend fun cachedMap(key: Preferences.Key<String>): Map<String, String> =
+        dataStore.data
+            .first()[key]
+            ?.let { runCatching { json.decodeFromString<Map<String, String>>(it) }.getOrNull() }
+            .orEmpty()
+
+    private suspend fun editCachedMap(
+        key: Preferences.Key<String>,
+        change: (Map<String, String>) -> Map<String, String>,
+    ) {
+        dataStore.edit { prefs ->
+            val existing = prefs[key]?.let { runCatching { json.decodeFromString<Map<String, String>>(it) }.getOrNull() }.orEmpty()
+            prefs[key] = json.encodeToString(change(existing))
+        }
+    }
+
     val unitOverride: Flow<UnitOverride> = dataStore.data.map { prefs ->
         when (prefs[KEY_UNIT_OVERRIDE]) {
             UnitOverride.METRIC.name -> UnitOverride.METRIC
@@ -260,6 +290,7 @@ class PreferencesRepository internal constructor(
         dataStore.edit {
             it.remove(KEY_WEATHER_CACHE)
             it.remove(KEY_FORECAST_CACHE)
+            it.remove(KEY_AIR_QUALITY_CACHE)
         }
     }
 
@@ -278,6 +309,7 @@ class PreferencesRepository internal constructor(
         private val KEY_ACTIVE_LOCATION_INDEX = intPreferencesKey("active_location_index")
         private val KEY_WEATHER_CACHE = stringPreferencesKey("weather_cache")
         private val KEY_FORECAST_CACHE = stringPreferencesKey("forecast_cache")
+        private val KEY_AIR_QUALITY_CACHE = stringPreferencesKey("air_quality_cache")
         private val KEY_UNIT_OVERRIDE = stringPreferencesKey("unit_override")
         private val KEY_SHARE_USAGE_STATISTICS = booleanPreferencesKey("share_usage_statistics")
         private val KEY_SHOW_WALK_CARD = booleanPreferencesKey("show_walk_card")

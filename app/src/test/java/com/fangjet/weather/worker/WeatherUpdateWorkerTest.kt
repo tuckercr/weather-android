@@ -3,6 +3,7 @@ package com.fangjet.weather.worker
 import android.content.Context
 import androidx.work.ListenableWorker.Result
 import androidx.work.WorkerParameters
+import com.fangjet.weather.data.ForecastWithAirQuality
 import com.fangjet.weather.data.LocationRepository
 import com.fangjet.weather.data.LocationWeatherRepository
 import com.fangjet.weather.data.PreferencesRepository
@@ -50,7 +51,9 @@ class WeatherUpdateWorkerTest {
         every { remoteConfig.rainNotificationsEnabled() } returns false
         coEvery { weather.fetchCurrentWeather(any(), any(), any(), any(), any()) } returns
             kotlin.Result.success(mockk<CurrentWeather>(relaxed = true))
-        coEvery { weather.fetchForecast(any(), any(), any(), any()) } returns kotlin.Result.success(emptyList())
+        coEvery { weather.fetchForecastWithAirQuality(any(), any(), any(), any(), any(), any()) } returns
+            kotlin.Result.success(ForecastWithAirQuality(emptyList(), null))
+        coEvery { preferences.getCachedAirQuality(any()) } returns null
         val context = mockk<Context>(relaxed = true)
         return WeatherUpdateWorker(
             context,
@@ -81,7 +84,7 @@ class WeatherUpdateWorkerTest {
             val worker = worker(listOf(london))
             coEvery { weather.fetchCurrentWeather(any(), any(), any(), any(), any()) } returns
                 kotlin.Result.failure(RuntimeException("offline"))
-            coEvery { weather.fetchForecast(any(), any(), any(), any()) } returns
+            coEvery { weather.fetchForecastWithAirQuality(any(), any(), any(), any(), any(), any()) } returns
                 kotlin.Result.failure(RuntimeException("offline"))
 
             assertEquals(Result.retry(), worker.doWork())
