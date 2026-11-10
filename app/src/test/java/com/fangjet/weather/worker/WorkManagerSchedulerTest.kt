@@ -43,7 +43,7 @@ class WorkManagerSchedulerTest {
             oneTime[firstArg()] = secondArg<ExistingWorkPolicy>() to thirdArg()
             mockk(relaxed = true)
         }
-        every { remoteConfig.refreshIntervalMinutes() } returns 30L
+        every { remoteConfig.refreshIntervalMinutes() } returns 60L
     }
 
     @After
