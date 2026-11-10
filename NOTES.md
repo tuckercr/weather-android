@@ -14,12 +14,9 @@ Finished items move to Done at the bottom.
       with its own number. (11-03)
 - [ ] **App Store Connect description** still says "a heads-up before rain"; rain alerts are off
       for the first release. The suggested description in listing-review.html is updated. (11-02)
-- [ ] **Play Console: background location declaration** for Follow my location, before the first
-      release goes to review: the permissions declaration form (what the feature is, why it needs
-      "Allow all the time"), a short video of turning it on and a briefing following the phone,
-      and the in-app explanation, which the switch already shows. Google reviews it. App Store
-      Connect: say in the review notes what "Always" is for (Settings › Notifications › Follow my
-      location). (11-03)
+- [ ] **App Store review notes: what "Always" is for** (Settings › Notifications › Follow my
+      location). The Play side, the background location declaration with its video, was filled in
+      on 11-10 and goes to Google with the first review. (11-03)
 - [ ] **Android: the city search in SEARCH.md**, assigned to a new developer. iOS has had it since
       11-06, so until it lands the apps differ: Open-Meteo prefix search with the OpenWeather
       fallback, filtering, county labels, sorting with the size guard, text after a comma, US ZIP
@@ -55,13 +52,6 @@ Finished items move to Done at the bottom.
       shows after midnight, as "Sunrise in …". The UV index rides in the tile's header ("UV 1 ·
       Low") while the UV tile is off (`tile_uv_enabled`, off by default), and is hidden after dark.
       Consider: tomorrow's sunrise after sunset, and taking the UV off this tile.
-- [ ] **Main screen horizontal margins.** 16 from the screen edge to the cards on both: 16 dp on
-      Android (`padding(horizontal = 16.dp)` on the weather column) and 16 points on iOS
-      (`.padding(.horizontal, 16)` on the weather content). A point is iOS's density-independent
-      unit, like dp: 3 pixels on a 3x iPhone such as the 14 Pro. Cards add their own padding
-      inside (12 to 16). Consider reducing it, for example to 12, for more room in the hourly
-      strip and tiles; check the iPad and landscape layouts, and leave the onboarding screens' own
-      margins (24) alone.
 - [ ] **Tile sizes.** Today tiles come in two widths now: half (side by side, as tall as the
       tallest in the row) and full. Consider four, adding 2/3 and 1/3: Sky and Daylight could be
       2/3 wide when they don't need the full width, and Feels Like and UV could have smaller 1/3
@@ -84,11 +74,11 @@ Finished items move to Done at the bottom.
 
 ## More tiles to consider (10-30)
 
-- [ ] **Wind:** gusts in the Wind tile ("14 mph, gusts 30"), and wind in the words too: the
-      pets' captions, the walk card and the night "stroll" caption don't consider strong wind
-      yet. (10-26, 10-31)
+- [ ] **Wind in the words:** the pets' captions and the night "stroll" caption don't consider
+      strong wind yet. The Wind tile shows gusts (the windsock, 11-06), and the walk card warns
+      about storms and hurricane force winds (11-09). (10-26, 10-31)
 - [ ] Sunshine hours; snow depth feeding the paw check.
-- Decided: no Storm watch tile (mocked up 10-30). Storms go in the walk line instead (Do soon).
+- Decided: no Storm watch tile (mocked up 10-30). Storms went in the walk line instead (11-09).
 - Decided: Pollen is a version 2 feature (see Version 2). (10-31)
 
 ## Notifications
@@ -135,12 +125,10 @@ noted. Checked against the code, not fixed yet.
 - [ ] **Halloween contrast.** Tile labels (#C25E00 on #FCE9D2) are 3.6:1, under the 4.5:1 AA needs;
       the day pumpkin and Misty's grey fur barely show on the #B4500C hero, and one bat on the night
       hero. Fixable in Remote Config before next Halloween.
-- [ ] **Raindrops at night.** On the dark night heroes the raindrops, drawn in the umbrella's blue,
-      barely show. Both apps. (11-09)
 - [ ] **UV tile** (off by default). The peak only counts hours from the last fetch, so in the
-      afternoon it says "At today's peak" (and loses "Shade for pale noses"); a day of all-zero UV
-      reads "Peak 0". Turning the Daylight tile off also shows the UV tile, whatever
-      `tile_uv_enabled` says. Both apps.
+      afternoon it says "At today's peak" (and loses "Shade for pale noses"). Turning the Daylight
+      tile off also shows the UV tile, whatever `tile_uv_enabled` says, on purpose so the UV index
+      isn't lost. Both apps.
 - [ ] **Theme captions and the no-dog rule.** A theme's captions show whether or not there's a dog,
       so a future one about walks would reach people with Dog walking off (none mention walks yet).
       Both apps.
@@ -230,9 +218,9 @@ noted. Checked against the code, not fixed yet.
       ones not found), the Open-Meteo licence with nothing to switch to, and dropping the key, the
       iOS build check, the CI secrets, `openweather_api_key`, the `openweather` search provider,
       the Settings credit and the privacy policy mention. (11-06)
-- [ ] Store privacy answers (App Store App Privacy, Play Data safety): My Location's coordinates
-      now also go to the phone's place lookup (Apple's on iPhone, Google's on Android) to name it.
-      The privacy policy on sunnyandmisty.com says so since 11-06. (11-06)
+- [ ] App Store App Privacy: My Location's coordinates also go to the phone's place lookup
+      (Apple's) to name it. The privacy policy on sunnyandmisty.com says so since 11-06, and Play
+      Data safety (filled in 11-10) declares location for app functionality. (11-06)
 - [ ] Set `ios_app_store_url` in Remote Config to `https://apps.apple.com/app/id6827945995` once the
       app is live. Until then the iOS update screen has no Update button. (10-30)
 - [ ] Mac: the iPad app isn't offered on Apple silicon Macs. Try it on a Mac, then tick Mac
@@ -270,7 +258,6 @@ noted. Checked against the code, not fixed yet.
 
 - [ ] After the first release: rename the Xcode project and targets ("Cats&Dogs") and the Android
       folder (`cats-dogs`) in their own PRs. (10-28)
-- [ ] Rename the "Furcast-Shots" and "Furcast-iPad-Shots" simulators. (10-28)
 - [ ] **Hardcoded numbers worth a Remote Config key.** Look for more like city search's 280 ms
       wait, now `city_search_delay_ms` (iOS 11-06; Android with its search): values we
       might want to tune after release without an update (timeouts, waits, limits, thresholds).
@@ -366,6 +353,15 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Raindrops at night** (11-10): on a seasonal theme's dark night hero the raindrops are
+      pale blue (#A9CFF2) instead of the umbrella's blue. Both apps.
+- [x] **No UV left today** (11-10): the UV tile says "No more UV today" instead of "Peak 0" when
+      the highest UV left today rounds to 0. Both apps.
+- [x] **Simulators renamed** (11-10): "Furcast-Shots" and "Furcast-iPad-Shots" are now
+      "SunnyMisty-Shots" and "SunnyMisty-iPad-Shots".
+- [x] **Main screen horizontal margins** (11-10): 12 from the screen edge to the cards instead of
+      16, on both (12 dp, 12 points), for more room in the hourly strip and tiles. The city tabs
+      and the update banner moved in with them; onboarding keeps its 24.
 - [x] **Thanksgiving theme** (11-09): on the fourth Thursday of November, an orange-brown hero
       with falling leaves and a pie, "Sunny is on crumb patrol under the table." by day and "Too
       full to move. Misty is napping on the coats." at night. Built in, and added to the Remote
