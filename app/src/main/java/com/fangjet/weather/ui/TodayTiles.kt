@@ -721,6 +721,7 @@ private fun UvTile(
             UvLine.PaleNoses -> TileNote(stringResource(R.string.uv_pale_noses), color = petLineTint())
             UvLine.AtPeak -> TileNote(stringResource(R.string.uv_at_peak))
             UvLine.EasingOff -> TileNote(stringResource(R.string.uv_easing_off))
+            UvLine.NoMore -> TileNote(stringResource(R.string.uv_no_more))
             null -> Unit
         }
     }

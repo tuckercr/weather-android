@@ -321,6 +321,12 @@ class TodayDetailsTest {
     }
 
     @Test
+    fun `the UV tile says there's no more UV when the rest of the day has none`() {
+        assertEquals(UvLine.NoMore, uvLine(uvSlot(0.3, 13 * 3600L), 10 * 3600L, hasDog = true))
+        assertEquals(UvLine.NoMore, uvLine(uvSlot(0.0, 9 * 3600L), 10 * 3600L, hasDog = false))
+    }
+
+    @Test
     fun `every tile shows by default except UV`() {
         val switches = TodayTileSwitches()
         assertTrue(switches.feelsLike && switches.wind && switches.humidity && switches.pawCheck && switches.daylight && switches.sky)

@@ -401,6 +401,9 @@ sealed interface UvLine {
     data object AtPeak : UvLine
 
     data object EasingOff : UvLine
+
+    /** The highest UV left today rounds to 0: "No more UV today". */
+    data object NoMore : UvLine
 }
 
 /** The UV tile's line from today's highest-UV hour; null without one. Same rules as iOS. */
@@ -410,6 +413,7 @@ fun uvLine(
     hasDog: Boolean,
 ): UvLine? {
     val uv = peak?.uvIndex?.roundToInt() ?: return null
+    if (uv == 0) return UvLine.NoMore
     val start = peak.epochSeconds ?: return UvLine.Peak(uv, peak.timeLabel)
     return when {
         start > nowEpochSeconds -> UvLine.Peak(uv, peak.timeLabel)
