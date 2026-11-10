@@ -22,7 +22,7 @@ class AirQualitySource @Inject constructor(
     private val json: Json,
 ) {
     /**
-     * Each hour's air quality for the next two days (the walk planner's day ahead), by its start in
+     * Each hour's air quality for the next three days (the walk planner's day ahead), by its start in
      * Unix seconds, with every index the tile needs for the hour in progress. Asks only for [scale]'s
      * fields when it's known (the city's, from the forecast's time zone), and for both otherwise.
      */
@@ -38,7 +38,9 @@ class AirQualitySource @Inject constructor(
             mapOf(
                 "hourly" to AirQualityHourlyDto.fields(scale).joinToString(","),
                 "timeformat" to "unixtime",
-                "forecast_days" to "2",
+                // Three days, so hours fetched late in the evening still reach 24 hours ahead for
+                // the 3-hour reuse. Days don't change the call count. Same as iOS.
+                "forecast_days" to "3",
             ),
         ) { body ->
             val response = json.decodeFromString(AirQualityHourlyResponse.serializer(), body)
