@@ -232,7 +232,7 @@ fun CurrentWeatherRoute(
                 if (updatePrompt == UpdatePrompt.RECOMMENDED) {
                     UpdateBanner(
                         onDismiss = updatePromptViewModel::dismissBanner,
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
+                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp),
                     )
                 }
             },
@@ -290,7 +290,7 @@ fun CurrentWeatherScreen(
                 if (locations.size >= 2) {
                     PrimaryScrollableTabRow(
                         selectedTabIndex = activeIndex,
-                        edgePadding = 16.dp,
+                        edgePadding = 12.dp,
                     ) {
                         locations.forEachIndexed { index, location ->
                             Tab(
@@ -346,7 +346,7 @@ fun CurrentWeatherScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 16.dp)
+                        .padding(horizontal = 12.dp)
                         .verticalScroll(rememberScrollState())
                         // The same gap below the tabs (or the title bar) as between the cards.
                         .padding(top = 12.dp),
