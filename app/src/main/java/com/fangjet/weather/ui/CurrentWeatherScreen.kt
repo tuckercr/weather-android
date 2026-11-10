@@ -380,8 +380,12 @@ fun CurrentWeatherScreen(
                                 )
                             }
                             val location = locations.getOrNull(activeIndex)
-                            // The moon (hero scene and night icons) is lit from the other side down south.
-                            CompositionLocalProvider(LocalSouthernHemisphere provides ((location?.latitude ?: 0.0) < 0)) {
+                            // The moon (hero scene and night icons) is lit from the other side down south,
+                            // and its phase goes by the screen's clock.
+                            CompositionLocalProvider(
+                                LocalSouthernHemisphere provides ((location?.latitude ?: 0.0) < 0),
+                                LocalScreenNow provides state.nowEpochSeconds,
+                            ) {
                                 CurrentWeatherContent(
                                     state = state,
                                     location = location,
@@ -477,7 +481,6 @@ private fun CurrentWeatherContent(
                         // Kept a bit smaller than the card so the scene doesn't dominate, especially on wide screens.
                         PetScene(
                             mood = mood,
-                            moonPhase = moonPhaseAt(state.nowEpochSeconds),
                             modifier = Modifier
                                 .fillMaxWidth(PET_SCENE_WIDTH_FRACTION)
                                 .widthIn(max = PET_SCENE_MAX_WIDTH),

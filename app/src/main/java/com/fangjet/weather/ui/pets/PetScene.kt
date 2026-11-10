@@ -40,6 +40,7 @@ import com.fangjet.weather.model.captionOptions
 import com.fangjet.weather.ui.LocalSouthernHemisphere
 import com.fangjet.weather.ui.MoonPhase
 import com.fangjet.weather.ui.moonPhaseAt
+import com.fangjet.weather.ui.screenNowEpochSeconds
 import com.fangjet.weather.ui.theme.PetBandana
 import com.fangjet.weather.ui.theme.PetBat
 import com.fangjet.weather.ui.theme.PetBatNight
@@ -150,11 +151,8 @@ fun HeroCaption.resolve(): String =
 fun PetScene(
     mood: PetMood,
     modifier: Modifier = Modifier,
-    moonPhase: MoonPhase = moonPhaseAt(
-        java.time.Instant
-            .now()
-            .epochSecond,
-    ),
+    // The phase at the screen's clock, or the device's outside the weather screen.
+    moonPhase: MoonPhase = moonPhaseAt(screenNowEpochSeconds()),
     // The offline error: the Wi-Fi router lies on its side next to Misty.
     knockedOverRouter: Boolean = false,
     decorations: Set<SceneDecoration> = emptySet(),
