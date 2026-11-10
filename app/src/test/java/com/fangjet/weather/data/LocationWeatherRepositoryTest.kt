@@ -8,7 +8,10 @@ import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WeatherUnits
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LocationWeatherRepositoryTest {
@@ -135,6 +138,60 @@ class LocationWeatherRepositoryTest {
             // second reused it, so it isn't written again.
             assertEquals(listOf(new), cachedAir)
             assertEquals(listOf(london.cacheKey), cachedForecast)
+        }
+
+    // --- background runs skip fresh data ---
+
+    @Test
+    fun `fetch times count when both were fetched under 30 minutes ago`() {
+        val now = 10_000L
+        val limit = LocationWeatherRepository.BACKGROUND_FRESH_SECONDS
+        assertEquals(30 * 60L, limit)
+        assertTrue(FetchTimes(now - limit + 1, now).bothFetchedWithin(limit, now))
+        assertFalse(FetchTimes(now - limit, now).bothFetchedWithin(limit, now))
+        assertFalse(FetchTimes(now, now - limit).bothFetchedWithin(limit, now))
+        assertFalse(FetchTimes(weatherEpochSeconds = now).bothFetchedWithin(limit, now))
+        assertFalse(FetchTimes(forecastEpochSeconds = now).bothFetchedWithin(limit, now))
+        assertFalse(FetchTimes(now + 60, now).bothFetchedWithin(limit, now))
+    }
+
+    @Test
+    fun `refreshes record their fetch times, and the cache is fresh while both are under 30 minutes old`() =
+        runTest {
+            var now = 10_000L
+            var times = FetchTimes()
+            var units = WeatherUnits.METRIC
+            val repository = LocationWeatherRepository(
+                resolveUnits = { units },
+                fetchCurrentWeather = { _, u -> Result.success(weather(u)) },
+                fetchForecast = { _, u, _ -> Result.success(ForecastWithAirQuality(listOf(day(u)), null)) },
+                readCachedWeather = { weather(WeatherUnits.METRIC) },
+                readCachedForecast = { listOf(day(WeatherUnits.METRIC)) },
+                writeCachedWeather = { _, _ -> },
+                writeCachedForecast = { _, _ -> },
+                setLastCity = {},
+                readFetchTimes = { times },
+                writeWeatherFetchedAt = { _, at -> times = times.copy(weatherEpochSeconds = at) },
+                writeForecastFetchedAt = { _, at -> times = times.copy(forecastEpochSeconds = at) },
+                nowEpochSeconds = { now },
+            )
+
+            // A cache without fetch times is old.
+            assertNull(repository.freshCache(london))
+            repository.refreshWeather(london)
+            assertNull("Only the reading is fresh", repository.freshCache(london))
+            repository.refreshForecast(london)
+            assertEquals(FetchTimes(10_000L, 10_000L), times)
+            assertEquals("London", repository.freshCache(london)?.weather?.cityName)
+
+            now += LocationWeatherRepository.BACKGROUND_FRESH_SECONDS - 1
+            assertNotNull(repository.freshCache(london))
+            // Units switched since: the cache is in the old ones.
+            units = WeatherUnits.IMPERIAL
+            assertNull(repository.freshCache(london))
+            units = WeatherUnits.METRIC
+            now += 1
+            assertNull(repository.freshCache(london))
         }
 
     private fun weather(units: WeatherUnits) =

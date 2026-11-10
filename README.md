@@ -373,7 +373,12 @@ emulator with a clean status bar:
 8. **Notifications**: WorkManager runs the 8:30 AM briefing (unless `daily_weather_notifications_enabled`
    is off), which also plans the one-off walk-time nudge, and refreshes
    the notification city's cached data (My Location when saved, otherwise the first city), and the city tab last viewed when it's another one, in the background every `weather_refresh_interval_minutes`; the
-   schedule survives reboots.
+   schedule survives reboots. Background runs (the refresh, the 8:30 run and the walk nudge) skip a
+   city whose current reading and forecast were both fetched less than 30 minutes ago, in the user's
+   units, and use its cache as it is (the rain alert and notifications still read it). Each city's
+   fetch times are kept with its cache, the reading's and the forecast's apart; a cache without them
+   counts as old. Refreshes in the app (returning to it, pull to refresh, switching cities) always
+   fetch.
 9. **Error handling**: network failures, HTTP errors, empty API keys, and malformed payloads all
    surface as inline error messages with *Retry* where appropriate.
 
@@ -580,7 +585,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `LocationPermissionViewModelTest` | Current-location lookup: permission denial, cached vs current location, failure, `LocationRepository`'s position reads, and permission answers: asking again after "Ask every time", an instant refusal opening the app's settings and the return from them, slow refusals, grants forgetting refusals |
 | `:app` | `WeatherScreenStepsTest` | The weather screen's refreshes and My Location steps |
 | `:app` | `NotificationWorkerLogicTest` | Briefing text (with hurricane and storm warnings), walk-time planning and nudge, rain alerts (lead, quiet hours, once per shower), city-timezone "today" matching, and the switches |
-| `:app` | `UpdateWorkerLogicTest` | Background refresh result routing, caching, and resolved units |
+| `:app` | `UpdateWorkerLogicTest` | Background refresh result routing, caching, resolved units, and skipping a city fetched in the last 30 minutes |
 
 Compose UI tests live in `app/src/androidTest` and run on an emulator in CI via a separate
 `instrumented-tests` job:

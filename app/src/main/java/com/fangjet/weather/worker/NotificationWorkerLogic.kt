@@ -2,6 +2,7 @@ package com.fangjet.weather.worker
 
 import androidx.work.ListenableWorker.Result
 import com.fangjet.weather.R
+import com.fangjet.weather.data.CachedLocationWeather
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.HourlySlot
@@ -61,6 +62,9 @@ internal class NotificationWorkerLogic(
     // Fetches and caches a location's weather: LocationWeatherRepository.refreshWeather and refreshForecast.
     private val refreshWeather: suspend (location: SavedLocation) -> kotlin.Result<CurrentWeather>,
     private val refreshForecast: suspend (location: SavedLocation) -> kotlin.Result<List<DayForecast>>,
+    // The cached weather when both parts were fetched in the last 30 minutes (LocationWeatherRepository.freshCache):
+    // used as it is instead of fetching again.
+    private val freshCache: suspend (location: SavedLocation) -> CachedLocationWeather? = { null },
     private val hasNotificationPermission: () -> Boolean,
     private val postNotification: (WeatherNotification) -> Unit,
     // The notifications' text, from strings.xml.
@@ -83,8 +87,9 @@ internal class NotificationWorkerLogic(
         val location = getSavedLocations().notificationLocation() ?: return Result.success()
 
         // My Location is named by the phone ("57° in Mountain View"), as on the app's own screen.
-        val weather = refreshWeather(location).getOrNull() ?: return Result.retry()
-        val forecast = refreshForecast(location).getOrNull()
+        val fresh = freshCache(location)
+        val weather = fresh?.weather ?: refreshWeather(location).getOrNull() ?: return Result.retry()
+        val forecast = fresh?.forecast ?: refreshForecast(location).getOrNull()
         val now = nowEpochSeconds()
         // Today by the city's date, as on the screen.
         val todayForecast = forecast?.dayOf(now, weather.offsetSeconds)
@@ -135,6 +140,9 @@ internal class WalkTimeLogic(
     // Fetches and caches a location's weather: LocationWeatherRepository.refreshWeather and refreshForecast.
     private val refreshWeather: suspend (location: SavedLocation) -> kotlin.Result<CurrentWeather>,
     private val refreshForecast: suspend (location: SavedLocation) -> kotlin.Result<List<DayForecast>>,
+    // The cached weather when both parts were fetched in the last 30 minutes (LocationWeatherRepository.freshCache):
+    // used as it is instead of fetching again.
+    private val freshCache: suspend (location: SavedLocation) -> CachedLocationWeather? = { null },
     private val hasNotificationPermission: () -> Boolean,
     private val postNotification: (WeatherNotification) -> Unit,
     // The notifications' text, from strings.xml.
@@ -146,8 +154,9 @@ internal class WalkTimeLogic(
     suspend fun doWork(): Result {
         if (!isWalkTimeEnabled() || !hasNotificationPermission()) return Result.success()
         val location = getSavedLocations().notificationLocation() ?: return Result.success()
-        val weather = refreshWeather(location).getOrNull() ?: return Result.retry()
-        val forecast = refreshForecast(location).getOrNull() ?: return Result.retry()
+        val fresh = freshCache(location)
+        val weather = fresh?.weather ?: refreshWeather(location).getOrNull() ?: return Result.retry()
+        val forecast = fresh?.forecast ?: refreshForecast(location).getOrNull() ?: return Result.retry()
         val thresholds = runCatching { petWeatherThresholds() }.getOrDefault(PetWeatherThresholds.DEFAULT)
         val now = nowEpochSeconds()
         val walk = walkAdviceForReading(weather, forecast, thresholds, now)

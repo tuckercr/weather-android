@@ -29,6 +29,7 @@ class WeatherNotificationWorker @AssistedInject constructor(
         getSavedLocations = { preferencesRepository.savedLocations.first() },
         refreshWeather = locationWeatherRepository::refreshWeather,
         refreshForecast = locationWeatherRepository::refreshForecast,
+        freshCache = locationWeatherRepository::freshCache,
         hasNotificationPermission = context::canPostNotifications,
         postNotification = context::postWeatherNotification,
         strings = context.resources.asStrings(),

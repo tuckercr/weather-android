@@ -196,6 +196,28 @@ class PreferencesRepository internal constructor(
         airQuality: AirQualityHours,
     ) = editCachedMap(KEY_AIR_QUALITY_CACHE) { it + (locationKey to json.encodeToString(airQuality)) }
 
+    /** When [locationKey]'s cached reading and forecast were fetched; null when neither has a time yet. */
+    suspend fun getFetchTimes(locationKey: String): FetchTimes? =
+        cachedMap(KEY_FETCH_TIMES)[locationKey]?.let { runCatching { json.decodeFromString<FetchTimes>(it) }.getOrNull() }
+
+    suspend fun setWeatherFetchedAt(
+        locationKey: String,
+        epochSeconds: Long,
+    ) = editFetchTimes(locationKey) { it.copy(weatherEpochSeconds = epochSeconds) }
+
+    suspend fun setForecastFetchedAt(
+        locationKey: String,
+        epochSeconds: Long,
+    ) = editFetchTimes(locationKey) { it.copy(forecastEpochSeconds = epochSeconds) }
+
+    private suspend fun editFetchTimes(
+        locationKey: String,
+        change: (FetchTimes) -> FetchTimes,
+    ) = editCachedMap(KEY_FETCH_TIMES) { times ->
+        val existing = times[locationKey]?.let { runCatching { json.decodeFromString<FetchTimes>(it) }.getOrNull() } ?: FetchTimes()
+        times + (locationKey to json.encodeToString(change(existing)))
+    }
+
     private suspend fun cachedMap(key: Preferences.Key<String>): Map<String, String> =
         dataStore.data
             .first()[key]
@@ -291,6 +313,7 @@ class PreferencesRepository internal constructor(
             it.remove(KEY_WEATHER_CACHE)
             it.remove(KEY_FORECAST_CACHE)
             it.remove(KEY_AIR_QUALITY_CACHE)
+            it.remove(KEY_FETCH_TIMES)
         }
     }
 
@@ -310,6 +333,7 @@ class PreferencesRepository internal constructor(
         private val KEY_WEATHER_CACHE = stringPreferencesKey("weather_cache")
         private val KEY_FORECAST_CACHE = stringPreferencesKey("forecast_cache")
         private val KEY_AIR_QUALITY_CACHE = stringPreferencesKey("air_quality_cache")
+        private val KEY_FETCH_TIMES = stringPreferencesKey("fetch_times")
         private val KEY_UNIT_OVERRIDE = stringPreferencesKey("unit_override")
         private val KEY_SHARE_USAGE_STATISTICS = booleanPreferencesKey("share_usage_statistics")
         private val KEY_SHOW_WALK_CARD = booleanPreferencesKey("show_walk_card")

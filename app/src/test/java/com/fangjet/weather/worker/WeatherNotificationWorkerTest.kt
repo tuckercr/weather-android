@@ -60,6 +60,9 @@ class WeatherNotificationWorkerTest {
         coEvery { weather.fetchForecastWithAirQuality(any(), any(), any(), any(), any(), any()) } returns
             kotlin.Result.success(ForecastWithAirQuality(emptyList(), null))
         coEvery { preferences.getCachedAirQuality(any()) } returns null
+        coEvery { preferences.getFetchTimes(any()) } returns null
+        coEvery { preferences.setWeatherFetchedAt(any(), any()) } just Runs
+        coEvery { preferences.setForecastFetchedAt(any(), any()) } just Runs
         // What's fetched is cached, by the repository.
         coEvery { preferences.setCachedWeather(any(), any()) } just Runs
         coEvery { preferences.setCachedForecast(any(), any()) } just Runs

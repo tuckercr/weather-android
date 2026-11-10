@@ -2,6 +2,7 @@ package com.fangjet.weather.worker
 
 import androidx.work.ListenableWorker.Result
 import com.fangjet.weather.StringsXml
+import com.fangjet.weather.data.CachedLocationWeather
 import com.fangjet.weather.data.testLocationWeatherRepository
 import com.fangjet.weather.data.weatherRequest
 import com.fangjet.weather.domain.AirQuality
@@ -786,6 +787,28 @@ class NotificationWorkerLogicTest {
             assertEquals(listOf("", "Austin, TX"), labels)
         }
 
+    @Test
+    fun `a fresh cache is briefed from as it is, without a fetch`() =
+        runTest {
+            val posted = mutableListOf<WeatherNotification>()
+            var fetches = 0
+            logic(
+                fetchCurrentWeather = { _, _ ->
+                    fetches++
+                    kotlin.Result.failure(RuntimeException("offline"))
+                },
+                fetchForecast = { _, _ ->
+                    fetches++
+                    kotlin.Result.failure(RuntimeException("offline"))
+                },
+                freshCache = { CachedLocationWeather(weather(cityName = "London"), listOf(forecast())) },
+                postNotification = { posted += it },
+            ).doWork()
+
+            assertEquals(0, fetches)
+            assertEquals(NotificationKind.MORNING_BRIEFING, posted.single().kind)
+        }
+
     // --- helpers ---
 
     private fun logic(
@@ -803,8 +826,10 @@ class NotificationWorkerLogicTest {
         isWalkTimeRemotelyEnabled: Boolean = true,
         hasDog: Boolean = false,
         scheduleWalkTime: (Long) -> Unit = {},
+        freshCache: suspend (SavedLocation) -> CachedLocationWeather? = { null },
     ) = NotificationWorkerLogic(
         getSavedLocations = { savedLocations },
+        freshCache = freshCache,
         refreshWeather = testLocationWeatherRepository(units, fetchCurrentWeather, fetchForecast)::refreshWeather,
         refreshForecast = testLocationWeatherRepository(units, fetchCurrentWeather, fetchForecast)::refreshForecast,
         hasNotificationPermission = hasNotificationPermission,

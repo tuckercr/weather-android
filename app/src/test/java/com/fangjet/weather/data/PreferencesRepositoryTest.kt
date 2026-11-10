@@ -271,6 +271,23 @@ class PreferencesRepositoryTest {
             assertNull(prefs.getCachedAirQuality("london"))
         }
 
+    @Test
+    fun `the reading's and forecast's fetch times are kept apart per location, and cleared with the rest`() =
+        runTest {
+            val prefs = repository()
+
+            assertNull(prefs.getFetchTimes("london"))
+            prefs.setWeatherFetchedAt("london", 100L)
+            assertEquals(FetchTimes(weatherEpochSeconds = 100L), prefs.getFetchTimes("london"))
+            prefs.setForecastFetchedAt("london", 200L)
+            prefs.setWeatherFetchedAt("paris", 300L)
+
+            assertEquals(FetchTimes(100L, 200L), prefs.getFetchTimes("london"))
+            assertEquals(FetchTimes(weatherEpochSeconds = 300L), prefs.getFetchTimes("paris"))
+            prefs.clearCache()
+            assertNull(prefs.getFetchTimes("london"))
+        }
+
     // --- settings ---
 
     @Test

@@ -54,6 +54,9 @@ class WeatherUpdateWorkerTest {
         coEvery { weather.fetchForecastWithAirQuality(any(), any(), any(), any(), any(), any()) } returns
             kotlin.Result.success(ForecastWithAirQuality(emptyList(), null))
         coEvery { preferences.getCachedAirQuality(any()) } returns null
+        coEvery { preferences.getFetchTimes(any()) } returns null
+        coEvery { preferences.setWeatherFetchedAt(any(), any()) } just Runs
+        coEvery { preferences.setForecastFetchedAt(any(), any()) } just Runs
         val context = mockk<Context>(relaxed = true)
         return WeatherUpdateWorker(
             context,

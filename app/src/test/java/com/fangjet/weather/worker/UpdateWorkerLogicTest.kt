@@ -1,6 +1,7 @@
 package com.fangjet.weather.worker
 
 import androidx.work.ListenableWorker.Result
+import com.fangjet.weather.data.CachedLocationWeather
 import com.fangjet.weather.data.testLocationWeatherRepository
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
@@ -260,6 +261,31 @@ class UpdateWorkerLogicTest {
             assertEquals(listOf(london.cacheKey), cachedKeys)
         }
 
+    // --- fresh cache ---
+
+    @Test
+    fun `a city fetched in the last 30 minutes isn't fetched again, and the rain alert still checks its cache`() =
+        runTest {
+            val fetched = mutableListOf<String>()
+            val cached = CachedLocationWeather(weather(cityName = "Cached"), listOf(forecast()))
+            var alerted: CurrentWeather? = null
+            val logic = logic(
+                savedLocations = listOf(london, cityByName),
+                activeIndex = 1,
+                fetchCurrentWeather = { u, loc ->
+                    fetched += loc.label
+                    kotlin.Result.success(weather(units = u))
+                },
+                freshCache = { loc -> cached.takeIf { loc == london } },
+                afterRefresh = { _, weather, _ -> alerted = weather },
+            )
+
+            assertEquals(Result.success(), logic.doWork())
+            // Only the tab last viewed, whose cache isn't fresh, is fetched.
+            assertEquals(listOf(cityByName.label), fetched)
+            assertEquals("Cached", alerted?.cityName)
+        }
+
     // --- helpers ---
 
     private fun logic(
@@ -273,6 +299,7 @@ class UpdateWorkerLogicTest {
         cacheCurrentWeather: suspend (String, CurrentWeather) -> Unit = { _, _ -> },
         cacheForecast: suspend (String, List<DayForecast>) -> Unit = { _, _ -> },
         afterRefresh: suspend (SavedLocation, CurrentWeather?, List<DayForecast>?) -> Unit = { _, _, _ -> },
+        freshCache: suspend (SavedLocation) -> CachedLocationWeather? = { null },
     ): UpdateWorkerLogic {
         // The real repository over fake fetches: it resolves the units and does the caching.
         val repository = testLocationWeatherRepository(units, fetchCurrentWeather, fetchForecast, cacheCurrentWeather, cacheForecast)
@@ -281,6 +308,7 @@ class UpdateWorkerLogicTest {
             getActiveIndex = { activeIndex },
             refreshWeather = repository::refreshWeather,
             refreshForecast = repository::refreshForecast,
+            freshCache = freshCache,
             afterRefresh = afterRefresh,
         )
     }
