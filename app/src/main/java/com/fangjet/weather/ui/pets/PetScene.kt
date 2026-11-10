@@ -72,6 +72,7 @@ import com.fangjet.weather.ui.theme.PetPumpkinFace
 import com.fangjet.weather.ui.theme.PetPumpkinGlow
 import com.fangjet.weather.ui.theme.PetPumpkinLit
 import com.fangjet.weather.ui.theme.PetPumpkinStem
+import com.fangjet.weather.ui.theme.PetRainNight
 import com.fangjet.weather.ui.theme.PetRouter
 import com.fangjet.weather.ui.theme.PetRouterLight
 import com.fangjet.weather.ui.theme.PetScarf
@@ -190,7 +191,7 @@ private fun DrawScope.drawPetScene(
         y: Float,
     ) = Offset(x * s, y * s)
 
-    drawSky(mood, s, ::p, moonPhase, southernHemisphere)
+    drawSky(mood, s, ::p, moonPhase, southernHemisphere, dark)
     if (SceneDecoration.BATS in decorations) drawBats(dark, s)
     if (SceneDecoration.AUTUMN_LEAVES in decorations) drawAutumnLeaves(dark, s)
     drawOval(PetGround, topLeft = p(20f, 132f), size = Size(220f * s, 16f * s))
@@ -277,14 +278,16 @@ private fun DrawScope.drawSky(
     p: (Float, Float) -> Offset,
     moonPhase: MoonPhase,
     southernHemisphere: Boolean,
+    dark: Boolean,
 ) {
     when (mood) {
         PetMood.FAIR, PetMood.SUNNY -> drawCircle(PetSun, 18f * s, p(220f, 32f))
         PetMood.HOT -> drawCircle(PetSunHot, 24f * s, p(220f, 32f))
         PetMood.NIGHT -> drawMoon(moonPhase, southernHemisphere, p(215f, 30f), 16f * s)
         PetMood.CLOUDY -> cloud(PetCloud, 210f, 30f, s)
+        // The umbrella's blue on the light rain sky; pale on a theme's dark night hero.
         PetMood.RAIN -> listOf(30f to 14f, 60f to 36f, 200f to 58f, 232f to 20f, 45f to 70f, 245f to 44f)
-            .forEach { (x, y) -> drawRoundRect(PetUmbrella, p(x, y), Size(3f * s, 11f * s)) }
+            .forEach { (x, y) -> drawRoundRect(if (dark) PetRainNight else PetUmbrella, p(x, y), Size(3f * s, 11f * s)) }
         PetMood.STORM -> {
             cloud(PetStormCloud, 200f, 28f, s)
             poly(PetBolt, s, 205f, 40f, 196f, 58f, 204f, 58f, 198f, 74f, 214f, 52f, 206f, 52f, 212f, 40f)
