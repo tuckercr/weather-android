@@ -102,6 +102,9 @@ WorkManager, and CI on GitHub Actions.
   already passed are dropped at display time (`fromCurrentSlot`), so a cached forecast or an app
   left open never shows or advises on past hours. `hourly_forecast_enabled` hides the strip
   remotely.
+  The strip's edges fade out (24 dp) where there are more hours to scroll to: the end until the
+  last hour, the start once it's scrolled away from the first, and neither when every hour fits.
+  It's a mask on the hours (`ui/EdgeFade.kt`), so it works on every card colour and theme.
   Each sunrise and sunset still to come sits between the hours it falls between, as a slim
   marker: the time ("6:50", the hours either side give AM or PM), a sun on the horizon with an
   arrow up or down, and a thin line. The times are Open-Meteo's daily sunrise and sunset, so the
