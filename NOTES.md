@@ -315,8 +315,6 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
     `WeatherErrorViews`), "the last city can't be removed" and the "X added" toast
     (`LocationsView`), the notifications row's "Off / N on", and `uvLevelRes` and `moonPhaseAt`
     in Android's ui. Small each.
-  - **Clock reads in views.** `WeatherIconView`/`WeatherIcon` and the pets' default moon fall
-    back to the device clock, not the screen's. Small.
 
 ## Ideas
 
@@ -375,6 +373,10 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
       not the mood; the night caption shows only from noon while dark, so not at 3 AM. The
       umbrella is drawn over Misty's witch hat, and a costume replaces only its own pet's accessory
       in the same spot (Sunny keeps his sunglasses under the bandana).
+- [x] **Clock reads in views** (11-10): the weather icons and the pet scene take the moon's phase
+      from the weather screen's clock (`screenNow` in the environment on iOS, `LocalScreenNow` on
+      Android), not the device's, so they match the rest of the screen. Outside the weather screen
+      (onboarding, the update screen) they still use the device clock.
 - [x] **A hint that the hourly strip scrolls** (11-09): the strip's edges fade (24 pt/dp) where
       there are more hours to scroll to, and not at either end or when every hour fits.
 - [x] **Radar outside RainViewer's coverage** (11-09): RainViewer's coverage layer is transparent

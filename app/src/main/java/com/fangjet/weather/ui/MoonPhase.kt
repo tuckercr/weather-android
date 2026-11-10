@@ -1,6 +1,9 @@
 package com.fangjet.weather.ui
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
+import java.time.Instant
 
 /** The moon's phase in eight steps, worked out from the date alone, so it needs no API. */
 enum class MoonPhase {
@@ -45,3 +48,14 @@ fun moonPhaseAt(epochSeconds: Long): MoonPhase {
 
 /** Whether the city on screen is south of the equator, where the moon is lit from the other side. */
 val LocalSouthernHemisphere = staticCompositionLocalOf { false }
+
+/**
+ * The weather screen's clock in epoch seconds, which only moves on a refresh, a return to the app
+ * or the 30-minute tick, so the moon in the icons and the pet scene matches the rest of the screen.
+ * Null outside the weather screen, where [screenNowEpochSeconds] falls back to the device clock.
+ */
+val LocalScreenNow = compositionLocalOf<Long?> { null }
+
+/** The screen's clock ([LocalScreenNow]), or the device's outside the weather screen. */
+@Composable
+fun screenNowEpochSeconds(): Long = LocalScreenNow.current ?: Instant.now().epochSecond

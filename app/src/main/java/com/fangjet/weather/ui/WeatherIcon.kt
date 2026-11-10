@@ -8,13 +8,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.fangjet.weather.R
-import java.time.Instant
 
 /**
  * A weather condition icon, bundled with the app and drawn in the pet scene's style. Every shape
  * has the pets' navy outline, so the white clouds hold up on the light cards, and the fills carry
- * them on the dark ones. Night icons show the moon's phase at [epochSeconds] (now when null), lit
- * from the left in the southern hemisphere ([LocalSouthernHemisphere]).
+ * them on the dark ones. Night icons show the moon's phase at [epochSeconds] (when null, the screen's
+ * clock, [LocalScreenNow]), lit from the left in the southern hemisphere ([LocalSouthernHemisphere]).
  */
 @Composable
 fun WeatherIcon(
@@ -24,7 +23,7 @@ fun WeatherIcon(
     modifier: Modifier = Modifier,
     epochSeconds: Long? = null,
 ) {
-    val phase = moonPhaseAt(epochSeconds ?: Instant.now().epochSecond)
+    val phase = moonPhaseAt(epochSeconds ?: screenNowEpochSeconds())
     Image(
         painter = painterResource(weatherIconRes(iconCode, phase, LocalSouthernHemisphere.current)),
         contentDescription = contentDescription,
