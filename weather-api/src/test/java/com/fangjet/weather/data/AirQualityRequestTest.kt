@@ -85,7 +85,12 @@ class AirQualityRequestTest {
     ) = AirQualityHours(
         fetchedAt,
         scale,
-        mapOf(hour to AirQuality(12, scale, Pollutant.OZONE), lastHour to AirQuality(13, scale, null)),
+        mapOf(
+            // The hour in progress, which the tile shows, then the rest.
+            hour - 60 * 60 to AirQuality(11, scale, null),
+            hour to AirQuality(12, scale, Pollutant.OZONE),
+            lastHour to AirQuality(13, scale, null),
+        ),
     )
 
     @Test
@@ -246,6 +251,8 @@ class AirQualityRequestTest {
                     .getOrThrow()
 
                 assertEquals(1, air.urls.size)
+                assertEquals(AirQualityHourlyDto.fields(Scale.EUROPEAN), hourlyFields(air.urls.last()))
+                assertEquals(Scale.EUROPEAN, result.airQuality?.scale)
                 assertEquals(now, result.airQuality?.fetchedAtEpochSeconds)
             }
         }
@@ -263,7 +270,25 @@ class AirQualityRequestTest {
         // Fetched "in the future" (the clock went back): fetch again.
         assertFalse(cached(fetchedAt = now + 60).reusable(Scale.EUROPEAN, now))
         assertFalse(AirQualityHours(now, Scale.EUROPEAN, emptyMap()).reusable(Scale.EUROPEAN, now))
+        // The first hour must have started, so the tile has the hour in progress.
+        val fromNextHour = cached().let { it.copy(hours = it.hours.filterKeys { time -> time > now }) }
+        assertFalse(fromNextHour.reusable(Scale.EUROPEAN, now))
     }
+
+    @Test
+    fun `with a cached scale, air quality is asked for alongside the forecast on that scale`() =
+        runBlocking {
+            val air = FakeHttp(europeanAirBody)
+            val repository = repository(FakeHttp(forecastBody("Europe/London")), air)
+            val stale = cached(fetchedAt = now - AirQualityHours.MAX_AGE_SECONDS)
+
+            val result = repository
+                .fetchForecastWithAirQuality(WeatherUnits.METRIC, latitude = 51.5, longitude = -0.1, cachedAirQuality = stale) { now }
+                .getOrThrow()
+
+            assertEquals(AirQualityHourlyDto.fields(Scale.EUROPEAN), hourlyFields(air.urls.single()))
+            assertEquals(now, result.airQuality?.fetchedAtEpochSeconds)
+        }
 
     @Test
     fun `parses a response with only one scale's fields`() {

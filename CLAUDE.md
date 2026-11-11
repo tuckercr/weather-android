@@ -63,8 +63,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
   (`StaleWeather`, `NextRain`, `TodayDetails` and other pure rules), `worker/`, `analytics/`, `di/`
   (Hilt).
 - **Forecasts.** Cities with coordinates get their current reading and forecast from Open-Meteo
-  (hourly, UV, pavement heat, the 15-minute precipitation behind `NextRain`, air quality in the
-  same request), with OpenWeather's reading as the backup and My Location named by the phone
+  (hourly, UV, pavement heat, the 15-minute precipitation behind `NextRain`, and air quality, asked for on the city's own scale
+  and reused for 3 hours), with OpenWeather's reading as the backup and My Location named by the phone
   (`DevicePlaceNames`); name-only cities fall back to OpenWeather's reading and 3-hourly forecast. Open-Meteo's WMO codes are mapped to
   OpenWeather-style condition and icon codes, so moods and icons work the same for both.
 - **Cache first.** `data/LocationWeatherRepository` is the one way to a saved location's weather:

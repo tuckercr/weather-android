@@ -288,6 +288,38 @@ class PreferencesRepositoryTest {
             assertNull(prefs.getFetchTimes("london"))
         }
 
+    @Test
+    fun `removing a city or moving My Location drops the caches of places no longer saved`() =
+        runTest {
+            val prefs = repository()
+            val here = SavedLocation(label = "", latitude = 51.5, longitude = -0.1, isCurrentLocation = true)
+            val paris = SavedLocation(label = "Paris, FR", latitude = 48.9, longitude = 2.35)
+            val air = AirQualityHours(1_000L, AirQuality.Scale.EUROPEAN, mapOf(3_600L to AirQuality(30, AirQuality.Scale.EUROPEAN, null)))
+            prefs.setSavedLocations(listOf(here, paris))
+            for (key in listOf(here.cacheKey, paris.cacheKey)) {
+                prefs.setCachedWeatherFor(key, "w")
+                prefs.setCachedForecastFor(key, "f")
+                prefs.setCachedAirQuality(key, air)
+                prefs.setWeatherFetchedAt(key, 100L)
+            }
+
+            prefs.setSavedLocations(listOf(here))
+
+            assertEquals("w", prefs.getCachedWeatherFor(here.cacheKey))
+            assertEquals(air, prefs.getCachedAirQuality(here.cacheKey))
+            assertNull(prefs.getCachedWeatherFor(paris.cacheKey))
+            assertNull(prefs.getCachedForecastFor(paris.cacheKey))
+            assertNull(prefs.getCachedAirQuality(paris.cacheKey))
+            assertNull(prefs.getFetchTimes(paris.cacheKey))
+
+            // A move well past the threshold gives My Location new coordinates, so a new key.
+            prefs.moveMyLocation(53.48, -2.24)
+
+            assertNull(prefs.getCachedWeatherFor(here.cacheKey))
+            assertNull(prefs.getCachedAirQuality(here.cacheKey))
+            assertNull(prefs.getFetchTimes(here.cacheKey))
+        }
+
     // --- settings ---
 
     @Test

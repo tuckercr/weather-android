@@ -161,8 +161,10 @@ WorkManager, and CI on GitHub Actions.
   particles are dust ("coarse particles") when PM2.5 is under a third of PM10 by mass, since a dust
   storm can push PM2.5's index off the scale while PM10 gets none. The walk card, hero and
   notifications name it ("Smoky air", "Dusty air", "High ozone"). It comes from Open-Meteo's hourly
-  air quality forecast for three days, fetched after the forecast and asking only for the city's own
-  scale (both when the forecast doesn't give a time zone), which keeps it to one Open-Meteo API call.
+  air quality forecast for three days, asking only for the city's own scale, which keeps it to one
+  Open-Meteo API call: the cached hours' scale lets the request go alongside the forecast, whose
+  time zone confirms it; with nothing cached it waits for that time zone, and asks for both scales
+  when there's none.
   It changes slowly, so it's fetched at most every 3 hours: a forecast refresh (pull to refresh
   and retry included) reuses the city's last air quality while it's under 3 hours old, on the same
   scale and still covers the next 24 hours. It's cached per city, apart from the forecast and

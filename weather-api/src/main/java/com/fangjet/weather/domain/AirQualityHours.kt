@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * A city's hourly air quality as fetched, with when and on which scale, cached per city so it's
- * fetched at most every [MAX_AGE_SECONDS]: it changes slowly, and each fetch holds two days of
+ * fetched at most every [MAX_AGE_SECONDS]: it changes slowly, and each fetch holds three days of
  * hours. Same rules as iOS's `AirQualityHours`.
  */
 @Serializable
@@ -16,7 +16,8 @@ data class AirQualityHours(
 ) {
     /**
      * Whether a forecast refresh at [nowEpochSeconds] can use these hours instead of fetching: fetched
-     * under [MAX_AGE_SECONDS] ago, on the city's [scale], and still reaching [COVERAGE_SECONDS] ahead.
+     * under [MAX_AGE_SECONDS] ago, on the city's [scale], and reaching from the hour in progress (the
+     * tile's) to [COVERAGE_SECONDS] ahead.
      */
     fun reusable(
         scale: AirQuality.Scale,
@@ -24,8 +25,9 @@ data class AirQualityHours(
     ): Boolean {
         val age = nowEpochSeconds - fetchedAtEpochSeconds
         if (this.scale != scale || age < 0 || age >= MAX_AGE_SECONDS) return false
-        val lastHourEnd = (hours.keys.maxOrNull() ?: return false) + HOUR_SECONDS
-        return lastHourEnd >= nowEpochSeconds + COVERAGE_SECONDS
+        val firstHourStart = hours.keys.minOrNull() ?: return false
+        val lastHourEnd = hours.keys.max() + HOUR_SECONDS
+        return firstHourStart <= nowEpochSeconds && lastHourEnd >= nowEpochSeconds + COVERAGE_SECONDS
     }
 
     companion object {

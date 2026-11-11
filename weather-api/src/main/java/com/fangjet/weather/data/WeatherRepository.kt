@@ -8,6 +8,8 @@ import com.fangjet.weather.domain.AirQualityHours
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.WeatherUnits
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
 import retrofit2.HttpException
 import java.io.IOException
@@ -101,28 +103,49 @@ class WeatherRepository @Inject constructor(
         // Prefer Open-Meteo (true hourly, UV, pavement heat) whenever we have coordinates,
         // unless Remote Config has switched it off.
         if (hasCoordinates && openMeteoEnabled()) {
-            val forecast = openMeteo.fetch(units, latitude, longitude).mapApiFailure().getOrElse { return Result.failure(it) }
-            // Air quality comes after, on the scale for the forecast's time zone, for the tile and the
-            // walk planner; without it the forecast still stands.
-            val air = airQualityHours(latitude, longitude, forecast.timeZone, cachedAirQuality, nowEpochSeconds())
-            return Result.success(ForecastWithAirQuality(withAirQuality(forecast.days, air?.hours.orEmpty()), air))
+            val now = nowEpochSeconds()
+            return coroutineScope {
+                // Air quality for the tile and the walk planner, on the city's scale only. A city's
+                // scale doesn't change, so the cached hours' scale lets it go alongside the forecast,
+                // whose time zone then confirms it; without a cache it waits for that time zone.
+                // Without air quality the forecast still stands. Same as iOS.
+                val source = airQualitySource()
+                val guessed = cachedAirQuality?.scale?.takeIf { source != null }
+                val early = guessed?.let { async { airQualityHours(source, latitude, longitude, it, cachedAirQuality, now) } }
+                val forecast = openMeteo.fetch(units, latitude, longitude).mapApiFailure().getOrElse {
+                    early?.cancel()
+                    return@coroutineScope Result.failure(it)
+                }
+                val scale = forecast.timeZone?.let(AirQuality.Scale::forTimeZone)
+                val air = if (early != null && (scale == null || scale == guessed)) {
+                    early.await()
+                } else {
+                    early?.cancel()
+                    airQualityHours(source, latitude, longitude, scale, cachedAirQuality, now)
+                }
+                Result.success(ForecastWithAirQuality(withAirQuality(forecast.days, air?.hours.orEmpty()), air))
+            }
         }
         return openWeatherForecast(units, cityQuery, latitude, longitude).map { ForecastWithAirQuality(it, null) }
     }
 
+    /** The air quality source, or null when there's none or Remote Config has switched it off. */
+    private fun airQualitySource(): AirQualitySource? =
+        airQuality?.takeIf { runCatching { forecastSourcePolicy.airQualityEnabled() }.getOrDefault(true) }
+
     /**
-     * [cached] while it's [AirQualityHours.reusable] on the scale for [timeZone], otherwise a fetch
-     * of that scale alone (both when the zone isn't known). Null when air quality is off or fails.
+     * [cached] while it's [AirQualityHours.reusable] on [scale] (the city's), otherwise a fetch of
+     * that scale alone (both when it isn't known). Null when air quality is off or fails.
      */
     private suspend fun airQualityHours(
+        source: AirQualitySource?,
         latitude: Double,
         longitude: Double,
-        timeZone: String?,
+        scale: AirQuality.Scale?,
         cached: AirQualityHours?,
         nowEpochSeconds: Long,
     ): AirQualityHours? {
-        val source = airQuality?.takeIf { runCatching { forecastSourcePolicy.airQualityEnabled() }.getOrDefault(true) } ?: return null
-        val scale = timeZone?.let(AirQuality.Scale::forTimeZone)
+        source ?: return null
         if (scale != null && cached?.reusable(scale, nowEpochSeconds) == true) return cached
         return source.fetchHourly(latitude, longitude, scale, nowEpochSeconds).getOrNull()
     }
