@@ -543,15 +543,17 @@ private fun PavementTile(
 }
 
 /**
- * Same shades as the walk card's ratings: dark text on the light theme, pale on the dark. Blue for
- * icy and below freezing, as on the paw scale.
+ * Same shades as the walk card's ratings: dark text on the light theme, pale on the dark. Each band
+ * takes its paw's colour on the scale above it: blue for icy and below freezing, and green for
+ * fine underfoot as for safe, since the pavement is fine and it's the air the walk card is warning
+ * about.
  */
 @Composable
 private fun pavementTint(band: PavementBand): Color {
     val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     return when (band) {
-        PavementBand.SAFE -> if (dark) WalkGreatBg else WalkGreatText
-        PavementBand.WARM, PavementBand.PAVEMENT_OK -> if (dark) WalkOkayBg else WalkOkayText
+        PavementBand.SAFE, PavementBand.PAVEMENT_OK -> if (dark) WalkGreatBg else WalkGreatText
+        PavementBand.WARM -> if (dark) WalkOkayBg else WalkOkayText
         PavementBand.FREEZING, PavementBand.ICY -> if (dark) WalkColdBg else WalkColdText
         PavementBand.TOO_HOT, PavementBand.DANGEROUS -> if (dark) WalkHotBg else WalkHotText
     }
