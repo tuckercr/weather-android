@@ -4,11 +4,10 @@ import com.fangjet.weather.data.remote.OpenWeatherApi
 import com.fangjet.weather.data.remote.dto.OpenWeatherErrorResponse
 import com.fangjet.weather.di.WeatherNetworkModule
 import com.fangjet.weather.domain.AirQuality
+import com.fangjet.weather.domain.AirQualityHours
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.WeatherUnits
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
 import retrofit2.HttpException
 import java.io.IOException
@@ -83,24 +82,59 @@ class WeatherRepository @Inject constructor(
         cityQuery: String? = null,
         latitude: Double? = null,
         longitude: Double? = null,
-    ): Result<List<DayForecast>> {
+    ): Result<List<DayForecast>> = fetchForecastWithAirQuality(units, cityQuery, latitude, longitude).map { it.days }
+
+    /**
+     * The forecast, with each hour's air quality on it, and the air quality hours themselves for the
+     * caller to cache. [cachedAirQuality] (the city's last, from the cache) is used instead of a
+     * fetch while [AirQualityHours.reusable]. Same rules as iOS's `WeatherRepository`.
+     */
+    suspend fun fetchForecastWithAirQuality(
+        units: WeatherUnits,
+        cityQuery: String? = null,
+        latitude: Double? = null,
+        longitude: Double? = null,
+        cachedAirQuality: AirQualityHours? = null,
+        nowEpochSeconds: () -> Long = { System.currentTimeMillis() / 1000 },
+    ): Result<ForecastWithAirQuality> {
         val hasCoordinates = latitude != null && longitude != null
         // Prefer Open-Meteo (true hourly, UV, pavement heat) whenever we have coordinates,
         // unless Remote Config has switched it off.
         if (hasCoordinates && openMeteoEnabled()) {
-            return coroutineScope {
-                // Air quality comes alongside, for the tile and the walk planner; without it the
-                // forecast still stands.
-                val air = async {
-                    airQuality
-                        ?.takeIf { forecastSourcePolicy.airQualityEnabled() }
-                        ?.fetchHourly(latitude, longitude)
-                        ?.getOrNull()
-                        .orEmpty()
-                }
-                openMeteo.fetch(units, latitude, longitude).mapApiFailure().map { withAirQuality(it, air.await()) }
-            }
+            val forecast = openMeteo.fetch(units, latitude, longitude).mapApiFailure().getOrElse { return Result.failure(it) }
+            // Air quality comes after, on the scale for the forecast's time zone, for the tile and the
+            // walk planner; without it the forecast still stands.
+            val air = airQualityHours(latitude, longitude, forecast.timeZone, cachedAirQuality, nowEpochSeconds())
+            return Result.success(ForecastWithAirQuality(withAirQuality(forecast.days, air?.hours.orEmpty()), air))
         }
+        return openWeatherForecast(units, cityQuery, latitude, longitude).map { ForecastWithAirQuality(it, null) }
+    }
+
+    /**
+     * [cached] while it's [AirQualityHours.reusable] on the scale for [timeZone], otherwise a fetch
+     * of that scale alone (both when the zone isn't known). Null when air quality is off or fails.
+     */
+    private suspend fun airQualityHours(
+        latitude: Double,
+        longitude: Double,
+        timeZone: String?,
+        cached: AirQualityHours?,
+        nowEpochSeconds: Long,
+    ): AirQualityHours? {
+        val source = airQuality?.takeIf { runCatching { forecastSourcePolicy.airQualityEnabled() }.getOrDefault(true) } ?: return null
+        val scale = timeZone?.let(AirQuality.Scale::forTimeZone)
+        if (scale != null && cached?.reusable(scale, nowEpochSeconds) == true) return cached
+        return source.fetchHourly(latitude, longitude, scale, nowEpochSeconds).getOrNull()
+    }
+
+    /** OpenWeatherMap's 3-hourly forecast: by coordinates when Open-Meteo is switched off, else by name. */
+    private suspend fun openWeatherForecast(
+        units: WeatherUnits,
+        cityQuery: String?,
+        latitude: Double?,
+        longitude: Double?,
+    ): Result<List<DayForecast>> {
+        val hasCoordinates = latitude != null && longitude != null
         val key = apiKey.trim()
         if (key.isEmpty()) {
             return Result.failure(IllegalStateException("missing_api_key"))
@@ -254,6 +288,13 @@ class WeatherRepository @Inject constructor(
             else -> throwable
         }
 }
+
+/** A forecast and the air quality hours put on it, which the caller caches with their fetch time. */
+data class ForecastWithAirQuality(
+    val days: List<DayForecast>,
+    // Null when there's none: air quality off or failed, or a forecast from OpenWeatherMap.
+    val airQuality: AirQualityHours?,
+)
 
 /** Puts each hour's air quality on its slot. */
 internal fun withAirQuality(

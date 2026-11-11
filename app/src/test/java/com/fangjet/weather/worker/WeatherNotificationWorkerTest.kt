@@ -3,6 +3,7 @@ package com.fangjet.weather.worker
 import android.content.Context
 import androidx.work.ListenableWorker.Result
 import androidx.work.WorkerParameters
+import com.fangjet.weather.data.ForecastWithAirQuality
 import com.fangjet.weather.data.LocationRepository
 import com.fangjet.weather.data.LocationWeatherRepository
 import com.fangjet.weather.data.PreferencesRepository
@@ -56,7 +57,12 @@ class WeatherNotificationWorkerTest {
         every { remoteConfig.petWeatherThresholds() } returns PetWeatherThresholds.DEFAULT
         coEvery { weather.fetchCurrentWeather(any(), any(), any(), any(), any()) } returns
             kotlin.Result.success(currentWeather)
-        coEvery { weather.fetchForecast(any(), any(), any(), any()) } returns kotlin.Result.success(emptyList())
+        coEvery { weather.fetchForecastWithAirQuality(any(), any(), any(), any(), any(), any()) } returns
+            kotlin.Result.success(ForecastWithAirQuality(emptyList(), null))
+        coEvery { preferences.getCachedAirQuality(any()) } returns null
+        coEvery { preferences.getFetchTimes(any()) } returns null
+        coEvery { preferences.setWeatherFetchedAt(any(), any()) } just Runs
+        coEvery { preferences.setForecastFetchedAt(any(), any()) } just Runs
         // What's fetched is cached, by the repository.
         coEvery { preferences.setCachedWeather(any(), any()) } just Runs
         coEvery { preferences.setCachedForecast(any(), any()) } just Runs
@@ -81,7 +87,7 @@ class WeatherNotificationWorkerTest {
 
             coVerify {
                 weather.fetchCurrentWeather(WeatherUnits.METRIC, "London, GB", "London, GB", 51.5, -0.1)
-                weather.fetchForecast(WeatherUnits.METRIC, "London, GB", 51.5, -0.1)
+                weather.fetchForecastWithAirQuality(WeatherUnits.METRIC, "London, GB", 51.5, -0.1, any(), any())
             }
         }
 
@@ -94,7 +100,7 @@ class WeatherNotificationWorkerTest {
 
             coVerify {
                 weather.fetchCurrentWeather(WeatherUnits.IMPERIAL, "Springfield", "Springfield", null, null)
-                weather.fetchForecast(WeatherUnits.IMPERIAL, "Springfield", null, null)
+                weather.fetchForecastWithAirQuality(WeatherUnits.IMPERIAL, "Springfield", null, null, any(), any())
             }
         }
 

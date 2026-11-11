@@ -205,6 +205,18 @@ noted. Checked against the code, not fixed yet.
       non-commercial. Emails were drafted on 10-24; no replies yet. Fallback: launch with
       `radar_enabled` / `open_meteo_enabled` off in Remote Config. Plan (11-05): buy an Open-Meteo
       licence before release; the new city search (SEARCH.md) depends on it too.
+- [ ] **Open-Meteo plan and API key.** Commercial use needs a paid plan (Standard 1M calls a
+      month, Professional 5M; prices only in the customer portal). A request counts as variables
+      divided by 10 once it asks for more than 10. Worked out on 11-10, before the savings below:
+      a city refresh was about 4.8 calls (forecast 1.7, current reading 1.5, air quality 1.6), and
+      200 users came to about 0.9M a month for a typical Android and iPhone mix, up to 3M with all
+      Android users following two cities, mostly Android's background refresh. With the savings
+      (Done, 11-10) a refresh is about 3.2 calls, air quality only every 3 hours, and Android's
+      background refresh every 90 minutes, so 200 users should fit Standard. The paid plan's API key goes
+      to customer-api.open-meteo.com: shipped in the apps it can be pulled out and spent, so a
+      small proxy (a Cloud Function that adds the key) is worth it then, even without caching. A
+      server cache saves little: the phones already cache, and each user's coordinates differ.
+      Monthly limits aren't enforced yet; Open-Meteo emails at 80%, 90% and 100%. (11-10)
 - [ ] Future radar: RainViewer's free feed has had no forecast frames since 1 Jan. A paid layer
       (Tomorrow.io, OpenWeather maps, Xweather, MapTiler) hasn't been researched. (10-28)
 - [ ] OpenStreetMap tile policy: at scale, a commercial tile provider. (10-24)
@@ -351,6 +363,11 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Fewer Open-Meteo calls** (11-10): the background refresh runs every 90 minutes
+      (`weather_refresh_interval_minutes` 90, was 30); air quality asks only for the city's own
+      scale (US or European, 10 variables or fewer, so 1 call instead of 1.6), comes after the
+      forecast so its time zone picks the scale, and is reused for 3 hours; the background refresh
+      skips a city whose reading and forecast are both under 30 minutes old. Both apps.
 - [x] **Raindrops at night** (11-10): on a seasonal theme's dark night hero the raindrops are
       pale blue (#A9CFF2) instead of the umbrella's blue. Both apps.
 - [x] **No UV left today** (11-10): the UV tile says "No more UV today" instead of "Peak 0" when

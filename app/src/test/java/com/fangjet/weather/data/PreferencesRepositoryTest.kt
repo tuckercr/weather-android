@@ -4,6 +4,8 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.fangjet.weather.domain.AirQuality
+import com.fangjet.weather.domain.AirQualityHours
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.SavedLocation
@@ -253,6 +255,37 @@ class PreferencesRepositoryTest {
             assertNull(prefs.getCachedWeatherFor("london"))
             assertNull(prefs.getCachedForecastFor("london"))
             assertEquals(listOf(city), prefs.savedLocations.first())
+        }
+
+    @Test
+    fun `air quality is cached per location with its fetch time and scale, and cleared with the rest`() =
+        runTest {
+            val prefs = repository()
+            val air = AirQualityHours(1_000L, AirQuality.Scale.EUROPEAN, mapOf(3_600L to AirQuality(30, AirQuality.Scale.EUROPEAN, null)))
+
+            prefs.setCachedAirQuality("london", air)
+
+            assertEquals(air, prefs.getCachedAirQuality("london"))
+            assertNull(prefs.getCachedAirQuality("paris"))
+            prefs.clearCache()
+            assertNull(prefs.getCachedAirQuality("london"))
+        }
+
+    @Test
+    fun `the reading's and forecast's fetch times are kept apart per location, and cleared with the rest`() =
+        runTest {
+            val prefs = repository()
+
+            assertNull(prefs.getFetchTimes("london"))
+            prefs.setWeatherFetchedAt("london", 100L)
+            assertEquals(FetchTimes(weatherEpochSeconds = 100L), prefs.getFetchTimes("london"))
+            prefs.setForecastFetchedAt("london", 200L)
+            prefs.setWeatherFetchedAt("paris", 300L)
+
+            assertEquals(FetchTimes(100L, 200L), prefs.getFetchTimes("london"))
+            assertEquals(FetchTimes(weatherEpochSeconds = 300L), prefs.getFetchTimes("paris"))
+            prefs.clearCache()
+            assertNull(prefs.getFetchTimes("london"))
         }
 
     // --- settings ---

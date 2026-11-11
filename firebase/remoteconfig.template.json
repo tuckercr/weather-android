@@ -1,7 +1,7 @@
 {
   "parameters": {
     "weather_refresh_interval_minutes": {
-      "defaultValue": { "value": "30" },
+      "defaultValue": { "value": "90" },
       "valueType": "NUMBER",
       "description": "How often the background weather refresh runs, in minutes. WorkManager enforces a 15-minute minimum."
     },

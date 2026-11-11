@@ -1,6 +1,7 @@
 package com.fangjet.weather.worker
 
 import androidx.work.ListenableWorker.Result
+import com.fangjet.weather.data.CachedLocationWeather
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.SavedLocation
@@ -23,6 +24,9 @@ internal class UpdateWorkerLogic(
     // Fetches and caches a location's weather: LocationWeatherRepository.refreshWeather and refreshForecast.
     private val refreshWeather: suspend (location: SavedLocation) -> kotlin.Result<CurrentWeather>,
     private val refreshForecast: suspend (location: SavedLocation) -> kotlin.Result<List<DayForecast>>,
+    // The cached weather when both parts were fetched in the last 30 minutes (LocationWeatherRepository.freshCache):
+    // used as it is instead of fetching again.
+    private val freshCache: suspend (location: SavedLocation) -> CachedLocationWeather? = { null },
     // After a refresh, with whatever came back: the rain alert checks it.
     private val afterRefresh: suspend (
         location: SavedLocation,
@@ -42,13 +46,17 @@ internal class UpdateWorkerLogic(
         return if (notificationOk) Result.success() else Result.retry()
     }
 
-    /** Refreshes [location]'s cache; true when either fetch worked. [alert] runs [afterRefresh] too. */
+    /**
+     * Refreshes [location]'s cache, unless it's fresh (then it's used as it is); true when either
+     * fetch worked. [alert] runs [afterRefresh] too, on a fresh cache as well, since time has moved on.
+     */
     private suspend fun refresh(
         location: SavedLocation,
         alert: Boolean,
     ): Boolean {
-        val currentResult = refreshWeather(location)
-        val forecastResult = refreshForecast(location)
+        val fresh = freshCache(location)
+        val currentResult = fresh?.let { kotlin.Result.success(it.weather) } ?: refreshWeather(location)
+        val forecastResult = fresh?.let { kotlin.Result.success(it.forecast) } ?: refreshForecast(location)
 
         if (alert) {
             // The refresh has done its job by now: a failed alert mustn't turn it into a failed run.

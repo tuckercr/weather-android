@@ -3,7 +3,7 @@
     <!-- How often the background weather update job runs, in minutes. WorkManager minimum is 15. -->
     <entry>
         <key>weather_refresh_interval_minutes</key>
-        <value>30</value>
+        <value>90</value>
     </entry>
     <!-- Delay between radar animation frames, in milliseconds. Higher is slower. -->
     <entry>

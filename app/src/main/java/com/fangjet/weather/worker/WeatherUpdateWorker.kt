@@ -41,6 +41,7 @@ class WeatherUpdateWorker @AssistedInject constructor(
         getActiveIndex = { preferencesRepository.activeLocationIndex.first() },
         refreshWeather = locationWeatherRepository::refreshWeather,
         refreshForecast = locationWeatherRepository::refreshForecast,
+        freshCache = locationWeatherRepository::freshCache,
         afterRefresh = rainAlerts::check,
     )
 

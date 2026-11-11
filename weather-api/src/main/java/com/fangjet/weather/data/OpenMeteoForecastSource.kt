@@ -31,11 +31,12 @@ class OpenMeteoForecastSource @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val json: Json,
 ) {
+    /** The forecast, with the city's time zone, which picks its air quality scale. */
     suspend fun fetch(
         units: WeatherUnits,
         latitude: Double,
         longitude: Double,
-    ): Result<List<DayForecast>> =
+    ): Result<OpenMeteoForecast> =
         get(
             units,
             latitude,
@@ -55,7 +56,7 @@ class OpenMeteoForecastSource @Inject constructor(
             ),
         ) { body ->
             val parsed = json.decodeFromString(OpenMeteoResponse.serializer(), body)
-            toDayForecasts(parsed, units, System.currentTimeMillis() / 1000)
+            OpenMeteoForecast(toDayForecasts(parsed, units, System.currentTimeMillis() / 1000), parsed.timezone)
         }
 
     /** The reading now, for the hero, with today's high, low, sunrise and sunset ([OpenMeteoCurrent]). */
@@ -226,3 +227,9 @@ class OpenMeteoForecastSource @Inject constructor(
                 (i - WET_GROUND_HOURS + 1..i + 1).any { (h.precipitation.getOrNull(it) ?: 0.0) > 0.0 }
     }
 }
+
+/** Open-Meteo's forecast, and the city's time zone identifier ("Europe/London"); null when it isn't sent. */
+data class OpenMeteoForecast(
+    val days: List<DayForecast>,
+    val timeZone: String?,
+)

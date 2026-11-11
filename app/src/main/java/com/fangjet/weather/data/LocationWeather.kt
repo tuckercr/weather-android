@@ -1,7 +1,7 @@
 package com.fangjet.weather.data
 
+import com.fangjet.weather.domain.AirQualityHours
 import com.fangjet.weather.domain.CurrentWeather
-import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WeatherUnits
 
@@ -29,8 +29,10 @@ suspend fun WeatherRepository.fetchCurrentWeather(
 ): Result<CurrentWeather> =
     location.weatherRequest.let { fetchCurrentWeather(units, it.locationLabel, it.cityQuery, it.latitude, it.longitude) }
 
-/** [location]'s forecast, by [weatherRequest]. */
+/** [location]'s forecast, by [weatherRequest], with [cachedAirQuality] reused while it can be. */
 suspend fun WeatherRepository.fetchForecast(
     location: SavedLocation,
     units: WeatherUnits,
-): Result<List<DayForecast>> = location.weatherRequest.let { fetchForecast(units, it.cityQuery, it.latitude, it.longitude) }
+    cachedAirQuality: AirQualityHours? = null,
+): Result<ForecastWithAirQuality> =
+    location.weatherRequest.let { fetchForecastWithAirQuality(units, it.cityQuery, it.latitude, it.longitude, cachedAirQuality) }
