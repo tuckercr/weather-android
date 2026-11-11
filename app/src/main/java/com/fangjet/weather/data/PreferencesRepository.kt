@@ -2,6 +2,7 @@ package com.fangjet.weather.data
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -92,7 +93,10 @@ class PreferencesRepository internal constructor(
     }
 
     suspend fun setSavedLocations(locations: List<SavedLocation>) {
-        dataStore.edit { it[KEY_SAVED_LOCATIONS] = json.encodeToString(locations) }
+        dataStore.edit {
+            it[KEY_SAVED_LOCATIONS] = json.encodeToString(locations)
+            pruneCaches(it, locations)
+        }
     }
 
     /**
@@ -108,6 +112,24 @@ class PreferencesRepository internal constructor(
             val locations = runCatching { json.decodeFromString<List<SavedLocation>>(raw) }.getOrNull() ?: return@edit
             val moved = locations.withMyLocationAt(latitude, longitude) ?: return@edit
             prefs[KEY_SAVED_LOCATIONS] = json.encodeToString(moved)
+            pruneCaches(prefs, moved)
+        }
+    }
+
+    /**
+     * Drops the cached weather, forecast, air quality and fetch times of locations no longer saved,
+     * in the same edit as the list: the keys are coordinates, so every spot My Location has moved to
+     * would otherwise stay. Same as iOS's `PreferencesStore.pruneCache`.
+     */
+    private fun pruneCaches(
+        prefs: MutablePreferences,
+        locations: List<SavedLocation>,
+    ) {
+        val keep = locations.mapTo(HashSet()) { it.cacheKey }
+        for (key in CACHE_KEYS) {
+            val cache = prefs[key]?.let { runCatching { json.decodeFromString<Map<String, String>>(it) }.getOrNull() } ?: continue
+            val kept = cache.filterKeys { it in keep }
+            if (kept.size != cache.size) prefs[key] = json.encodeToString(kept)
         }
     }
 
@@ -334,6 +356,9 @@ class PreferencesRepository internal constructor(
         private val KEY_FORECAST_CACHE = stringPreferencesKey("forecast_cache")
         private val KEY_AIR_QUALITY_CACHE = stringPreferencesKey("air_quality_cache")
         private val KEY_FETCH_TIMES = stringPreferencesKey("fetch_times")
+
+        // The per-location caches, keyed by SavedLocation.cacheKey.
+        private val CACHE_KEYS = listOf(KEY_WEATHER_CACHE, KEY_FORECAST_CACHE, KEY_AIR_QUALITY_CACHE, KEY_FETCH_TIMES)
         private val KEY_UNIT_OVERRIDE = stringPreferencesKey("unit_override")
         private val KEY_SHARE_USAGE_STATISTICS = booleanPreferencesKey("share_usage_statistics")
         private val KEY_SHOW_WALK_CARD = booleanPreferencesKey("show_walk_card")
