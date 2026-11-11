@@ -207,16 +207,26 @@ noted. Checked against the code, not fixed yet.
       licence before release; the new city search (SEARCH.md) depends on it too.
 - [ ] **Open-Meteo plan and API key.** Commercial use needs a paid plan (Standard 1M calls a
       month, Professional 5M; prices only in the customer portal). A request counts as variables
-      divided by 10 once it asks for more than 10. Worked out on 11-10, before the savings below:
-      a city refresh was about 4.8 calls (forecast 1.7, current reading 1.5, air quality 1.6), and
-      200 users came to about 0.9M a month for a typical Android and iPhone mix, up to 3M with all
-      Android users following two cities, mostly Android's background refresh. With the savings
-      (Done, 11-10) a refresh is about 3.2 calls, air quality only every 3 hours, and Android's
-      background refresh every 90 minutes, so 200 users should fit Standard. The paid plan's API key goes
-      to customer-api.open-meteo.com: shipped in the apps it can be pulled out and spent, so a
-      small proxy (a Cloud Function that adds the key) is worth it then, even without caching. A
-      server cache saves little: the phones already cache, and each user's coordinates differ.
-      Monthly limits aren't enforced yet; Open-Meteo emails at 80%, 90% and 100%. (11-10)
+      divided by 10 once it asks for more than 10: the forecast is 1.7 calls, the current reading
+      1.5, air quality 1 (it was 1.6 before the savings in Done, 11-10) and at most every 3 hours
+      per city. Worked out on 11-10 for 200 active users, half iPhone and half Android:
+      - Per user a day, one city: Android about 52 calls (about 12 of the 16 background runs every
+        90 minutes, Doze holding the rest overnight, plus 3 opens), about 128 at most when the
+        background run covers two cities; iPhone about 31 (a guessed 4 background refreshes and 3
+        opens of about 1.3 cities).
+      - A month: typical about 0.25M (0.9M before the savings); Android running every 90 minutes
+        on time 0.29M (1.0M); every Android user on two cities 0.48M (1.6M); all 200 on Android
+        with two cities 0.77M (2.8M).
+      - So Standard holds the typical mix up to about 750 users, the two-city case about 400.
+        Android's background refresh is still about three quarters of the calls: raising
+        `weather_refresh_interval_minutes` is the quickest lever (a Remote Config deploy), at the
+        cost of later rain alerts on Android. The iPhone refreshes and opens are guesses; the
+        usage dashboard will show the real figure once there's a key.
+      The paid plan's API key goes to customer-api.open-meteo.com: shipped in the apps it can be
+      pulled out and spent, so a small proxy (a Cloud Function that adds the key) is worth it then,
+      even without caching. A server cache saves little: the phones already cache, and each user's
+      coordinates differ. Monthly limits aren't enforced yet; Open-Meteo emails at 80%, 90% and
+      100%. (11-10)
 - [ ] Future radar: RainViewer's free feed has had no forecast frames since 1 Jan. A paid layer
       (Tomorrow.io, OpenWeather maps, Xweather, MapTiler) hasn't been researched. (10-28)
 - [ ] OpenStreetMap tile policy: at scale, a commercial tile provider. (10-24)
