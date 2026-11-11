@@ -409,7 +409,8 @@
     <string name="walk_around_tomorrow">Tomorrow around %1$s</string>
     <string name="walk_none">Not a good day for walkies</string>
     <string name="walk_too_hot">Too hot for paws.</string>
-    <string name="walk_too_cold">Too cold for paws.</string>
+    <!-- The air's feels-like, not the ground: the Paw check tile can say "Fine underfoot" at the same time. -->
+    <string name="walk_too_cold">Too cold for a long walk.</string>
     <string name="walk_danger_title">Danger</string>
     <string name="walk_danger_hurricane">Hurricane force winds</string>
     <string name="walk_danger_stay_inside">Stay inside, away from the windows.</string>
