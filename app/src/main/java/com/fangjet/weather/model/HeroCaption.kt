@@ -46,7 +46,7 @@ sealed interface HeroCaption {
 /**
  * The hero's caption for [mood] at [nowEpochSeconds], by the city's day and hour. Without a dog
  * ([hasDog] false), the captions leave out walks. A cloudy mood under a [partlyCloudy] sky gets
- * brighter captions than a grey one.
+ * brighter captions than a grey one, and a [foggy] one captions about the fog.
  */
 fun heroCaption(
     walk: WalkCheck?,
@@ -56,6 +56,7 @@ fun heroCaption(
     utcOffsetSeconds: Int,
     hasDog: Boolean,
     partlyCloudy: Boolean,
+    foggy: Boolean = false,
 ): HeroCaption {
     val local = Instant.ofEpochSecond(nowEpochSeconds).atOffset(ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
     val day = local.dayOfYear
@@ -63,8 +64,8 @@ fun heroCaption(
     themeCaption?.let { return HeroCaption.Theme(it) }
     val nightPart = nightPartAt(local.hour)
     return HeroCaption.Weather(
-        captions = mood.captionsRes(nightPart, hasDog = hasDog, partlyCloudy = partlyCloudy),
-        noDogCaptions = mood.captionsRes(nightPart, hasDog = false, partlyCloudy = partlyCloudy),
+        captions = mood.captionsRes(nightPart, hasDog = hasDog, partlyCloudy = partlyCloudy, foggy = foggy),
+        noDogCaptions = mood.captionsRes(nightPart, hasDog = false, partlyCloudy = partlyCloudy, foggy = foggy),
         leaveOutWalkSuggestions = walk != null && rulesOutWalkNow(walk),
         leaveOutAfternoonOnly = local.hour < 12,
         day = day,
@@ -100,11 +101,15 @@ internal fun PetMood.captionsRes(
     nightPart: NightPart,
     hasDog: Boolean,
     partlyCloudy: Boolean,
+    foggy: Boolean = false,
 ): Int =
     when (this) {
         PetMood.FAIR -> if (hasDog) R.array.pet_caption_fair else R.array.pet_caption_fair_no_dog
         PetMood.SUNNY -> if (hasDog) R.array.pet_caption_sunny else R.array.pet_caption_sunny_no_dog
+        // Fog is only ever the cloudy mood's captions: cold fog is the cold mood's, and a foggy
+        // night the night's.
         PetMood.CLOUDY -> when {
+            foggy -> if (hasDog) R.array.pet_caption_fog else R.array.pet_caption_fog_no_dog
             partlyCloudy -> if (hasDog) R.array.pet_caption_partly_cloudy else R.array.pet_caption_partly_cloudy_no_dog
             else -> if (hasDog) R.array.pet_caption_cloudy else R.array.pet_caption_cloudy_no_dog
         }
@@ -149,6 +154,8 @@ val WALK_SUGGESTIONS = listOf(
     R.string.caption_evening_lap,
     R.string.caption_partly_cloudy_sniffing,
     R.string.caption_partly_cloudy_ready,
+    R.string.caption_fog_nose,
+    R.string.caption_fog_close,
 )
 
 /** The captions that only make sense from noon in the city ("Nap weather"), left out before. */

@@ -117,6 +117,20 @@ class PetMoodTest {
             .forEach { assertTrue("$it has no no-dog version", "${it}_no_dog" in lists) }
     }
 
+    @Test
+    fun `fog, mist and haze are foggy, and nothing else is`() {
+        listOf("Fog", "Mist", "Haze", "fog").forEach { assertTrue(it, isFoggy(it)) }
+        listOf("Clouds", "Clear", "Smoke", "Dust", "Rain", "Snow").forEach { assertFalse(it, isFoggy(it)) }
+    }
+
+    @Test
+    fun `fog is not a mood, so a cold foggy morning is still the cold mood`() {
+        // This morning in Knoxville: fog, 36 °F with a feels-like of 0 °C.
+        assertEquals(PetMood.COLD, petMoodFor("Fog", "50d", feelsLikeC = 0.0))
+        assertEquals(PetMood.CLOUDY, petMoodFor("Fog", "50d", feelsLikeC = 9.0))
+        assertEquals(PetMood.NIGHT, petMoodFor("Fog", "50n", feelsLikeC = 9.0))
+    }
+
     private val walkWords = Regex("walk|stroll|paws|dog", RegexOption.IGNORE_CASE)
 
     /** The shipped pet caption lists, by resource name. */

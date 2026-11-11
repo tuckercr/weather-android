@@ -35,7 +35,12 @@ WorkManager, and CI on GitHub Actions.
   weather! Off we go.") are left out, and when the reason is one the scene can't show it speaks to
   that instead, in place of a seasonal theme's caption too: bad air by its pollutant ("Smoky air
   today. Quick potty breaks, then back on the sofa."), hot pavement, or a gale and worse. The night
-  sky shows the moon's real phase, lit from the other side in the southern hemisphere.
+  sky shows the moon's real phase, lit from the other side in the southern hemisphere. Fog, mist
+  and haze aren't a mood: the scene draws bands of fog behind and in front of the pets, in place of
+  the sun, cloud, moon or frost, on a grey card by day, and the mood under it still dresses the pets
+  and picks the caption. So cold fog keeps the scarves and the cold captions, a foggy night the
+  night sky, and a grey day in fog gets fog captions ("Misty's kind of weather. Sunny's nose knows
+  the way."). Cold on its own shows frost sparkles rather than the snow's falling dots.
 - **Seasonal themes**: on Halloween (31 October) and Thanksgiving (the fourth Thursday of November),
   by the city's own date, the hero takes the theme's colours and caption, the cards below a warmer
   tint, and the scene the theme's decorations: bats, Misty's witch hat, Sunny's bandana and a
@@ -554,8 +559,8 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `AnalyticsRepositoryTest` | Analytics gates: kill switch, user opt-out, both on, and never crashing |
 | `:app` | `AnalyticsCollectionControllerTest` | SDK collection flag follows the opt-out and kill switch, at start and on change |
 | `:app` | `PetWeatherThresholdsTest` | Remote Config threshold validation: ranges, non-finite values, and pair ordering fallbacks |
-| `:app` | `PetMoodTest` | Pet mood selection by conditions, temperature, and night, with configurable hot/cold cut-offs; night captions by the city's local hour |
-| `:app` | `HeroCaptionTest` | The cloudy mood's partly cloudy captions (with and without a dog) by the sky as Misty's View reads it, their walk suggestions left out when now isn't the time, and no nap caption before noon city time |
+| `:app` | `PetMoodTest` | Pet mood selection by conditions, temperature, and night, with configurable hot/cold cut-offs; night captions by the city's local hour; fog, mist and haze as fog, never a mood |
+| `:app` | `HeroCaptionTest` | The cloudy mood's partly cloudy and fog captions (with and without a dog), their walk suggestions left out when now isn't the time, cold fog and a foggy night keeping their own captions, and no nap caption before noon city time |
 | `:app` | `WalkAdvisorTest` | Walk rating and best time: rain, comfort range, walking hours, daylight, raining now, pavement heat, imperial input, "tomorrow" in the city's calendar, 24-hour cap |
 | `:app` | `WalkCheckTest` | The walk verdict's levels for wind (near gale to hurricane force), air (by `walk_bad_air_band`), pavement, heat, cold, storms, rain and the dark; the order of reasons; pollutant names; the walk card's captions and danger rating; hurricane and storm warnings ahead; the hero's reason captions and leaving out walk captions; the Air Quality tile following the walk rules |
 | `:app` | `MoonPhaseTest` | The moon's phase from the date, checked against published phases |

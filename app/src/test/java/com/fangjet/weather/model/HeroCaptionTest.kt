@@ -42,6 +42,48 @@ class HeroCaptionTest {
     }
 
     @Test
+    fun `fog has its own captions on a grey day, with and without a dog`() {
+        val weather = caption(PetMood.CLOUDY, hour = 15, partlyCloudy = false, foggy = true)
+        assertEquals(R.array.pet_caption_fog, weather.captions)
+        assertEquals(R.array.pet_caption_fog_no_dog, weather.noDogCaptions)
+        assertEquals(
+            listOf(
+                "Misty's kind of weather. Sunny's nose knows the way.",
+                "Can't see the end of the garden. Misty says it's still there.",
+                "Foggy out. Sunny's staying close on the lead.",
+            ),
+            array("pet_caption_fog"),
+        )
+        assertEquals(
+            listOf(
+                "Misty's kind of weather. She was named for it.",
+                "Can't see the end of the garden. Misty says it's still there.",
+                "Foggy out. Misty is watching it drift past the window.",
+            ),
+            array("pet_caption_fog_no_dog"),
+        )
+    }
+
+    @Test
+    fun `cold fog and a foggy night keep their own mood's captions`() {
+        assertEquals(R.array.pet_caption_cold, caption(PetMood.COLD, hour = 7, partlyCloudy = false, foggy = true).captions)
+        assertEquals(R.array.pet_caption_night_late, caption(PetMood.NIGHT, hour = 2, partlyCloudy = false, foggy = true).captions)
+    }
+
+    @Test
+    fun `the fog's walk suggestions are left out when now isn't the time`() {
+        assertEquals(
+            listOf("Can't see the end of the garden. Misty says it's still there."),
+            captionOptions(
+                array("pet_caption_fog"),
+                array("pet_caption_fog_no_dog"),
+                WALK_SUGGESTIONS.map(StringsXml::get).toSet(),
+                leaveOutWalkSuggestions = true,
+            ),
+        )
+    }
+
+    @Test
     fun `mostly cloudy and overcast keep the grey captions`() {
         val weather = caption(PetMood.CLOUDY, hour = 15, partlyCloudy = false)
         assertEquals(R.array.pet_caption_cloudy, weather.captions)
@@ -117,7 +159,8 @@ class HeroCaptionTest {
         partlyCloudy: Boolean,
         hasDog: Boolean = true,
         date: LocalDate = LocalDate.of(2026, 1, 1),
-    ) = heroCaption(null, null, mood, epochAt(date, hour), offset, hasDog, partlyCloudy) as HeroCaption.Weather
+        foggy: Boolean = false,
+    ) = heroCaption(null, null, mood, epochAt(date, hour), offset, hasDog, partlyCloudy, foggy) as HeroCaption.Weather
 
     /** The caption a grey day shows, resolved as the screen does. */
     private fun pick(

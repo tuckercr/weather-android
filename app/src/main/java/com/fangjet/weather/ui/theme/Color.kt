@@ -62,6 +62,9 @@ val PetSkyStorm = Color(0xFF9FB3C8)
 val PetSkySnow = Color(0xFFE6F1FB)
 val PetSkyHot = Color(0xFFF5C4B3)
 val PetSkyCold = Color(0xFFCFE3F5)
+
+// Grey for fog by day, whatever the mood under it; a foggy night keeps PetSkyNight.
+val PetSkyFog = Color(0xFFDDE3E7)
 val PetSkyNight = Color(0xFF3C4A78)
 val PetInk = Color(0xFF0C447C)
 val PetInkOnNight = Color(0xFFF1EFE8)

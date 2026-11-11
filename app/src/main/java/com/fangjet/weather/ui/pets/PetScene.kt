@@ -82,6 +82,7 @@ import com.fangjet.weather.ui.theme.PetShine
 import com.fangjet.weather.ui.theme.PetSkyCloudy
 import com.fangjet.weather.ui.theme.PetSkyCold
 import com.fangjet.weather.ui.theme.PetSkyFair
+import com.fangjet.weather.ui.theme.PetSkyFog
 import com.fangjet.weather.ui.theme.PetSkyHot
 import com.fangjet.weather.ui.theme.PetSkyNight
 import com.fangjet.weather.ui.theme.PetSkyRain
@@ -158,6 +159,8 @@ fun PetScene(
     knockedOverRouter: Boolean = false,
     decorations: Set<SceneDecoration> = emptySet(),
     dark: Boolean = mood == PetMood.NIGHT,
+    // Fog, mist or haze, drawn over the mood: see isFoggy.
+    foggy: Boolean = false,
 ) {
     val description = stringResource(R.string.cd_pet_scene)
     val southernHemisphere = LocalSouthernHemisphere.current
@@ -167,7 +170,7 @@ fun PetScene(
             .aspectRatio(SCENE_W / SCENE_H)
             .semantics { contentDescription = description },
     ) {
-        drawPetScene(mood, size.width / SCENE_W, moonPhase, southernHemisphere, knockedOverRouter, decorations, dark)
+        drawPetScene(mood, size.width / SCENE_W, moonPhase, southernHemisphere, knockedOverRouter, decorations, dark, foggy)
     }
 }
 
@@ -183,13 +186,15 @@ private fun DrawScope.drawPetScene(
     knockedOverRouter: Boolean = false,
     decorations: Set<SceneDecoration> = emptySet(),
     dark: Boolean = mood == PetMood.NIGHT,
+    foggy: Boolean = false,
 ) {
     fun p(
         x: Float,
         y: Float,
     ) = Offset(x * s, y * s)
 
-    drawSky(mood, s, ::p, moonPhase, southernHemisphere, dark)
+    // Fog takes the sky's place: no sun, cloud, moon or frost shows through it.
+    if (foggy) drawFog(FOG_BEHIND, dark, s) else drawSky(mood, s, ::p, moonPhase, southernHemisphere, dark)
     if (SceneDecoration.BATS in decorations) drawBats(dark, s)
     if (SceneDecoration.AUTUMN_LEAVES in decorations) drawAutumnLeaves(dark, s)
     drawOval(PetGround, topLeft = p(20f, 132f), size = Size(220f * s, 16f * s))
@@ -201,7 +206,46 @@ private fun DrawScope.drawPetScene(
         drawGroundDecorations(decorations, dark, s, ::p)
         drawAccessories(sceneAccessories(mood, decorations, dark), mood, s, ::p)
     }
+    // And some in front, so the pets are half lost in it.
+    if (foggy) drawFog(FOG_IN_FRONT, dark, s)
     if (knockedOverRouter) drawKnockedOverRouter(s, ::p)
+}
+
+/**
+ * The hero card's colour for [mood]: grey in fog by day, since the mood's own sky colour (a cold
+ * blue, a cloudy blue) says clear air. A foggy night keeps the night sky.
+ */
+fun heroSkyColor(
+    mood: PetMood,
+    foggy: Boolean,
+): Color = if (foggy && mood != PetMood.NIGHT) PetSkyFog else mood.skyColor
+
+/** A band of fog: left edge, top and width in scene units, and its height. */
+private class FogBand(
+    val x: Float,
+    val y: Float,
+    val width: Float,
+    val height: Float,
+)
+
+private val FOG_BEHIND = listOf(FogBand(30f, 20f, 120f, 10f), FogBand(120f, 40f, 110f, 9f), FogBand(10f, 58f, 90f, 8f))
+private val FOG_IN_FRONT = listOf(FogBand(40f, 117f, 190f, 10f), FogBand(20f, 130f, 150f, 8f))
+
+/** Soft white bands; fainter on a dark sky, where full white would read as snow on the ground. */
+private fun DrawScope.drawFog(
+    bands: List<FogBand>,
+    dark: Boolean,
+    s: Float,
+) {
+    val fog = PetCloud.copy(alpha = if (dark) 0.3f else 0.55f)
+    bands.forEach { band ->
+        drawRoundRect(
+            fog,
+            topLeft = Offset(band.x * s, band.y * s),
+            size = Size(band.width * s, band.height * s),
+            cornerRadius = CornerRadius(band.height / 2 * s),
+        )
+    }
 }
 
 /**
@@ -290,8 +334,33 @@ private fun DrawScope.drawSky(
             cloud(PetStormCloud, 200f, 28f, s)
             poly(PetBolt, s, 205f, 40f, 196f, 58f, 204f, 58f, 198f, 74f, 214f, 52f, 206f, 52f, 212f, 40f)
         }
-        PetMood.SNOW, PetMood.COLD -> listOf(30f to 18f, 70f to 44f, 200f to 22f, 240f to 50f, 110f to 12f, 180f to 40f)
+        PetMood.SNOW -> listOf(30f to 18f, 70f to 44f, 200f to 22f, 240f to 50f, 110f to 12f, 180f to 40f)
             .forEach { (x, y) -> drawCircle(PetCloud, 4f * s, p(x, y)) }
+        // Frost sparkles, not falling dots: cold on its own is a dry sky, and the snow's dots
+        // here read as snowfall.
+        PetMood.COLD -> listOf(Triple(34f, 22f, 6f), Triple(204f, 26f, 5f), Triple(112f, 14f, 4f), Triple(240f, 52f, 5f))
+            .forEach { (x, y, r) ->
+                poly(
+                    PetCloud,
+                    s,
+                    x,
+                    y - r,
+                    x + r / 4,
+                    y - r / 4,
+                    x + r,
+                    y,
+                    x + r / 4,
+                    y + r / 4,
+                    x,
+                    y + r,
+                    x - r / 4,
+                    y + r / 4,
+                    x - r,
+                    y,
+                    x - r / 4,
+                    y - r / 4,
+                )
+            }
     }
 }
 
@@ -597,8 +666,15 @@ private fun DrawScope.drawAccessories(
         drawRoundRect(PetOutline, p(162f, 68f), Size(12f * s, 7f * s))
         drawRect(PetOutline, p(157f, 70f), Size(6f * s, 2f * s))
     }
-    if (PetAccessory.SUNNY_SCARF in accessories) drawRoundRect(PetScarf, p(136f, 94f), Size(48f * s, 9f * s))
-    if (PetAccessory.MISTY_SCARF in accessories) drawRoundRect(PetScarfAlt, p(72f, 96f), Size(46f * s, 8f * s))
+    // Each scarf has an end hanging down, without which it read as a plain bar across the neck.
+    if (PetAccessory.SUNNY_SCARF in accessories) {
+        drawRoundRect(PetScarf, p(136f, 94f), Size(48f * s, 9f * s))
+        drawRoundRect(PetScarf, p(170f, 99f), Size(8f * s, 17f * s), CornerRadius(2f * s))
+    }
+    if (PetAccessory.MISTY_SCARF in accessories) {
+        drawRoundRect(PetScarfAlt, p(72f, 96f), Size(46f * s, 8f * s))
+        drawRoundRect(PetScarfAlt, p(102f, 100f), Size(7f * s, 15f * s), CornerRadius(2f * s))
+    }
     if (PetAccessory.UMBRELLA in accessories) {
         val canopy = Path().apply {
             moveTo(70f * s, 56f * s)

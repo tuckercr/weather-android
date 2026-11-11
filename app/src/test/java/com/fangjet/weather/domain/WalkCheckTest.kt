@@ -262,7 +262,7 @@ class WalkCheckTest {
         assertTrue(rulesOutWalkNow(check(slot(icon = "10n"), conditionNow = "Rain")))
         assertFalse(rulesOutWalkNow(check(slot(icon = "01n"))))
         assertFalse(rulesOutWalkNow(check(slot(airBand = 2))))
-        assertEquals(7, WALK_SUGGESTIONS.size)
+        assertEquals(9, WALK_SUGGESTIONS.size)
     }
 
     @Test

@@ -47,3 +47,12 @@ fun petMoodFor(
             else -> PetMood.CLOUDY
         }
     }
+
+/**
+ * Fog, mist or haze: Open-Meteo's fog codes and OpenWeather's "Fog", "Mist" and "Haze". Not a mood
+ * of its own: the scene draws fog over whatever the mood is, so cold fog keeps the scarves and the
+ * cold captions, and a foggy night keeps the night sky. Same as iOS's `PetMood.isFoggy`.
+ */
+fun isFoggy(conditionMain: String): Boolean = conditionMain.lowercase() in FOGGY_CONDITIONS
+
+private val FOGGY_CONDITIONS = setOf("fog", "mist", "haze")
