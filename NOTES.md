@@ -212,7 +212,7 @@ noted. Checked against the code, not fixed yet.
       200 users came to about 0.9M a month for a typical Android and iPhone mix, up to 3M with all
       Android users following two cities, mostly Android's background refresh. With the savings
       (Done, 11-10) a refresh is about 3.2 calls, air quality only every 3 hours, and Android's
-      background refresh hourly, so 200 users should fit Standard. The paid plan's API key goes
+      background refresh every 90 minutes, so 200 users should fit Standard. The paid plan's API key goes
       to customer-api.open-meteo.com: shipped in the apps it can be pulled out and spent, so a
       small proxy (a Cloud Function that adds the key) is worth it then, even without caching. A
       server cache saves little: the phones already cache, and each user's coordinates differ.
@@ -363,8 +363,8 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
-- [x] **Fewer Open-Meteo calls** (11-10): the background refresh runs hourly
-      (`weather_refresh_interval_minutes` 60, was 30); air quality asks only for the city's own
+- [x] **Fewer Open-Meteo calls** (11-10): the background refresh runs every 90 minutes
+      (`weather_refresh_interval_minutes` 90, was 30); air quality asks only for the city's own
       scale (US or European, 10 variables or fewer, so 1 call instead of 1.6), comes after the
       forecast so its time zone picks the scale, and is reused for 3 hours; the background refresh
       skips a city whose reading and forecast are both under 30 minutes old. Both apps.

@@ -466,7 +466,7 @@ validated: a missing or bad value falls back to the default rather than crashing
 
 | Key | Type | Default | What it does |
 |---|---|---|---|
-| `weather_refresh_interval_minutes` | number | `60` | Background weather refresh interval; values below the WorkManager minimum of 15 are raised to 15 |
+| `weather_refresh_interval_minutes` | number | `90` | Background weather refresh interval; values below the WorkManager minimum of 15 are raised to 15 |
 | `radar_frame_interval_ms` | number | `850` | Delay between radar animation frames; outside 100–5000 falls back to 850 |
 | `radar_enabled` | boolean | `true` | Radar kill switch: false hides the radar card (phone and tablet layouts) and skips the RainViewer timeline and tile requests, for when RainViewer or the OpenStreetMap tiles become unavailable |
 | `walk_card_enabled` | boolean | `true` | Shows the "Best Walk Time" card; false hides it for everyone (phone and tablet layouts). Users can also turn it off in Settings |

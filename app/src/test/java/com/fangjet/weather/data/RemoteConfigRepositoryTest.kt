@@ -106,7 +106,7 @@ class RemoteConfigRepositoryTest {
     @Test
     fun `remote values are read when present`() {
         firebaseInitialised(true)
-        set(RemoteConfigRepository.KEY_REFRESH_INTERVAL, "90")
+        set(RemoteConfigRepository.KEY_REFRESH_INTERVAL, "120")
         set(RemoteConfigRepository.KEY_RADAR_FRAME_INTERVAL, "400")
         set(RemoteConfigRepository.KEY_RADAR_ENABLED, "false")
         set(RemoteConfigRepository.KEY_WALK_CARD_ENABLED, "false")
@@ -122,7 +122,7 @@ class RemoteConfigRepositoryTest {
         set(RemoteConfigRepository.KEY_ANALYTICS_ENABLED, "false")
         val repo = RemoteConfigRepository(context)
 
-        assertEquals(90L, repo.refreshIntervalMinutes())
+        assertEquals(120L, repo.refreshIntervalMinutes())
         assertEquals(400L, repo.radarFrameIntervalMs())
         assertFalse(repo.radarEnabled())
         assertFalse(repo.walkCardEnabled())

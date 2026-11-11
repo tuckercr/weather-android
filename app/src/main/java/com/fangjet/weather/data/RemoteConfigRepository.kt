@@ -278,7 +278,7 @@ class RemoteConfigRepository @Inject constructor(
 
     companion object {
         const val KEY_REFRESH_INTERVAL = "weather_refresh_interval_minutes"
-        const val DEFAULT_REFRESH_INTERVAL_MINUTES = 60L
+        const val DEFAULT_REFRESH_INTERVAL_MINUTES = 90L
 
         const val KEY_RADAR_FRAME_INTERVAL = "radar_frame_interval_ms"
         const val DEFAULT_RADAR_FRAME_INTERVAL_MS = 850L

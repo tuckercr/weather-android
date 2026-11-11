@@ -47,7 +47,7 @@ class WorkManagerScheduler @Inject constructor(
 
     /**
      * The 8:30 AM run (briefing, and planning the walk-time nudge), daily. Rain alerts ride on the
-     * background refresh instead, which runs every hour or so.
+     * background refresh instead, which runs every 90 minutes or so.
      */
     private fun scheduleNotifications(wm: WorkManager) {
         // The old 9 AM / 1 PM / 7 PM briefings, and the 8:30 run from before it kept to 8:30.
