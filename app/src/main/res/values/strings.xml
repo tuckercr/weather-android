@@ -243,6 +243,9 @@
     <!-- Captions that suggest a walk now: left out when the walk verdict says now isn't the time
          (HeroCaption's WALK_SUGGESTIONS lists them). -->
     <string name="caption_fair_walkies">Perfect walkies weather! Off we go.</string>
+    <string name="caption_fog_nose">Misty\'s kind of weather. Sunny\'s nose knows the way.</string>
+    <string name="caption_fog_garden">Can\'t see the end of the garden. Misty says it\'s still there.</string>
+    <string name="caption_fog_close">Foggy out. Sunny\'s staying close on the lead.</string>
     <string name="caption_cloudy_keen">A bit grey, but Sunny is still keen for a walk.</string>
     <string name="caption_cloudy_stroll">No sun, no problem. Still time for a stroll.</string>
     <string name="caption_evening_last_stroll">Quiet night. Time for one last stroll before bed?</string>
@@ -268,6 +271,12 @@
         <item>@string/caption_cloudy_keen</item>
         <item>@string/caption_cloudy_nap</item>
         <item>@string/caption_cloudy_stroll</item>
+    </string-array>
+    <!-- The cloudy mood in fog, mist or haze. Cold fog has the cold captions and a foggy night the night's. -->
+    <string-array name="pet_caption_fog">
+        <item>@string/caption_fog_nose</item>
+        <item>@string/caption_fog_garden</item>
+        <item>@string/caption_fog_close</item>
     </string-array>
     <!-- The cloudy mood when the sky, as Misty's View reads it, is clear or partly cloudy. -->
     <string-array name="pet_caption_partly_cloudy">
@@ -325,6 +334,11 @@
         <item>A bit grey. Misty says it\'s a blanket sort of day.</item>
         <item>@string/caption_cloudy_nap</item>
         <item>No sun, no problem. The birds are still out, says Misty.</item>
+    </string-array>
+    <string-array name="pet_caption_fog_no_dog">
+        <item>Misty\'s kind of weather. She was named for it.</item>
+        <item>@string/caption_fog_garden</item>
+        <item>Foggy out. Misty is watching it drift past the window.</item>
     </string-array>
     <string-array name="pet_caption_partly_cloudy_no_dog">
         <item>Bit of sun, bit of cloud. Misty is chasing the sunny patches.</item>

@@ -117,6 +117,7 @@ import com.fangjet.weather.model.WeekSection
 import com.fangjet.weather.model.weatherScreen
 import com.fangjet.weather.ui.pets.PetScene
 import com.fangjet.weather.ui.pets.WalkCard
+import com.fangjet.weather.ui.pets.heroSkyColor
 import com.fangjet.weather.ui.pets.inkColor
 import com.fangjet.weather.ui.pets.resolve
 import com.fangjet.weather.ui.pets.skyColor
@@ -470,7 +471,9 @@ private fun CurrentWeatherContent(
                                 Modifier
                             },
                         ),
-                    colors = CardDefaults.cardColors(containerColor = seasonalTheme?.heroBackground(dark) ?: mood.skyColor),
+                    colors = CardDefaults.cardColors(
+                        containerColor = seasonalTheme?.heroBackground(dark) ?: heroSkyColor(mood, state.foggy),
+                    ),
                 ) {
                     Column(
                         modifier = Modifier
@@ -486,6 +489,7 @@ private fun CurrentWeatherContent(
                                 .widthIn(max = PET_SCENE_MAX_WIDTH),
                             decorations = seasonalTheme?.decorations.orEmpty(),
                             dark = dark,
+                            foggy = state.foggy,
                         )
                         // Medium weight on the small lines so they hold up on the brighter hero colours.
                         Text(

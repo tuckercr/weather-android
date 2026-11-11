@@ -11,6 +11,7 @@ import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.SeasonalThemes
 import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.WalkAdvice
+import com.fangjet.weather.domain.isFoggy
 import com.fangjet.weather.domain.isPrecipitating
 import com.fangjet.weather.domain.petMoodAt
 import com.fangjet.weather.domain.walkAdviceForReading
@@ -129,6 +130,8 @@ data class WeatherScreenState(
     /** Day or night by the clock, so a reading cached before sunset doesn't show the daytime hero. */
     val iconCodeNow: String,
     val mood: PetMood,
+    /** Fog, mist or haze ([isFoggy]): the scene draws it over [mood], which still picks the pets' look. */
+    val foggy: Boolean,
     /** Today's seasonal theme by the city's own date, so it ends by itself when its day does. */
     val seasonalTheme: SeasonalTheme?,
     /**
@@ -229,6 +232,7 @@ private fun weatherScreenState(
     val weatherToday = weather.withSunTimesToday(nowEpochSeconds)
     val iconCodeNow = weather.iconCodeAt(nowEpochSeconds)
     val mood = weather.petMoodAt(nowEpochSeconds, config.thresholds)
+    val foggy = isFoggy(weather.conditionMain)
     val dark = iconCodeNow.endsWith("n")
     val seasonalTheme = SeasonalThemes.themeOn(nowEpochSeconds, offset, config.seasonalThemes)
     val today = forecastDays.firstOrNull()?.takeIf { it.isDayOf(nowEpochSeconds, offset) }
@@ -263,6 +267,7 @@ private fun weatherScreenState(
         weatherToday = weatherToday,
         iconCodeNow = iconCodeNow,
         mood = mood,
+        foggy = foggy,
         seasonalTheme = seasonalTheme,
         dark = dark,
         heroCaption = heroCaption(
@@ -278,6 +283,7 @@ private fun weatherScreenState(
                 weather.cloudPercent.takeUnless { showingForecast },
                 weather.iconCode,
             ),
+            foggy = foggy,
         ),
         today = today,
         high = high.roundToInt(),
