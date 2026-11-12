@@ -283,8 +283,9 @@ build artifacts.
 emulator with a clean status bar:
 
 - Phone, 1080 × 1920 (9:16; Play rejects anything longer than 2:1, so not the Pixel's 1080 × 2400).
-  Upload in this order: `01-welcome`, `02-today`, `03-rain-walk`, `04-radar-week`,
-  `05-day-detail`, `06-settings`.
+  Upload in this order: `01-welcome`, `02-today` (the walk times and a second option),
+  `03-walk-tiles` (the tiles and Paw Check), `04-night`, `05-radar-week`, `06-day-detail`,
+  `07-settings`. Retaken 11-12 with build 4.
 - Tablet: `tablet-01` (1600 × 2560, portrait) and `tablet-02` (2560 × 1600, landscape), for both
   the 7-inch and 10-inch tablet slots.
 
