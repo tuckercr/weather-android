@@ -62,10 +62,10 @@ android {
         applicationId = "com.fangjet.weather"
         minSdk = 29
         targetSdk = 37
-        // Build N is version 1.0.(N-1), as on iOS: bump this for every Play upload.
+        // Build N is version 1.0.N: bump this for every Play upload.
         val build = 4
         versionCode = build
-        versionName = "1.0.${build - 1}"
+        versionName = "1.0.$build"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "OWM_API_KEY", "\"${owmApiKey.replace("\"", "\\\"")}\"")
