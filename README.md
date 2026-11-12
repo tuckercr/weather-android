@@ -54,13 +54,18 @@ WorkManager, and CI on GitHub Actions.
   hat. Themes are data (`res/raw/seasonal_themes.json`, replaceable from Remote Config
   `seasonal_themes`): a decoration name this version can't draw is skipped, keeping the rest of the
   theme and the list.
-- **Best Walk Time** card: "Now is a great time", the next good hour ("Around 8 AM"), or "Not a good
+- **Best Walk Time** card: "Now is a great time", the next good hours ("11 AM to 1 PM"), or "Not a good
   day for walkies" when nothing in the next 24 hours qualifies. A good hour is under 30% rain
   chance (the chance as the hourly strip shows it, so 25% counts as 30%; from 60% shown it's
   "rain", below that "maybe rain"), at a comfortable feels-like temperature, within walking hours and in daylight, and
   below the warm-pavement limit (estimated, with Open-Meteo); when it is raining now, now never counts,
-  whatever the hourly forecast says. A suggestion on the city's next calendar day reads "Tomorrow
-  around…", judged in the city's own UTC offset. The paw is tinted by the rating, and a caption
+  whatever the hourly forecast says. The best time is shown as its spell of good hours, up to the
+  first hour that isn't good ("11 AM to 1 PM", "5 to 8 PM"; "Around 8 AM" when the forecast ends
+  first), and one on the city's next calendar day reads "Tomorrow 7 to 10 AM", judged in the city's
+  own UTC offset. The next spell in the day ahead is a second option for people who can't go then:
+  "Or 5 to 8 PM." (the title becomes "Best Walk Times"). After a walk now whose good spell ends
+  within 6 hours, it's "Good again 5 to 8 PM." When now is only a wait, the caption says what's
+  better by the best time: "The rain's gone by then.", "Cooler by then.", "Calmer by then." The paw is tinted by the rating, and a caption
   gives the reason when it's more than a wait: the pavement now ("Paw check: about 55° now. Too hot
   for paws."), heat or cold, the air by its pollutant ("Smoky air. Potty breaks only.", "High
   ozone", "Dusty air"), a gale ("Gale force winds. Potty breaks only.") or thunderstorms. At

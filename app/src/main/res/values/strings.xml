@@ -408,6 +408,29 @@
     <string name="walk_around">Around %1$s</string>
     <string name="walk_around_tomorrow">Tomorrow around %1$s</string>
     <string name="walk_none">Not a good day for walkies</string>
+    <!-- The walk card's title when it gives a second time for a walk. -->
+    <string name="walk_title_two">Best Walk Times</string>
+    <!-- A spell of good walking hours: "11 AM to 1 PM", or "5 to 8 PM" when both are in the same half of the day. -->
+    <string name="walk_range">%1$s to %2$s</string>
+    <!-- A spell of good walking hours tomorrow. %1$s is walk_range ("7 to 10 AM"). -->
+    <string name="walk_window_tomorrow">Tomorrow %1$s</string>
+    <!-- A second time for a walk when only its start is known. %1$s is an hour ("6 PM"). -->
+    <string name="walk_window_around">around %1$s</string>
+    <!-- A second spell of good walking hours. %1$s is walk_range ("5 to 8 PM") or walk_window_around. -->
+    <string name="walk_or">Or %1$s.</string>
+    <string name="walk_or_tomorrow">Or tomorrow %1$s.</string>
+    <!-- After "Now is a great time" and when it ends: the next spell of good walking hours. -->
+    <string name="walk_again">Good again %1$s.</string>
+    <string name="walk_again_tomorrow">Good again tomorrow %1$s.</string>
+    <!-- Why the best time is better than now. -->
+    <string name="walk_clears_rain">The rain\'s gone by then.</string>
+    <string name="walk_clears_snow">The snow\'s gone by then.</string>
+    <string name="walk_clears_storms">The storms have passed by then.</string>
+    <string name="walk_clears_heat">Cooler by then.</string>
+    <string name="walk_clears_cold">Warmer by then.</string>
+    <string name="walk_clears_wind">Calmer by then.</string>
+    <string name="walk_clears_pavement">Cooler paws by then.</string>
+    <string name="walk_clears_air">Cleaner air by then.</string>
     <string name="walk_too_hot">Too hot for paws.</string>
     <!-- The air's feels-like, not the ground: the Paw check tile can say "Fine underfoot" at the same time. -->
     <string name="walk_too_cold">Too cold for a long walk.</string>

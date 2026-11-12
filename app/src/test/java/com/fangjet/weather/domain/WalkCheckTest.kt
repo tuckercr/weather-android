@@ -218,7 +218,8 @@ class WalkCheckTest {
         assertEquals(WalkText(R.string.walk_gale), caption(listOf(slot(wind = 19.0), slot("4 PM"))))
         assertEquals(WalkText(R.string.walk_storm_wind), caption(listOf(slot(wind = 26.0), slot("4 PM"))))
         assertEquals(WalkText(R.string.walk_danger_stay_inside), caption(listOf(slot(wind = 35.0), slot("4 PM"))))
-        assertNull(caption(listOf(slot(wind = 15.0), slot("4 PM"))))
+        // A near gale is only a wait: what's better by the best time.
+        assertEquals(WalkText(R.string.walk_clears_wind), caption(listOf(slot(wind = 15.0), slot("4 PM"))))
         assertEquals(WalkText(R.string.walk_storms), caption(listOf(slot(), slot("4 PM")), conditionNow = "Thunderstorm"))
     }
 
@@ -226,7 +227,7 @@ class WalkCheckTest {
     fun `the pavement note says it is about now and never stands in for rain`() {
         val slots = listOf(slot(pavement = 43.0), slot("6 PM", pavement = 30.0))
         assertEquals(WalkText(R.string.walk_pavement_warm, listOf(43)), caption(slots))
-        assertNull(caption(slots, conditionNow = "Drizzle"))
+        assertEquals(WalkText(R.string.walk_clears_rain), caption(slots, conditionNow = "Drizzle"))
     }
 
     // --- the hero's caption ---
