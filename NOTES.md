@@ -192,6 +192,16 @@ noted. Checked against the code, not fixed yet.
 - [ ] **Shared walk scenarios for both test suites.** Every walk rule is written in Swift and Kotlin
       with separate tests. One file of scenarios (an hour of weather in; level, reason and caption
       out) that both test suites load would catch the apps drifting apart. (11-07)
+- [ ] **Walk windows, the next steps.** From tester feedback (11-11): "why that time?" and "I
+      can't always go then". The card now gives the best time's spell, a second spell and what
+      clears by then (see Done). Still open:
+      - The morning briefing and the walk nudge still give one time ("Sunny's picked 11 AM for a
+        walk."). They could name both spells.
+      - A strip of the day's hours shaded by the verdict was mocked up and set aside: 14 hour
+        blocks across a card are too small to tap. A version without taps, or one hour per row in
+        the day detail, could still work.
+      - Free hours ("I can walk before 9 or after 5"), if the second spell isn't enough.
+      Both apps. (11-12)
 
 ## Store and release
 
@@ -373,6 +383,10 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Walk windows** (11-12): the walk card gives the best time as its spell of good hours
+      ("11 AM to 1 PM"), the next spell as a second option ("Or 5 to 8 PM.", title "Best Walk
+      Times"; "Good again 5 to 8 PM." after a walk now that ends within 6 hours), and when now is
+      only a wait, what's better by then ("The rain's gone by then."). Both apps.
 - [x] **Fewer Open-Meteo calls** (11-10): the background refresh runs every 90 minutes
       (`weather_refresh_interval_minutes` 90, was 30); air quality asks only for the city's own
       scale (US or European, 10 variables or fewer, so 1 call instead of 1.6), comes after the

@@ -24,7 +24,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.fangjet.weather.R
 import com.fangjet.weather.domain.WalkRating
 import com.fangjet.weather.model.WalkCardContent
 import com.fangjet.weather.model.WalkText
@@ -74,7 +73,7 @@ fun WalkCard(
             )
             Column(modifier = Modifier.weight(1f).offset(y = if (caption == null) headlineLastOffset else 0.dp)) {
                 Text(
-                    text = stringResource(if (danger) R.string.walk_danger_title else R.string.walk_title),
+                    text = stringResource(content.title),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

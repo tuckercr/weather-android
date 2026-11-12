@@ -1,5 +1,9 @@
 package com.fangjet.weather.domain
 
+import com.fangjet.weather.R
+import com.fangjet.weather.model.WalkText
+import com.fangjet.weather.model.hourRange
+import com.fangjet.weather.model.walkCardContent
 import com.fangjet.weather.util.PavementBand
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -403,6 +407,98 @@ class WalkAdvisorTest {
     fun `only a walk now has an outlook`() {
         val slots = listOf(slot("3 PM", 20.0, 80, epoch = t0), slot("4 PM", 20.0, 0, epoch = t0 + 3600))
         assertNull(outlook(slots, sunsetIn = 3600L))
+    }
+
+    // --- walk windows ---
+
+    /** Now at 11 AM UTC, then [later] as (label, rain chance) an hour apart from noon. */
+    private fun windows(
+        later: List<Pair<String, Int>>,
+        conditionNow: String? = null,
+    ) = walkAdviceFor(
+        15.0,
+        listOf(slot("11 AM", 15.0, 0, epoch = noonUtc - 3600)) +
+            later.mapIndexed { i, (label, rain) -> slot(label, 15.0, rain, epoch = noonUtc + i * 3600L) },
+        nowEpochSeconds = noonUtc - 3600,
+        conditionNow = conditionNow,
+    )?.let(::walkCardContent)
+
+    private fun and(
+        first: WalkText,
+        then: WalkText,
+    ) = WalkText(R.string.walk_caption_and_more, listOf(first, then))
+
+    @Test
+    fun `a later best time gives its spell and the next one as a second option`() {
+        val card = windows(listOf("12 PM" to 0, "1 PM" to 0, "2 PM" to 80, "3 PM" to 0, "4 PM" to 0, "5 PM" to 80), conditionNow = "Rain")!!
+        assertEquals(R.string.walk_title_two, card.title)
+        assertEquals(WalkText(R.string.walk_range, listOf("12", "2 PM")), card.headline)
+        assertEquals(
+            and(
+                WalkText(R.string.walk_or, listOf(WalkText(R.string.walk_range, listOf("3", "5 PM")))),
+                WalkText(R.string.walk_clears_rain),
+            ),
+            card.caption,
+        )
+    }
+
+    @Test
+    fun `a second option on the next day says tomorrow`() {
+        val advice = walkAdviceFor(
+            15.0,
+            listOf(
+                slot("11 AM", 15.0, 0, epoch = noonUtc - 3600),
+                slot("12 PM", 15.0, 80, epoch = noonUtc),
+                slot("1 PM", 15.0, 0, epoch = noonUtc + 3600),
+                slot("2 PM", 15.0, 80, epoch = noonUtc + 2 * 3600),
+                slot("7 AM", 15.0, 0, epoch = noonUtc + 19 * 3600),
+                slot("8 AM", 15.0, 80, epoch = noonUtc + 20 * 3600),
+            ),
+            nowEpochSeconds = noonUtc - 3600,
+            conditionNow = "Rain",
+        )!!
+        val card = walkCardContent(advice)
+        assertEquals(WalkText(R.string.walk_range, listOf("1", "2 PM")), card.headline)
+        assertEquals(
+            and(
+                WalkText(R.string.walk_or_tomorrow, listOf(WalkText(R.string.walk_range, listOf("7", "8 AM")))),
+                WalkText(R.string.walk_clears_rain),
+            ),
+            card.caption,
+        )
+    }
+
+    @Test
+    fun `a best time without an end is still around that hour`() {
+        val card = windows(listOf("12 PM" to 0), conditionNow = "Rain")!!
+        assertEquals(R.string.walk_title, card.title)
+        assertEquals(WalkText(R.string.walk_around, listOf("12 PM")), card.headline)
+        assertEquals(WalkText(R.string.walk_clears_rain), card.caption)
+    }
+
+    @Test
+    fun `a walk now gives the next spell after the outlook`() {
+        val card = windows(listOf("12 PM" to 0, "1 PM" to 80, "2 PM" to 0, "3 PM" to 80))!!
+        assertEquals(WalkText(R.string.walk_now), card.headline)
+        assertEquals(R.string.walk_title_two, card.title)
+        assertEquals(
+            and(
+                WalkText(R.string.walk_until_rain, listOf("1 PM")),
+                WalkText(R.string.walk_again, listOf(WalkText(R.string.walk_range, listOf("2", "3 PM")))),
+            ),
+            card.caption,
+        )
+        // A spell that lasts past the outlook's reach isn't news, so no second option either.
+        val long = windows((12..19).map { "${if (it > 12) it - 12 else it} ${if (it >= 12) "PM" else "AM"}" to 0 } + ("8 PM" to 80))!!
+        assertEquals(R.string.walk_title, long.title)
+        assertNull(long.caption)
+    }
+
+    @Test
+    fun `the range drops the half of the day it shares with its end`() {
+        assertEquals(WalkText(R.string.walk_range, listOf("5", "8 PM")), hourRange("5 PM", "8 PM"))
+        assertEquals(WalkText(R.string.walk_range, listOf("11 AM", "1 PM")), hourRange("11 AM", "1 PM"))
+        assertEquals(WalkText(R.string.walk_range, listOf("17:00", "20:00")), hourRange("17:00", "20:00"))
     }
 
     private fun slot(

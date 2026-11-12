@@ -57,6 +57,17 @@ sealed interface WalkWarning {
 }
 
 /**
+ * A spell of walkable hours: from [startLabel] to [endLabel], the first hour after it that isn't
+ * walkable (null when the forecast ends first). [isTomorrow] when it starts on the city's next day.
+ * Same as iOS's `WalkWindow`.
+ */
+data class WalkWindow(
+    val startLabel: String,
+    val endLabel: String? = null,
+    val isTomorrow: Boolean = false,
+)
+
+/**
  * [bestTimeLabel] is null when now is a good time, or when there is no good window soon.
  * [pavementNow] is the estimated pavement temperature for the current hour, in the forecast's
  * units, when the source provides it. [bestTimeIsTomorrow] is true when [bestTimeLabel] falls on
@@ -64,7 +75,10 @@ sealed interface WalkWarning {
  * [bestTimeLabel] starts, for the walk-time notification. [outlook] is set only when now is a great
  * time. [now] is the verdict on the hour under way, which [rating] sums up and whose reason the
  * card's caption gives. [warning] is hurricane force wind or likely storms in the next few hours that
- * aren't already happening now.
+ * aren't already happening now. [bestTimeEndLabel] is when the walkable spell from the best time
+ * ends (the first hour after it that isn't walkable), null when the forecast ends first.
+ * [nextWindow] is the spell after that one (or after the one under way, for a walk now), within the
+ * day ahead: a second option for people who can't go at the first.
  */
 data class WalkAdvice(
     val rating: WalkRating,
@@ -75,6 +89,8 @@ data class WalkAdvice(
     val outlook: WalkOutlook? = null,
     val now: WalkCheck = WalkCheck.CLEAR,
     val warning: WalkWarning? = null,
+    val bestTimeEndLabel: String? = null,
+    val nextWindow: WalkWindow? = null,
 ) {
     /** Hurricane force wind now or ahead: the card turns into a warning, shown even without a dog. */
     val isDanger: Boolean get() = rating == WalkRating.DANGER || warning is WalkWarning.Hurricane
@@ -152,9 +168,24 @@ fun walkAdviceFor(
         .filter { slot -> slot.epochSeconds.let { it == null || it < nowEpochSeconds + LOOKAHEAD_SECONDS } }
     if (slots.isEmpty()) return null
     val check = walkCheckFor(slots.first(), thresholds, currentFeelsLikeC, conditionNow, windForceNow, gustForceNow, darkNow, hasDog)
-    val firstGood = slots.drop(1).firstOrNull { it.isWalkable(thresholds) }
-    val rating = walkRating(check, hasBetterTime = firstGood != null)
-    val bestSlot = if (rating == WalkRating.GREAT) null else firstGood
+    val firstGoodIndex = slots.indices.drop(1).firstOrNull { slots[it].isWalkable(thresholds) }
+    val rating = walkRating(check, hasBetterTime = firstGoodIndex != null)
+    val bestIndex = if (rating == WalkRating.GREAT) null else firstGoodIndex
+    val bestSlot = bestIndex?.let { slots[it] }
+
+    // The spell open now (a walk now) or the best time's spell ends at the first hour after it that
+    // isn't walkable; the next spell is the walkable hour after that, if the day ahead has one.
+    fun spellEnd(start: Int) = upcoming.indices.drop(start + 1).firstOrNull { !upcoming[it].isWalkable(thresholds) }
+    val spellEnd = (if (rating == WalkRating.GREAT) 0 else bestIndex)?.let(::spellEnd)
+    val nextWindow = spellEnd
+        ?.let { end -> slots.indices.drop(end + 1).firstOrNull { slots[it].isWalkable(thresholds) } }
+        ?.let { start ->
+            WalkWindow(
+                startLabel = slots[start].timeLabel,
+                endLabel = spellEnd(start)?.let { upcoming[it].timeLabel },
+                isTomorrow = slots[start].epochSeconds?.let { isNextDay(it, nowEpochSeconds, utcOffsetSeconds) } == true,
+            )
+        }
     val bestIsTomorrow = bestSlot?.epochSeconds?.let { isNextDay(it, nowEpochSeconds, utcOffsetSeconds) } == true
     val outlook = if (rating == WalkRating.GREAT) walkOutlook(slots, check, sunsetEpochSeconds, nowEpochSeconds, thresholds) else null
     return WalkAdvice(
@@ -166,6 +197,8 @@ fun walkAdviceFor(
         outlook,
         check,
         walkWarning(slots, check, nowEpochSeconds, thresholds),
+        bestTimeEndLabel = if (bestIndex == null) null else spellEnd?.let { upcoming[it].timeLabel },
+        nextWindow = nextWindow,
     )
 }
 
