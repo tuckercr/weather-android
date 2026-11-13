@@ -330,6 +330,13 @@ class PreferencesRepository internal constructor(
         dataStore.edit { it[KEY_LAST_RAIN_ALERT_START] = epochSeconds }
     }
 
+    /** When the last walk nudge was posted, epoch seconds, so a day gets one at most. */
+    suspend fun lastWalkNudgeAt(): Long? = dataStore.data.first()[KEY_LAST_WALK_NUDGE_AT]
+
+    suspend fun setLastWalkNudgeAt(epochSeconds: Long) {
+        dataStore.edit { it[KEY_LAST_WALK_NUDGE_AT] = epochSeconds }
+    }
+
     suspend fun clearCache() {
         dataStore.edit {
             it.remove(KEY_WEATHER_CACHE)
@@ -367,6 +374,7 @@ class PreferencesRepository internal constructor(
         private val KEY_NOTIFY_RAIN = booleanPreferencesKey("notify_rain")
         private val KEY_FOLLOW_MY_LOCATION = booleanPreferencesKey("follow_my_location")
         private val KEY_LAST_RAIN_ALERT_START = longPreferencesKey("last_rain_alert_start")
+        private val KEY_LAST_WALK_NUDGE_AT = longPreferencesKey("last_walk_nudge_at")
         private val KEY_UPDATE_BANNER_DISMISSED_AT = longPreferencesKey("update_banner_dismissed_at")
         private val KEY_MY_LOCATION_PLACE_NAME = stringPreferencesKey("my_location_place_name")
     }

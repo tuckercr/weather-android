@@ -108,9 +108,8 @@ Finished items move to Done at the bottom.
       half-hourly refresh, so the 8:30 briefing came at 10:03. The schedule was right (8:30, and
       8:30 again the next day). In the rare bucket Android may hold jobs for up to 24 hours. A
       home screen widget would avoid it, and the inexact alarm above might. (11-03)
-- [ ] **Android walk time gaps.** With the briefing off, a best walk time less than 30 minutes
-      after 8:30 gets no nudge at all. Turning Walk time on, or saying you have a dog, during the
-      day plans nothing until the next morning. (11-02)
+- [ ] **Android walk time gap.** With the briefing off, a best walk time less than 30 minutes
+      after 8:30 gets no nudge at all. (11-02)
 - Won't do: let people choose the morning briefing time; it stays at 8:30. (10-26, decided 10-31)
 
 ## From the 11-02 code review
@@ -383,6 +382,10 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Android: Walk time planned the same day** (11-12): turning Walk time on, or saying you
+      have a dog, after 8:30 plans today's walk nudge straight away from the cached forecast when
+      the best time is still ahead, instead of waiting for the next morning. A day gets one walk
+      nudge at most.
 - [x] **Walk windows** (11-12): the walk card gives the best time as its spell of good hours
       ("11 AM to 1 PM"), the next spell as a second option ("Or 5 to 8 PM.", title "Best Walk
       Times"; "Good again 5 to 8 PM." after a walk now that ends within 6 hours), and when now is

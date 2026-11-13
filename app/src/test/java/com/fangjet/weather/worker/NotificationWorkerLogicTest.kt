@@ -24,6 +24,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.ZoneOffset
 
 class NotificationWorkerLogicTest {
 
@@ -572,6 +573,99 @@ class NotificationWorkerLogicTest {
             assertEquals(NotificationKind.WALK_TIME, posted.single().kind)
             assertEquals("Time for a walk", posted.single().title)
             assertEquals("72° and clear in London. Sunny's waiting by the door.", posted.single().body)
+        }
+
+    @Test
+    fun `the walk nudge goes once a day at most, and is recorded when it goes`() =
+        runTest {
+            val posted = mutableListOf<WeatherNotification>()
+            val recorded = mutableListOf<Long>()
+
+            suspend fun run(lastWalkNudgeAt: Long?) =
+                WalkTimeLogic(
+                    getSavedLocations = { listOf(london) },
+                    refreshWeather = { kotlin.Result.success(weather(cityName = "London")) },
+                    refreshForecast = { kotlin.Result.success(listOf(forecast(slots = (8..12).map { slot(it, rain = 0) }))) },
+                    hasNotificationPermission = { true },
+                    postNotification = { posted += it },
+                    strings = StringsXml,
+                    isWalkTimeEnabled = { true },
+                    lastWalkNudgeAt = { lastWalkNudgeAt },
+                    setLastWalkNudgeAt = { recorded += it },
+                    nowEpochSeconds = { NOW },
+                    zone = ZoneOffset.UTC,
+                ).doWork()
+
+            // One went earlier today: none again.
+            run(lastWalkNudgeAt = DAY_START + 7 * HOUR)
+            assertTrue(posted.isEmpty())
+
+            // Yesterday's doesn't count.
+            run(lastWalkNudgeAt = DAY_START - 2 * HOUR)
+            assertEquals(1, posted.size)
+            assertEquals(listOf(NOW), recorded)
+        }
+
+    // --- walk time planned the same day ---
+
+    private suspend fun planToday(
+        now: Long = DAY_START + 10 * HOUR,
+        slots: List<HourlySlot> = wetMorningDryLater(),
+        walkTimeOn: Boolean = true,
+        hasDog: Boolean = true,
+        remotelyOn: Boolean = true,
+        permission: Boolean = true,
+        lastWalkNudgeAt: Long? = null,
+        cached: Boolean = true,
+    ): Long? {
+        var planned: Long? = null
+        WalkTimeTodayLogic(
+            getSavedLocations = { listOf(london) },
+            cachedWeather = { weather().takeIf { cached } },
+            cachedForecast = { listOf(forecast(slots = slots)).takeIf { cached } },
+            hasNotificationPermission = { permission },
+            isWalkTimeRemotelyEnabled = { remotelyOn },
+            isWalkTimeEnabled = { walkTimeOn },
+            hasDog = { hasDog },
+            lastWalkNudgeAt = { lastWalkNudgeAt },
+            scheduleWalkTime = { planned = it },
+            nowEpochSeconds = { now },
+            zone = ZoneOffset.UTC,
+        ).plan()
+        return planned
+    }
+
+    @Test
+    fun `turning Walk time or the dog on during the day plans today's nudge for the best time ahead`() =
+        runTest {
+            // 10 AM, raining until 11.
+            assertEquals(DAY_START + 11 * HOUR, planToday())
+            // From 8:30 on: earlier, the 8:30 run plans the day's nudge itself.
+            assertEquals(DAY_START + 11 * HOUR, planToday(now = NOW))
+            assertNull(planToday(now = DAY_START + 8 * HOUR))
+        }
+
+    @Test
+    fun `the same-day plan keeps to the morning run's switches`() =
+        runTest {
+            assertNull(planToday(walkTimeOn = false))
+            assertNull(planToday(hasDog = false))
+            assertNull(planToday(remotelyOn = false))
+            assertNull(planToday(permission = false))
+        }
+
+    @Test
+    fun `the same-day plan is from the cache, once a day, and only for a time still ahead`() =
+        runTest {
+            // Nothing cached yet, as on a first launch.
+            assertNull(planToday(cached = false))
+            // A nudge has gone today; yesterday's doesn't count.
+            assertNull(planToday(lastWalkNudgeAt = DAY_START + 9 * HOUR))
+            assertEquals(DAY_START + 11 * HOUR, planToday(lastWalkNudgeAt = DAY_START - 2 * HOUR))
+            // Now is great: the walk card already says so.
+            assertNull(planToday(slots = (8..14).map { slot(it, rain = 0) }))
+            // Rain for the rest of the day: the best time is tomorrow.
+            assertNull(planToday(slots = (10..23).map { slot(it, rain = 90) } + (24..30).map { slot(it, rain = 0) }))
         }
 
     // --- walk nudge warnings ---
