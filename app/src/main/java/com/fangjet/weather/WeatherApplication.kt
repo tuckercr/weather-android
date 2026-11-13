@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import coil.ImageLoader
 import com.fangjet.weather.analytics.AnalyticsCollectionController
+import com.fangjet.weather.analytics.AnalyticsUserPropertiesUpdater
 import com.fangjet.weather.worker.NotificationChannels
 import com.fangjet.weather.worker.WorkManagerScheduler
 import com.google.firebase.Firebase
@@ -34,6 +35,9 @@ class WeatherApplication :
     lateinit var analyticsCollectionController: AnalyticsCollectionController
 
     @Inject
+    lateinit var analyticsUserProperties: AnalyticsUserPropertiesUpdater
+
+    @Inject
     lateinit var notificationChannels: NotificationChannels
 
     /** Lives as long as the process; for app-wide observers such as [analyticsCollectionController] and the channels. */
@@ -56,6 +60,8 @@ class WeatherApplication :
         // Applies "Share usage statistics" + the analytics_enabled kill switch to the SDK now,
         // and again whenever either changes.
         runCatching { analyticsCollectionController.start(appScope) }
+        // The user properties, once those gates are applied, and again whenever what they say changes.
+        runCatching { analyticsUserProperties.start(appScope) }
         notificationChannels.start(appScope)
     }
 }

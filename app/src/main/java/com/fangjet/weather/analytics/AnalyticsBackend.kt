@@ -15,6 +15,12 @@ interface AnalyticsBackend {
         params: Map<String, String>,
     )
 
+    /** A user property, attached to the install's later events for filtering reports. */
+    fun setUserProperty(
+        name: String,
+        value: String,
+    )
+
     /** SDK-level collection switch: when false, Firebase's automatic events stop too. */
     fun setCollectionEnabled(enabled: Boolean)
 }
@@ -40,6 +46,14 @@ class FirebaseAnalyticsBackend @Inject constructor() : AnalyticsBackend {
             val bundle = if (params.isEmpty()) null else Bundle().apply { params.forEach { (k, v) -> putString(k, v) } }
             analytics?.logEvent(name, bundle)
         }.onFailure { Timber.w(it, "Analytics event %s not logged", name) }
+    }
+
+    override fun setUserProperty(
+        name: String,
+        value: String,
+    ) {
+        runCatching { analytics?.setUserProperty(name, value) }
+            .onFailure { Timber.w(it, "User property %s not set", name) }
     }
 
     override fun setCollectionEnabled(enabled: Boolean) {

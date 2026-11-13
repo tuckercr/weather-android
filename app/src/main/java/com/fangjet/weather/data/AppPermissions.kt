@@ -2,6 +2,7 @@ package com.fangjet.weather.data
 
 import android.content.Context
 import com.fangjet.weather.worker.canPostNotifications
+import com.fangjet.weather.worker.notificationsEnabled
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
@@ -19,6 +20,12 @@ interface AppPermissions {
 
     fun notifications(): Boolean
 
+    /**
+     * Notifications can be shown: the permission on Android 13 and later, and below it, notifications
+     * not turned off for the app. Analytics counts this as notification permission.
+     */
+    fun notificationsEnabled(): Boolean = notifications()
+
     fun backgroundLocationRefusals(): Int
 
     fun noteBackgroundLocationAnswer(granted: Boolean)
@@ -35,6 +42,8 @@ class DevicePermissions
         override fun backgroundLocation() = locationRepository.hasBackgroundLocationPermission()
 
         override fun notifications() = context.canPostNotifications()
+
+        override fun notificationsEnabled() = context.notificationsEnabled()
 
         override fun backgroundLocationRefusals() = locationRepository.backgroundLocationRefusals()
 

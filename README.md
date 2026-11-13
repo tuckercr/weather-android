@@ -427,28 +427,61 @@ device connected, add `-s <serial>` after `adb`. Forcing the scheduled job with
 
 ## Analytics & privacy
 
-Sunny & Misty reports a handful of **anonymous app-usage events**: nothing about where you are,
-which cities you save, or what the weather is. The whole catalogue is four functions in
-[`AnalyticsRepository`](app/src/main/java/com/fangjet/weather/analytics/AnalyticsRepository.kt),
-so the privacy policy can be checked against the code line by line.
+Sunny & Misty reports a handful of **anonymous app-usage events** and **user properties**:
+nothing about where you are, which cities you save, what you type, or what the weather is. Every
+parameter is a fixed category. The whole catalogue is the `log…` functions and `setUserProperties`
+in [`AnalyticsRepository`](app/src/main/java/com/fangjet/weather/analytics/AnalyticsRepository.kt),
+with the values in [`AnalyticsValues.kt`](app/src/main/java/com/fangjet/weather/analytics/AnalyticsValues.kt)
+and the user properties in
+[`AnalyticsUserProperties.kt`](app/src/main/java/com/fangjet/weather/analytics/AnalyticsUserProperties.kt),
+so the privacy policy can be checked against the code line by line. Names and values are the same
+on iOS, so both platforms report into the same dashboards.
 
 | Event | Parameters | When |
 |---|---|---|
-| `onboarding_complete` | None | First-run onboarding finished |
-| `city_added` | None | A city was saved (never which one) |
+| `onboarding_step` | `step` (`welcome`, `dog`, `notifications`, `location`) | An onboarding screen was shown (once per step per showing) |
+| `onboarding_complete` | `has_dog` (`yes`, `no`), `notifications` and `location` (`granted`, `denied`, `skipped`) | The last onboarding step (location) finished or was skipped. `granted`: the permission is held at the end; `denied`: asked during onboarding and refused; `skipped`: never asked ("Not now", "Enter a town or city manually"). If the app was restarted mid-onboarding and the answer is unknown, it's `granted` when held, otherwise `skipped`. Below Android 13, notifications count as `granted` while they're on for the app |
+| `city_added` | `source` (`suggestion`, `typed_match`, `typed_name`, `my_location`), `provider` (`open_meteo`, `openweather`) | A new location was saved (re-adding an existing one doesn't count): a row tapped, Add or the keyboard's Search key taking the row named what was typed, the typed name saved with no list (offline), or My Location (Add My Location, onboarding, or the weather screen adding it once access turns up). `provider` is the search that found it; Android's search is OpenWeather's, so it's `openweather`. Never which place |
 | `settings_opened` | None | Settings opened from the weather screen |
-| `weather_error` | `error_key` = `offline` / `rate_limited` / `server_error` / `city_not_found` / `empty_query` / `missing_api_key` / `bad_api_key` / `generic` | A current-weather or forecast load failed (the category only, never coordinates or a city) |
+| `permission_changed` | `permission` (`notifications`, `location`, `location_always`), `result` (`granted`, `denied`), `from` (`settings`, `add_my_location`, `follow_my_location`) | Outside onboarding, the app asked for a permission and the answer came back: a system dialog, or a trip to the app's page in system settings. `settings`: the Settings and Notifications rows for location or notifications that are off, which open that page; `add_my_location`: Add My Location on Add location; `follow_my_location`: the Follow my location switch asking for "While using the app" and then "Allow all the time". Not logged when nothing was asked (already allowed) |
+| `notification_opened` | `kind` (`briefing`, `walk`, `rain`) | The app was opened by tapping the morning briefing, a walk nudge or a rain alert. Each notification's tap carries its kind; it's logged once per tap, not again on rotation or when reopened from Recents |
+| `weather_error` | `error_key` (`offline`, `rate_limited`, `server_error`, `city_not_found`, `empty_query`, `missing_api_key`, `bad_api_key`, `generic`), `provider` (`open_meteo`, `openweather`), `request` (`current`, `forecast`, `air_quality`) | A request to a weather service failed |
+
+**`weather_error` changed meaning** with `provider` and `request`. It used to be logged by the weather
+screen when a current-weather or forecast load failed. It is now logged by the data layer
+(`WeatherRepository`) for **every** failed request to a weather service, in the foreground and the
+background workers alike, including failures a fallback covered: Open-Meteo's reading failing before
+OpenWeather's is used logs `open_meteo` / `current`, and air quality failing quietly logs
+`open_meteo` / `air_quality`. A failure the screen shows is no longer logged a second time. City
+search (geocoding) isn't counted. Read it as how reliable each service is, not how often people saw
+an error.
+
+| User property | Values | Meaning |
+|---|---|---|
+| `has_dog` | `yes`, `no` | Settings' "I have a dog" |
+| `briefing_on` | `yes`, `no` | Morning briefings would actually arrive: the switch on, Remote Config has them on, and notifications are allowed |
+| `walk_time_on` | `yes`, `no` | The same for walk nudges, plus a dog |
+| `location_access` | `none`, `while_using`, `always` | Location access as allowed |
+| `follow_location` | `yes`, `no` | Follow my location on and working: "Allow all the time" and a My Location to move |
+| `units` | `metric`, `imperial` | The units actually used (Settings' choice, or the device's with "Use system setting") |
+| `city_count` | `0`, `1`, `2-3`, `4+` | How many locations are saved |
+
+User properties are set once the gates below have been applied at launch, again when *Share usage
+statistics* is turned on, whenever a setting or the city list changes or Remote Config is
+activated, and each time the app comes back to the foreground (to pick up permissions changed in
+system settings).
 
 ### Gates
 
-An event is sent only if every gate passes:
+An event or user property is sent only if every gate passes:
 
 1. **Remote Config kill switch** `analytics_enabled`: false drops every event, and turns Firebase
    Analytics collection off, on every install without an app update.
 2. **The user's own opt-out**: Settings → About → *Share usage statistics* (on by default). It is
    enforced at the SDK level via `setAnalyticsCollectionEnabled`, at app start and whenever it
    changes, so Firebase's automatic events (`first_open`, sessions, screen views) stop too, not
-   just ours. Flipping it is deliberately not itself tracked.
+   just ours. Flipping it is deliberately not itself tracked. An event logged in the first moments
+   after launch, before the setting has been read (a notification tapped, say), waits for it.
 3. **Firebase configured**: without `google-services.json` there is no Firebase app and nothing is
    sent.
 
@@ -565,6 +598,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:weather-api` | `GeocodingDirectParsingTest` | Geocoding payload parsing when `state` is omitted |
 | `:weather-api` | `GeocodingRepositoryTest` | City search: input trimming, label formatting (and the name, rest of the label and short label Add location shows), short-query and missing-key short-circuits, failure wrapping |
 | `:weather-api` | `WeatherRepositoryTest` | Repository contract: coordinate routing (incl. `open_meteo_enabled` on/off and a failing `ForecastSourcePolicy`), Open-Meteo's reading with OpenWeather as the backup, My Location's name, city-query trimming, error mapping |
+| `:weather-api` | `WeatherFailureReportingTest` | Every failed weather request reported with its provider and request (`weather_error`), including ones a fallback covered and air quality failing quietly; nothing when all work; a failing reporter never breaks a fetch |
 | `:weather-api` | `OpenMeteoCurrentTest` | Open-Meteo's current reading mapped for the hero, today's range holding the reading |
 | `:weather-api` | `RadarRepositoryTest` | RainViewer timeline parsing, past/nowcast frame ordering, and radar and coverage tile URLs |
 | `:weather-api` | `CurrentWeatherTest` | UTC-offset handling, including caches written before the offset existed |
@@ -572,8 +606,9 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `WeatherForecastViewModelTest` | Cache-first loading, refresh races, background-refresh staleness guards, the `foreground_refresh_min_minutes` throttle, `walk_card_enabled`, the section switches, `temperature_units_shown`, and Remote Config pet thresholds |
 | `:app` | `RadarViewModelTest` | Stale-timeline refresh (10 minutes, measured from the request), keeping the old timeline on a failed refresh, the coverage layer loaded once per city and tile host, and `radar_enabled` gating |
 | `:app` | `RadarCoverageTest` | Whether the city has radar from its pixel in RainViewer's coverage layer, and where that pixel is |
-| `:app` | `SettingsViewModelTest` | Unit-override selection, *Share usage statistics*, the walk card setting, and cache clearing |
-| `:app` | `AnalyticsRepositoryTest` | Analytics gates: kill switch, user opt-out, both on, and never crashing |
+| `:app` | `SettingsViewModelTest` | Unit-override selection, *Share usage statistics*, the walk card setting, cache clearing, and `permission_changed` for Follow my location and the trips to the app's settings |
+| `:app` | `AnalyticsRepositoryTest` | Analytics gates: kill switch, user opt-out, both on, an event waiting for the opt-out to load, and never crashing; every event's parameters and every fixed value matching iOS; onboarding's permission results |
+| `:app` | `AnalyticsUserPropertiesTest` | The user properties' values (briefings and walk nudges only when they'd arrive, location access, following, units, city count bands), and when they're set |
 | `:app` | `AnalyticsCollectionControllerTest` | SDK collection flag follows the opt-out and kill switch, at start and on change |
 | `:app` | `PetWeatherThresholdsTest` | Remote Config threshold validation: ranges, non-finite values, and pair ordering fallbacks |
 | `:app` | `PetMoodTest` | Pet mood selection by conditions, temperature, and night, with configurable hot/cold cut-offs; night captions by the city's local hour; fog, mist and haze as fog, never a mood |
@@ -590,11 +625,11 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `CurrentSlotsTest` | `fromCurrentSlot`: drops past hourly and 3-hourly slots, keeps the one in progress |
 | `:app` | `RainOutlookTest` | When the rain outlook shows (minimum chance, switch, window size), its headline (now or around, likely or a chance, the next-rain line's words), drying out, the total in mm or inches, and the bars at the chance the strip shows |
 | `:app` | `LocaleWeatherUnitsTest` | An explicit Celsius/Fahrenheit system preference beats the locale; unknown falls back to it |
-| `:app` | `WelcomeViewModelTest` | Onboarding state and persistence |
-| `:app` | `CityRepositoryTest` | Add, remove, reorder, active-city tracking, legacy single-city migration, and `city_added` firing |
+| `:app` | `WelcomeViewModelTest` | Onboarding state and persistence, `onboarding_step` once per step, and `onboarding_complete`'s answers |
+| `:app` | `CityRepositoryTest` | Add, remove, reorder, active-city tracking, legacy single-city migration, and `city_added` firing with how it was added |
 | `:app` | `GeoLocationViewModelTest` | City autocomplete: short input, latest search wins, a failed search told apart from finding nothing |
 | `:app` | `AddLocationRulesTest` | Add location's button: the first row named what was typed (accents ignored), the size check that stops "Nas" adding Nås, saved places (label or within 2 km, never My Location) gone to, and failed or empty searches |
-| `:app` | `LocationPermissionViewModelTest` | Current-location lookup: permission denial, cached vs current location, failure, `LocationRepository`'s position reads, and permission answers: asking again after "Ask every time", an instant refusal opening the app's settings and the return from them, slow refusals, grants forgetting refusals |
+| `:app` | `LocationPermissionViewModelTest` | Current-location lookup: permission denial, cached vs current location, failure, `LocationRepository`'s position reads, and permission answers: asking again after "Ask every time", an instant refusal opening the app's settings and the return from them, slow refusals, grants forgetting refusals, and `permission_changed` for Add My Location |
 | `:app` | `WeatherScreenStepsTest` | The weather screen's refreshes and My Location steps |
 | `:app` | `NotificationWorkerLogicTest` | Briefing text (with hurricane and storm warnings), walk-time planning and nudge, rain alerts (lead, quiet hours, once per shower), city-timezone "today" matching, and the switches |
 | `:app` | `UpdateWorkerLogicTest` | Background refresh result routing, caching, resolved units, and skipping a city fetched in the last 30 minutes |

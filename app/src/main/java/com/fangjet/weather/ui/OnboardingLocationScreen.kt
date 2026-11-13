@@ -36,7 +36,8 @@ import timber.log.Timber
 @Composable
 fun OnboardingLocationScreen(
     onLocationResolved: (SavedLocation) -> Unit,
-    onSkip: () -> Unit,
+    // On to entering a city: refused is true when location was asked for and refused, false for the skip button.
+    onSkip: (refused: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LocationPermissionViewModel = hiltViewModel(),
 ) {
@@ -57,7 +58,7 @@ fun OnboardingLocationScreen(
             // A "no" is an answer: move on to entering a city rather than asking again. When Android
             // won't show the dialog any more, the tap opens the app's settings instead, and coming
             // back without allowing it there counts as a "no".
-            LocationFetchState.PermissionDenied -> onSkip()
+            LocationFetchState.PermissionDenied -> onSkip(true)
             else -> Unit
         }
     }
@@ -77,7 +78,7 @@ fun OnboardingLocationScreen(
                 OutlinedButton(
                     onClick = {
                         Timber.d("user tapped Skip")
-                        onSkip()
+                        onSkip(false)
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {

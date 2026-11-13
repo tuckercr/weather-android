@@ -13,12 +13,20 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.fangjet.weather.MainActivity
 import com.fangjet.weather.R
+import com.fangjet.weather.analytics.openedKey
 import com.fangjet.weather.ui.pets.petSceneIcon
 
 /** Whether the app may post notifications (always below Android 13, which has no permission for it). */
 internal fun Context.canPostNotifications(): Boolean =
     Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
         ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+/** Whether notifications can be shown: the permission, and notifications not turned off for the app. */
+internal fun Context.notificationsEnabled(): Boolean =
+    canPostNotifications() && runCatching { NotificationManagerCompat.from(this).areNotificationsEnabled() }.getOrDefault(true)
+
+/** The extra on a notification's tap naming its kind, for analytics' `notification_opened`. */
+internal const val EXTRA_NOTIFICATION_KIND = "com.fangjet.weather.NOTIFICATION_KIND"
 
 /**
  * Creates (or, if it exists, just renames) the channel for [kind]. Safe to call again: Android keeps
@@ -57,20 +65,23 @@ internal fun Context.postWeatherNotification(notification: WeatherNotification) 
     if (!canPostNotifications()) return
     // Made when needed: a notification never goes to a channel that doesn't exist yet.
     createNotificationChannel(notification.kind)
-    val tapIntent = Intent(this, MainActivity::class.java).apply {
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-    }
-    val tapPendingIntent = PendingIntent.getActivity(
-        this,
-        0,
-        tapIntent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-    )
     val (channel, id) = when (notification.kind) {
         NotificationKind.MORNING_BRIEFING -> NotificationChannels.CHANNEL_MORNING_BRIEFING to 1000
         NotificationKind.WALK_TIME -> NotificationChannels.CHANNEL_WALK_TIME to 1001
         NotificationKind.RAIN -> NotificationChannels.CHANNEL_RAIN to 1002
     }
+    // The kind rides on the tap, for notification_opened. Each kind has its own request code, or
+    // the latest notification's extra would replace the others' (extras don't tell intents apart).
+    val tapIntent = Intent(this, MainActivity::class.java).apply {
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        putExtra(EXTRA_NOTIFICATION_KIND, notification.kind.openedKey)
+    }
+    val tapPendingIntent = PendingIntent.getActivity(
+        this,
+        id,
+        tapIntent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
     val iconSize = resources.getDimensionPixelSize(android.R.dimen.notification_large_icon_width)
     val built = NotificationCompat
         .Builder(this, channel)

@@ -391,6 +391,62 @@ class LocationPermissionViewModelTest {
             assertFalse(denials.permanentlyDenied)
         }
 
+    // --- permission_changed for Add My Location ---
+
+    @Test
+    fun `add my location logs the dialog's answer, once`() {
+        val answers = mutableListOf<Boolean>()
+        val refused = viewModel(hasLocationPermission = false, onAddMyLocationAnswer = { answers += it })
+        assertTrue(refused.addMyLocation())
+        refused.answer(rationaleAfter = true)
+        // A later resume isn't another answer.
+        refused.leftApp()
+        refused.refreshAccess()
+
+        assertEquals(listOf(false), answers)
+    }
+
+    @Test
+    fun `add my location logs a grant from the dialog`() {
+        var granted = false
+        val answers = mutableListOf<Boolean>()
+        val viewModel = viewModel(permission = { granted }, onAddMyLocationAnswer = { answers += it })
+        assertTrue(viewModel.addMyLocation())
+
+        granted = true
+        viewModel.answer(granted = true, rationaleAfter = false)
+
+        assertEquals(listOf(true), answers)
+    }
+
+    @Test
+    fun `add my location's trip to the app's settings is logged on the return`() {
+        val answers = mutableListOf<Boolean>()
+        val viewModel = viewModel(hasLocationPermission = false, onAddMyLocationAnswer = { answers += it })
+        assertTrue(viewModel.addMyLocation())
+        viewModel.answer(rationaleAfter = false, millis = 40)
+        assertEquals("Refused without a dialog isn't the answer yet", emptyList<Boolean>(), answers)
+
+        viewModel.appSettingsOpened()
+        viewModel.leftApp()
+        viewModel.refreshAccess()
+
+        assertEquals(listOf(false), answers)
+    }
+
+    @Test
+    fun `onboarding's use my location and an add with access already are not logged`() {
+        val answers = mutableListOf<Boolean>()
+        val onboarding = viewModel(hasLocationPermission = false, onAddMyLocationAnswer = { answers += it })
+        assertTrue(onboarding.useMyLocation())
+        onboarding.answer(rationaleAfter = true)
+
+        val allowed = viewModel(onAddMyLocationAnswer = { answers += it })
+        assertFalse(allowed.addMyLocation())
+
+        assertEquals(emptyList<Boolean>(), answers)
+    }
+
     @Test
     fun `the guess at whether Android will ask`() {
         assertFalse(repository(hasLocationPermission = true).canRequestPermission())
@@ -412,7 +468,11 @@ class LocationPermissionViewModelTest {
         locationFetcher: LocationFetcher = FakeLocationFetcher(),
         denials: LocationDenialStore = FakeDenialStore(),
         permission: () -> Boolean = { hasLocationPermission },
-    ) = LocationPermissionViewModel(repository(locationFetcher = locationFetcher, denials = denials, permission = permission))
+        onAddMyLocationAnswer: (Boolean) -> Unit = {},
+    ) = LocationPermissionViewModel(
+        repository(locationFetcher = locationFetcher, denials = denials, permission = permission),
+        onAddMyLocationAnswer,
+    )
 
     private fun repository(
         hasLocationPermission: Boolean = true,

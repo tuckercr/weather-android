@@ -3,12 +3,15 @@ package com.fangjet.weather.model
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fangjet.weather.analytics.AnalyticsRepository
+import com.fangjet.weather.analytics.CityAdded
+import com.fangjet.weather.analytics.CityAddedSource
 import com.fangjet.weather.data.CityRepository
 import com.fangjet.weather.data.DevicePositioning
 import com.fangjet.weather.data.LocationRepository
 import com.fangjet.weather.data.LocationWeatherRepository
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
+import com.fangjet.weather.data.weatherErrorKey
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.PetWeatherThresholds
@@ -55,7 +58,6 @@ class WeatherForecastViewModel internal constructor(
     private val cities: CityRepository,
     // Where the phone is, for My Location.
     private val position: DevicePositioning,
-    private val onError: (errorKey: String) -> Unit = {},
     private val onSettingsOpened: () -> Unit = {},
     private val isWalkCardEnabled: () -> Boolean = { true },
     private val isHourlyForecastEnabled: () -> Boolean = { true },
@@ -95,7 +97,6 @@ class WeatherForecastViewModel internal constructor(
         repository = locationWeatherRepository,
         cities = cityRepository,
         position = locationRepository,
-        onError = { key -> analyticsRepository.logWeatherError(key) },
         onSettingsOpened = { analyticsRepository.logSettingsOpened() },
         isWalkCardEnabled = remoteConfigRepository::walkCardEnabled,
         isHourlyForecastEnabled = remoteConfigRepository::hourlyForecastEnabled,
@@ -349,7 +350,7 @@ class WeatherForecastViewModel internal constructor(
                     here == null -> if (adding) addFailures.trySend(Unit)
                     hasMyLocation() -> cities.updateCurrentLocation(here)
                     // A position read only to move My Location, arriving after it was removed, adds nothing.
-                    adding -> cities.addLocation(here)
+                    adding -> cities.addLocation(here, CityAdded(CityAddedSource.MY_LOCATION))
                 }
             } finally {
                 locating = false
@@ -376,7 +377,7 @@ class WeatherForecastViewModel internal constructor(
                 repository.rememberShownCity(weather.cityName)
             }
             result.onFailure { e ->
-                if (_currentWeather.value is LoadingState.Success) _staleErrorKey.value = resolveErrorKey(e)
+                if (_currentWeather.value is LoadingState.Success) _staleErrorKey.value = weatherErrorKey(e)
             }
         }
     }
@@ -423,8 +424,8 @@ class WeatherForecastViewModel internal constructor(
                     _staleErrorKey.value = null
                 },
                 onFailure = { e ->
-                    val key = resolveErrorKey(e)
-                    onError(key)
+                    // Analytics hears of the failure from the data layer, with its provider.
+                    val key = weatherErrorKey(e)
                     // Keep cached data visible if available, flagged as old; only surface the error
                     // on its own when there's nothing to show.
                     if (cached == null) {
@@ -459,8 +460,7 @@ class WeatherForecastViewModel internal constructor(
                     _forecast.value = LoadingState.Success(forecast)
                 },
                 onFailure = { e ->
-                    val key = resolveErrorKey(e)
-                    onError(key)
+                    val key = weatherErrorKey(e)
                     if (cached == null) {
                         _forecast.value = LoadingState.Error(key, canRetry = resolveCanRetry(e))
                     }
@@ -496,14 +496,6 @@ class WeatherForecastViewModel internal constructor(
     fun clearForecastError() {
         _forecast.update { if (it is LoadingState.Error) LoadingState.Idle else it }
     }
-
-    private fun resolveErrorKey(error: Throwable): String =
-        when (error.message) {
-            "missing_api_key", "bad_api_key", "empty_query",
-            "city_not_found", "rate_limited", "server_error", "offline",
-            -> error.message!!
-            else -> "generic"
-        }
 
     private fun resolveCanRetry(error: Throwable): Boolean =
         when (error.message) {

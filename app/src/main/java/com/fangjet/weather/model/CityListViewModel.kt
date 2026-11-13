@@ -1,6 +1,7 @@
 package com.fangjet.weather.model
 
 import androidx.lifecycle.ViewModel
+import com.fangjet.weather.analytics.CityAdded
 import com.fangjet.weather.data.CityRepository
 import com.fangjet.weather.domain.SavedLocation
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,7 +20,10 @@ class CityListViewModel
     ) : ViewModel() {
         val locations: StateFlow<List<SavedLocation>> = cities.locations
 
-        fun addLocation(location: SavedLocation) = cities.addLocation(location)
+        fun addLocation(
+            location: SavedLocation,
+            added: CityAdded,
+        ) = cities.addLocation(location, added)
 
         fun removeLocation(index: Int) = cities.removeLocation(index)
 

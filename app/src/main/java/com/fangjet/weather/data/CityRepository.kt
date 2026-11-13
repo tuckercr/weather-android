@@ -1,6 +1,7 @@
 package com.fangjet.weather.data
 
 import com.fangjet.weather.analytics.AnalyticsRepository
+import com.fangjet.weather.analytics.CityAdded
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.withMyLocationAt
 import kotlinx.coroutines.CoroutineScope
@@ -28,7 +29,8 @@ import javax.inject.Singleton
 class CityRepository internal constructor(
     private val preferencesRepository: PreferencesRepository,
     private val geocodingRepository: GeocodingRepository,
-    private val onCityAdded: () -> Unit,
+    // city_added, with how it was added: only for a new city, not one already saved.
+    private val onCityAdded: (CityAdded) -> Unit,
     // Outlives the screens: a city being added or geocoded is saved even if the screen goes.
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
 ) {
@@ -116,7 +118,11 @@ class CityRepository internal constructor(
             }
     }
 
-    fun addLocation(location: SavedLocation) {
+    /** Adds [location], or shows it if it's saved already. [added] says how, for analytics. */
+    fun addLocation(
+        location: SavedLocation,
+        added: CityAdded,
+    ) {
         // Switch to an existing identical entry rather than duplicating
         val existingIdx = _locations.value.indexOfFirst { it.label == location.label }
         if (existingIdx >= 0) {
@@ -144,7 +150,7 @@ class CityRepository internal constructor(
             val newIdx = updated.size - 1
             _locations.value = updated
             _activeIndex.value = newIdx
-            onCityAdded()
+            onCityAdded(added)
             preferencesRepository.setSavedLocations(updated)
             preferencesRepository.setActiveLocationIndex(newIdx)
         }

@@ -8,6 +8,7 @@ import com.fangjet.weather.domain.AirQualityHours
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.WeatherUnits
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
@@ -30,6 +31,8 @@ class WeatherRepository @Inject constructor(
     private val airQuality: AirQualitySource? = null,
     // Names My Location when its reading comes from Open-Meteo.
     private val placeNames: PlaceNaming = PlaceNaming.None,
+    // Told about every failed request, including ones a fallback covered (analytics' weather_error).
+    private val failures: WeatherFailureReporter = WeatherFailureReporter.None,
 ) {
 
     /**
@@ -47,6 +50,18 @@ class WeatherRepository @Inject constructor(
         if (latitude != null && longitude != null && openMeteoEnabled()) {
             openMeteoCurrent(units, locationLabel, latitude, longitude)?.let { return Result.success(it) }
         }
+        return openWeatherCurrent(units, locationLabel, cityQuery, latitude, longitude)
+            .onFailure { reportFailure(WeatherProvider.OPENWEATHER, WeatherRequestKind.CURRENT, it) }
+    }
+
+    /** OpenWeather's reading: by coordinates, or by name for name-only cities. */
+    private suspend fun openWeatherCurrent(
+        units: WeatherUnits,
+        locationLabel: String,
+        cityQuery: String?,
+        latitude: Double?,
+        longitude: Double?,
+    ): Result<CurrentWeather> {
         val key = apiKey.trim()
         if (key.isEmpty()) {
             return Result.failure(IllegalStateException("missing_api_key"))
@@ -113,6 +128,7 @@ class WeatherRepository @Inject constructor(
                 val guessed = cachedAirQuality?.scale?.takeIf { source != null }
                 val early = guessed?.let { async { airQualityHours(source, latitude, longitude, it, cachedAirQuality, now) } }
                 val forecast = openMeteo.fetch(units, latitude, longitude).mapApiFailure().getOrElse {
+                    reportFailure(WeatherProvider.OPEN_METEO, WeatherRequestKind.FORECAST, it)
                     early?.cancel()
                     return@coroutineScope Result.failure(it)
                 }
@@ -126,7 +142,9 @@ class WeatherRepository @Inject constructor(
                 Result.success(ForecastWithAirQuality(withAirQuality(forecast.days, air?.hours.orEmpty()), air))
             }
         }
-        return openWeatherForecast(units, cityQuery, latitude, longitude).map { ForecastWithAirQuality(it, null) }
+        return openWeatherForecast(units, cityQuery, latitude, longitude)
+            .onFailure { reportFailure(WeatherProvider.OPENWEATHER, WeatherRequestKind.FORECAST, it) }
+            .map { ForecastWithAirQuality(it, null) }
     }
 
     /** The air quality source, or null when there's none or Remote Config has switched it off. */
@@ -147,7 +165,10 @@ class WeatherRepository @Inject constructor(
     ): AirQualityHours? {
         source ?: return null
         if (scale != null && cached?.reusable(scale, nowEpochSeconds) == true) return cached
-        return source.fetchHourly(latitude, longitude, scale, nowEpochSeconds).getOrNull()
+        return source
+            .fetchHourly(latitude, longitude, scale, nowEpochSeconds)
+            .onFailure { reportFailure(WeatherProvider.OPEN_METEO, WeatherRequestKind.AIR_QUALITY, it) }
+            .getOrNull()
     }
 
     /** OpenWeatherMap's 3-hourly forecast: by coordinates when Open-Meteo is switched off, else by name. */
@@ -201,12 +222,31 @@ class WeatherRepository @Inject constructor(
         latitude: Double,
         longitude: Double,
     ): CurrentWeather? {
-        val response = openMeteo.fetchCurrent(units, latitude, longitude).getOrNull() ?: return null
-        val weather = OpenMeteoCurrent.weather(response, units, cityName = "") ?: return null
+        val response = openMeteo.fetchCurrent(units, latitude, longitude).getOrElse {
+            reportFailure(WeatherProvider.OPEN_METEO, WeatherRequestKind.CURRENT, it)
+            return null
+        }
+        val weather = OpenMeteoCurrent.weather(response, units, cityName = "") ?: run {
+            reportFailure(WeatherProvider.OPEN_METEO, WeatherRequestKind.CURRENT, IllegalStateException("invalid_payload"))
+            return null
+        }
         val cityName = locationLabel.trim().ifEmpty {
             runCatching { placeNames.name(latitude, longitude) }.getOrNull() ?: PlaceNaming.MY_LOCATION_LABEL
         }
         return weather.copy(cityName = cityName)
+    }
+
+    /**
+     * Tells [failures] about a failed request, by the screen's error categories. A cancelled
+     * request (the screen moved on) isn't a failure. Reporting can never break a fetch.
+     */
+    private fun reportFailure(
+        provider: WeatherProvider,
+        request: WeatherRequestKind,
+        error: Throwable,
+    ) {
+        if (error is CancellationException) return
+        runCatching { failures.failed(provider, request, weatherErrorKey(mapThrowable(error))) }
     }
 
     /** A failing policy never breaks forecasts: fall back to the default, Open-Meteo. */

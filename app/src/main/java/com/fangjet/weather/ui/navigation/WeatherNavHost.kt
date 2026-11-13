@@ -17,6 +17,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.fangjet.weather.analytics.CityAdded
+import com.fangjet.weather.analytics.CityAddedSource
+import com.fangjet.weather.analytics.OnboardingStepShown
 import com.fangjet.weather.model.CityListViewModel
 import com.fangjet.weather.model.OnboardingStep
 import com.fangjet.weather.model.WelcomeViewModel
@@ -79,6 +82,7 @@ fun WeatherNavHost(
         }
 
         composable(WeatherDestinations.WELCOME) {
+            LaunchedEffect(Unit) { welcomeViewModel.stepShown(OnboardingStepShown.WELCOME) }
             WelcomeScreen(
                 onGetStarted = {
                     welcomeViewModel.completeWelcome()
@@ -93,6 +97,7 @@ fun WeatherNavHost(
         // Part of a new user's first run only: not resumed on a later launch, and existing users
         // aren't asked after an update (they have the switch in Settings).
         composable(WeatherDestinations.DOG_QUESTION) {
+            LaunchedEffect(Unit) { welcomeViewModel.stepShown(OnboardingStepShown.DOG) }
             OnboardingDogScreen(
                 onAnswered = { hasDog ->
                     welcomeViewModel.answerHasDog(hasDog)
@@ -105,13 +110,14 @@ fun WeatherNavHost(
         }
 
         composable(WeatherDestinations.NOTIFICATION_PERMISSION) {
+            LaunchedEffect(Unit) { welcomeViewModel.stepShown(OnboardingStepShown.NOTIFICATIONS) }
             val promise by welcomeViewModel.notificationPromise.collectAsStateWithLifecycle()
             OnboardingNotificationScreen(
                 hasDog = promise.hasDog,
                 walkTimeEnabled = promise.walkTimeEnabled,
                 rainEnabled = promise.rainEnabled,
-                onDone = {
-                    welcomeViewModel.completeNotificationOnboarding()
+                onDone = { asked ->
+                    welcomeViewModel.completeNotificationOnboarding(asked)
                     navController.navigate(WeatherDestinations.LOCATION_PERMISSION) {
                         popUpTo(WeatherDestinations.NOTIFICATION_PERMISSION) { inclusive = true }
                         launchSingleTop = true
@@ -121,17 +127,18 @@ fun WeatherNavHost(
         }
 
         composable(WeatherDestinations.LOCATION_PERMISSION) {
+            LaunchedEffect(Unit) { welcomeViewModel.stepShown(OnboardingStepShown.LOCATION) }
             OnboardingLocationScreen(
                 onLocationResolved = { location ->
-                    cityListViewModel.addLocation(location)
+                    cityListViewModel.addLocation(location, CityAdded(CityAddedSource.MY_LOCATION))
                     welcomeViewModel.completeLocationOnboarding()
                     navController.navigate(WeatherDestinations.CURRENT) {
                         popUpTo(WeatherDestinations.LOCATION_PERMISSION) { inclusive = true }
                         launchSingleTop = true
                     }
                 },
-                onSkip = {
-                    welcomeViewModel.completeLocationOnboarding()
+                onSkip = { refused ->
+                    welcomeViewModel.completeLocationOnboarding(asked = refused)
                     navController.navigate(WeatherDestinations.CURRENT) {
                         popUpTo(WeatherDestinations.LOCATION_PERMISSION) { inclusive = true }
                         launchSingleTop = true
@@ -191,9 +198,9 @@ fun WeatherNavHost(
             fun showing() = navController.currentDestination?.route == WeatherDestinations.ADD_LOCATION
             AddLocationRoute(
                 locations = cityListViewModel.locations.collectAsStateWithLifecycle().value,
-                onAdd = { location, name ->
+                onAdd = { location, name, added ->
                     if (showing()) {
-                        cityListViewModel.addLocation(location)
+                        cityListViewModel.addLocation(location, added)
                         navController.previousBackStackEntry?.savedStateHandle?.set(LOCATION_ADDED, name)
                         navController.popBackStack()
                     }
