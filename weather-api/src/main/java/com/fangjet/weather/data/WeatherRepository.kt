@@ -226,10 +226,8 @@ class WeatherRepository @Inject constructor(
             reportFailure(WeatherProvider.OPEN_METEO, WeatherRequestKind.CURRENT, it)
             return null
         }
-        val weather = OpenMeteoCurrent.weather(response, units, cityName = "") ?: run {
-            reportFailure(WeatherProvider.OPEN_METEO, WeatherRequestKind.CURRENT, IllegalStateException("invalid_payload"))
-            return null
-        }
+        // A reply with no reading isn't a failed request; OpenWeather's reading stands in. Same as iOS.
+        val weather = OpenMeteoCurrent.weather(response, units, cityName = "") ?: return null
         val cityName = locationLabel.trim().ifEmpty {
             runCatching { placeNames.name(latitude, longitude) }.getOrNull() ?: PlaceNaming.MY_LOCATION_LABEL
         }
@@ -238,7 +236,8 @@ class WeatherRepository @Inject constructor(
 
     /**
      * Tells [failures] about a failed request, by the screen's error categories. A cancelled
-     * request (the screen moved on) isn't a failure. Reporting can never break a fetch.
+     * request (the screen moved on) isn't a failure, and neither is a name-only city with an empty
+     * name, which never reaches a service. Same as iOS. Reporting can never break a fetch.
      */
     private fun reportFailure(
         provider: WeatherProvider,
@@ -246,6 +245,7 @@ class WeatherRepository @Inject constructor(
         error: Throwable,
     ) {
         if (error is CancellationException) return
+        if (error is IllegalStateException && error.message == "empty_query") return
         runCatching { failures.failed(provider, request, weatherErrorKey(mapThrowable(error))) }
     }
 

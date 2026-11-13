@@ -445,7 +445,7 @@ on iOS, so both platforms report into the same dashboards.
 | `settings_opened` | None | Settings opened from the weather screen |
 | `permission_changed` | `permission` (`notifications`, `location`, `location_always`), `result` (`granted`, `denied`), `from` (`settings`, `add_my_location`, `follow_my_location`) | Outside onboarding, the app asked for a permission and the answer came back: a system dialog, or a trip to the app's page in system settings. `settings`: the Settings and Notifications rows for location or notifications that are off, which open that page; `add_my_location`: Add My Location on Add location; `follow_my_location`: the Follow my location switch asking for "While using the app" and then "Allow all the time". Not logged when nothing was asked (already allowed) |
 | `notification_opened` | `kind` (`briefing`, `walk`, `rain`) | The app was opened by tapping the morning briefing, a walk nudge or a rain alert. Each notification's tap carries its kind; it's logged once per tap, not again on rotation or when reopened from Recents |
-| `weather_error` | `error_key` (`offline`, `rate_limited`, `server_error`, `city_not_found`, `empty_query`, `missing_api_key`, `bad_api_key`, `generic`), `provider` (`open_meteo`, `openweather`), `request` (`current`, `forecast`, `air_quality`) | A request to a weather service failed |
+| `weather_error` | `error_key` (`offline`, `rate_limited`, `server_error`, `city_not_found`, `missing_api_key`, `bad_api_key`, `generic`), `provider` (`open_meteo`, `openweather`), `request` (`current`, `forecast`, `air_quality`) | A request to a weather service failed |
 
 **`weather_error` changed meaning** with `provider` and `request`. It used to be logged by the weather
 screen when a current-weather or forecast load failed. It is now logged by the data layer
@@ -453,7 +453,8 @@ screen when a current-weather or forecast load failed. It is now logged by the d
 background workers alike, including failures a fallback covered: Open-Meteo's reading failing before
 OpenWeather's is used logs `open_meteo` / `current`, and air quality failing quietly logs
 `open_meteo` / `air_quality`. A failure the screen shows is no longer logged a second time. City
-search (geocoding) isn't counted. Read it as how reliable each service is, not how often people saw
+search (geocoding), a name-only city with an empty name (no request is made) and an Open-Meteo
+reply with no reading (OpenWeather's stands in) aren't counted, as on iOS. Read it as how reliable each service is, not how often people saw
 an error.
 
 | User property | Values | Meaning |

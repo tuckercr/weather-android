@@ -115,13 +115,24 @@ class WeatherFailureReportingTest {
         }
 
     @Test
-    fun `Open-Meteo sending no reading is reported as a failure`() =
+    fun `Open-Meteo sending no reading isn't a failed request`() =
         runBlocking {
             val repository = repository(openMeteo = client("""{"current":{"time":1793986200}}"""))
 
             repository.fetchCurrentWeather(WeatherUnits.METRIC, latitude = 1.0, longitude = 2.0).getOrThrow()
 
-            assertEquals(listOf(Failure("open_meteo", "current", "generic")), failures)
+            assertEquals(emptyList<Failure>(), failures)
+        }
+
+    @Test
+    fun `a name-only city with an empty name never reaches a service, so isn't reported`() =
+        runBlocking {
+            val repository = repository()
+
+            assertTrue(repository.fetchCurrentWeather(WeatherUnits.METRIC, cityQuery = " ").isFailure)
+            assertTrue(repository.fetchForecast(WeatherUnits.METRIC, cityQuery = " ").isFailure)
+
+            assertEquals(emptyList<Failure>(), failures)
         }
 
     @Test
