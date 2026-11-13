@@ -191,10 +191,14 @@ noted. Checked against the code, not fixed yet.
 
 ## Store and release
 
-- [ ] **Privacy policy and store answers for the new analytics** (11-12). The policy's new
-      list of what's recorded is on the website branch `privacy/analytics-detail`: deploy it
-      before the apps that send them are released. App Store App Privacy and Play Data safety
-      already declare app interactions for analytics; check nothing new is needed.
+- [ ] **Merge the website's `privacy/analytics-detail` branch** (11-12). The privacy page that
+      lists the new analytics is live, deployed on its own on top of the site that was live then
+      (the home page refresh, sunny-misty-web #6, is still not deployed). Until the branch is in
+      main, a deploy from main would put the old privacy page back.
+- [ ] **Play Data safety and the new analytics** (11-12): check its app interactions answer
+      covers the onboarding and permission answers, notification opens and the user properties.
+      App Store App Privacy already declares Product Interaction, not linked to the user (checked
+      11-12; the answers are still to be published, see App Store submission).
 - [ ] **Terms of use: a lawyer's review before release.** The page is at sunnyandmisty.com/terms
       (11-09), linked from Settings › About in both apps, and says the walk advice and warnings are
       a guide from forecasts that can be wrong, not a severe weather warning service. Still to
@@ -373,6 +377,10 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Privacy policy lists the new analytics** (11-12): sunnyandmisty.com/privacy says what
+      the apps record (the onboarding and permission answers, notification opens, the weather
+      error's service and request, and the user properties) and that none of it includes a
+      location, a city name or anything typed. Deployed 11-12.
 - [x] **Analytics: what people choose** (11-12): `onboarding_step`, the onboarding answers on
       `onboarding_complete` (dog, notifications, location), `permission_changed` after onboarding,
       `notification_opened` by kind, `weather_error` for every failed request with its provider
