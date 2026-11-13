@@ -12,8 +12,6 @@ Finished items move to Done at the bottom.
       App Store Connect version is still called 1.0: rename it to the build's version (build N is
       1.0.N from build 8 on; build 7 is 1.0.6) before submitting: a version page only offers builds
       with its own number. (11-03)
-- [ ] **App Store Connect description** still says "a heads-up before rain"; rain alerts are off
-      for the first release. The suggested description in listing-review.html is updated. (11-02)
 - [ ] **App Store review notes: what "Always" is for** (Settings › Notifications › Follow my
       location). The Play side, the background location declaration with its video, was filled in
       on 11-10 and goes to Google with the first review. (11-03)
