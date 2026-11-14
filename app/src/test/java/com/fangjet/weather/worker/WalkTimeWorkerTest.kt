@@ -47,6 +47,7 @@ class WalkTimeWorkerTest {
         every { preferences.unitOverride } returns flowOf(UnitOverride.METRIC)
         every { preferences.notifyWalkTime } returns flowOf(walkTimeOn)
         every { preferences.showWalkCard } returns flowOf(hasDog)
+        coEvery { preferences.lastWalkNudgeAt() } returns null
         coEvery { preferences.setCachedWeather(any(), any()) } just Runs
         coEvery { preferences.setCachedForecast(any(), any()) } just Runs
         every { remoteConfig.walkTimeNotificationsEnabled() } returns remotelyOn

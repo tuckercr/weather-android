@@ -32,6 +32,8 @@ import com.fangjet.weather.util.skyCondition
 import com.fangjet.weather.util.todayHighLow
 import com.fangjet.weather.util.windForce
 import java.time.Instant
+import java.time.LocalTime
+import java.time.ZoneId
 import java.time.ZoneOffset
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -132,8 +134,9 @@ internal class NotificationWorkerLogic(
 }
 
 /**
- * Runs at the walk time the morning run picked, extracted from [WalkTimeWorker] for tests. The
- * forecast can change in a few hours, so it only nudges if now is still a great time for a walk.
+ * Runs at the walk time the morning run (or [WalkTimeTodayLogic]) picked, extracted from
+ * [WalkTimeWorker] for tests. The forecast can change in a few hours, so it only nudges if now is
+ * still a great time for a walk, and not on a day that has already had one.
  */
 internal class WalkTimeLogic(
     private val getSavedLocations: suspend () -> List<SavedLocation>,
@@ -149,10 +152,15 @@ internal class WalkTimeLogic(
     private val strings: Strings,
     private val isWalkTimeEnabled: suspend () -> Boolean,
     private val petWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
+    // When the last walk nudge went, and recording this one: one a day at most.
+    private val lastWalkNudgeAt: suspend () -> Long? = { null },
+    private val setLastWalkNudgeAt: suspend (epochSeconds: Long) -> Unit = {},
     private val nowEpochSeconds: () -> Long = { Instant.now().epochSecond },
+    private val zone: ZoneId = ZoneId.systemDefault(),
 ) {
     suspend fun doWork(): Result {
         if (!isWalkTimeEnabled() || !hasNotificationPermission()) return Result.success()
+        if (isSameDeviceDay(lastWalkNudgeAt(), nowEpochSeconds(), zone)) return Result.success()
         val location = getSavedLocations().notificationLocation() ?: return Result.success()
         val fresh = freshCache(location)
         val weather = fresh?.weather ?: refreshWeather(location).getOrNull() ?: return Result.retry()
@@ -179,7 +187,62 @@ internal class WalkTimeLogic(
                 southernHemisphere = (location.latitude ?: 0.0) < 0,
             ),
         )
+        setLastWalkNudgeAt(now)
         return Result.success()
+    }
+}
+
+/** Whether [epochSeconds] falls on the same day as [nowEpochSeconds] by the device's clock, as the 8:30 run goes by. */
+private fun isSameDeviceDay(
+    epochSeconds: Long?,
+    nowEpochSeconds: Long,
+    zone: ZoneId,
+): Boolean {
+    fun date(seconds: Long) = Instant.ofEpochSecond(seconds).atZone(zone).toLocalDate()
+    return epochSeconds != null && date(epochSeconds) == date(nowEpochSeconds)
+}
+
+/**
+ * Plans today's walk nudge as soon as Walk time or the dog is turned on, which otherwise waits for
+ * the next 8:30 run. It goes by the cached weather (the nudge checks again when it's due) and the
+ * same switches as the 8:30 run, and plans the same one-off [WalkTimeWorker], replacing any already
+ * planned. It plans nothing:
+ * - before today's 8:30 run, which plans the day's nudge itself;
+ * - on a day that has already had a nudge;
+ * - when now is a great time: the walk card on the screen they're on already says so;
+ * - when the best time is tomorrow, or not ahead.
+ * Same as iOS, which plans the whole queue again on any setting change.
+ */
+internal class WalkTimeTodayLogic(
+    private val getSavedLocations: suspend () -> List<SavedLocation>,
+    // The cached reading and forecast (LocationWeatherRepository.cachedWeather and cachedForecast): no fetch.
+    private val cachedWeather: suspend (location: SavedLocation) -> CurrentWeather?,
+    private val cachedForecast: suspend (location: SavedLocation) -> List<DayForecast>?,
+    private val hasNotificationPermission: () -> Boolean,
+    // Remote Config walk_time_notifications_enabled: switches the walk nudge off for everyone.
+    private val isWalkTimeRemotelyEnabled: () -> Boolean = { true },
+    private val isWalkTimeEnabled: suspend () -> Boolean,
+    private val hasDog: suspend () -> Boolean,
+    private val lastWalkNudgeAt: suspend () -> Long? = { null },
+    private val petWeatherThresholds: () -> PetWeatherThresholds = { PetWeatherThresholds.DEFAULT },
+    private val scheduleWalkTime: (epochSeconds: Long) -> Unit,
+    private val nowEpochSeconds: () -> Long = { Instant.now().epochSecond },
+    private val zone: ZoneId = ZoneId.systemDefault(),
+) {
+    suspend fun plan() {
+        val walkTimeOn = runCatching { isWalkTimeRemotelyEnabled() }.getOrDefault(true) && isWalkTimeEnabled() && hasDog()
+        if (!walkTimeOn || !hasNotificationPermission()) return
+        val now = nowEpochSeconds()
+        val local = Instant.ofEpochSecond(now).atZone(zone).toLocalTime()
+        if (local < LocalTime.of(WorkManagerScheduler.BRIEFING_HOUR, WorkManagerScheduler.BRIEFING_MINUTE)) return
+        if (isSameDeviceDay(lastWalkNudgeAt(), now, zone)) return
+        val location = getSavedLocations().notificationLocation() ?: return
+        val weather = cachedWeather(location) ?: return
+        val forecast = cachedForecast(location) ?: return
+        val thresholds = runCatching { petWeatherThresholds() }.getOrDefault(PetWeatherThresholds.DEFAULT)
+        val walk = walkAdviceForReading(weather, forecast, thresholds, now) ?: return
+        if (walk.rating == WalkRating.GREAT || walk.bestTimeIsTomorrow) return
+        walk.bestTimeEpochSeconds?.takeIf { it > now }?.let(scheduleWalkTime)
     }
 }
 

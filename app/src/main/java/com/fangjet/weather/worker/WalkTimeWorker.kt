@@ -12,7 +12,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
 
-/** Runs once at the walk time the morning run picked, and nudges if it's still a good time. */
+/** Runs once at the walk time the morning run (or [WalkTimePlanner]) picked, and nudges if it's still a good time. */
 @HiltWorker
 class WalkTimeWorker @AssistedInject constructor(
     @Assisted private val context: Context,
@@ -37,6 +37,8 @@ class WalkTimeWorker @AssistedInject constructor(
                 preferencesRepository.showWalkCard.first()
         },
         petWeatherThresholds = remoteConfigRepository::petWeatherThresholds,
+        lastWalkNudgeAt = preferencesRepository::lastWalkNudgeAt,
+        setLastWalkNudgeAt = preferencesRepository::setLastWalkNudgeAt,
     )
 
     override suspend fun doWork() = logic.doWork()
