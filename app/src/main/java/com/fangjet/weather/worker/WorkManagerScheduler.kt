@@ -101,8 +101,8 @@ class WorkManagerScheduler @Inject constructor(
         private const val MORNING_WORK_NAME = "notification_briefing"
         private const val LEGACY_MORNING_WORK_NAME = "notification_morning"
         private const val WALK_WORK_NAME = "notification_walk_time"
-        private const val BRIEFING_HOUR = 8
-        private const val BRIEFING_MINUTE = 30
+        internal const val BRIEFING_HOUR = 8
+        internal const val BRIEFING_MINUTE = 30
         private val LEGACY_NOTIFICATION_HOURS = listOf(9, 13, 19)
 
         /** The next [hour]:[minute] local time after [now], in epoch milliseconds; tomorrow's when it is exactly that time. */

@@ -9,6 +9,7 @@ import com.fangjet.weather.data.RemoteConfigRepository
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.UnitOverride
 import com.fangjet.weather.worker.NotificationKind
+import com.fangjet.weather.worker.WalkTimePlanner
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -45,13 +46,16 @@ class SettingsViewModel internal constructor(
     private val preferencesRepository: PreferencesRepository,
     private val remoteConfigRepository: RemoteConfigRepository,
     private val permissions: AppPermissions,
+    // Plans today's walk nudge when Walk time or the dog is turned on (WalkTimePlanner.planToday).
+    private val planWalkTimeToday: suspend () -> Unit = {},
 ) : ViewModel() {
     @Inject
     constructor(
         preferencesRepository: PreferencesRepository,
         remoteConfigRepository: RemoteConfigRepository,
         permissions: DevicePermissions,
-    ) : this(preferencesRepository, remoteConfigRepository, permissions as AppPermissions)
+        walkTimePlanner: WalkTimePlanner,
+    ) : this(preferencesRepository, remoteConfigRepository, permissions as AppPermissions, walkTimePlanner::planToday)
 
     private val _permissionState = MutableStateFlow(readPermissions())
 
@@ -93,7 +97,11 @@ class SettingsViewModel internal constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
     fun setShowWalkCard(show: Boolean) {
-        viewModelScope.launch { preferencesRepository.setShowWalkCard(show) }
+        viewModelScope.launch {
+            preferencesRepository.setShowWalkCard(show)
+            // Walk time comes back with the dog: today's nudge, rather than from tomorrow's 8:30.
+            if (show) planWalkTimeToday()
+        }
     }
 
     /** The notification switches: each kind can be turned off on its own. */
@@ -139,8 +147,12 @@ class SettingsViewModel internal constructor(
         viewModelScope.launch { preferencesRepository.setNotifyMorningBriefing(enabled) }
     }
 
+    /** On plans today's nudge if the best time is still ahead; off needs nothing, the nudge checks when it's due. */
     fun setNotifyWalkTime(enabled: Boolean) {
-        viewModelScope.launch { preferencesRepository.setNotifyWalkTime(enabled) }
+        viewModelScope.launch {
+            preferencesRepository.setNotifyWalkTime(enabled)
+            if (enabled) planWalkTimeToday()
+        }
     }
 
     fun setNotifyRain(enabled: Boolean) {

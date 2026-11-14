@@ -5,6 +5,7 @@ import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
 import com.fangjet.weather.domain.UnitOverride
 import com.fangjet.weather.worker.NotificationKind
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -130,6 +131,27 @@ class SettingsViewModelTest {
             mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
 
             coVerify { repo.setShowWalkCard(false) }
+        }
+
+    @Test
+    fun `turning Walk time or the dog on plans today's walk nudge, after saving it`() =
+        runTest {
+            val repo = mockk<PreferencesRepository>(relaxed = true)
+            every { repo.unitOverride } returns flowOf(UnitOverride.SYSTEM)
+            every { repo.shareUsageStatistics } returns flowOf(true)
+            every { repo.showWalkCard } returns flowOf(true)
+            val events = mutableListOf<String>()
+            coEvery { repo.setNotifyWalkTime(any()) } answers { events += "walk ${firstArg<Boolean>()}" }
+            coEvery { repo.setShowWalkCard(any()) } answers { events += "dog ${firstArg<Boolean>()}" }
+            val viewModel = SettingsViewModel(repo, remoteConfig(), FakePermissions(), planWalkTimeToday = { events += "plan" })
+
+            viewModel.setNotifyWalkTime(false)
+            viewModel.setShowWalkCard(false)
+            viewModel.setNotifyWalkTime(true)
+            viewModel.setShowWalkCard(true)
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(listOf("walk false", "dog false", "walk true", "plan", "dog true", "plan"), events)
         }
 
     @Test

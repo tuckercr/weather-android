@@ -123,6 +123,19 @@ class WelcomeViewModelTest {
         }
 
     @Test
+    fun `answering yes to a dog plans today's walk nudge, after saving it`() =
+        runTest {
+            val events = mutableListOf<String>()
+            val vm = viewModel(setShowWalkCard = { events += "dog $it" }, planWalkTimeToday = { events += "plan" })
+
+            vm.answerHasDog(hasDog = false)
+            vm.answerHasDog(hasDog = true)
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(listOf("dog false", "dog true", "plan"), events)
+        }
+
+    @Test
     fun `the first step is wherever onboarding was left`() =
         runTest {
             suspend fun stepFor(
@@ -186,6 +199,7 @@ class WelcomeViewModelTest {
         hasDogOnce: suspend () -> Boolean = { true },
         remotelyEnabled: (NotificationKind) -> Boolean = { true },
         remoteConfigActivations: Flow<Int> = flowOf(0),
+        planWalkTimeToday: suspend () -> Unit = {},
     ) = WelcomeViewModel(
         hasSeenWelcomeOnce = hasSeenWelcomeOnce,
         notificationOnboardingDoneOnce = notificationOnboardingDoneOnce,
@@ -197,6 +211,7 @@ class WelcomeViewModelTest {
         hasDogOnce = hasDogOnce,
         remotelyEnabled = remotelyEnabled,
         remoteConfigActivations = remoteConfigActivations,
+        planWalkTimeToday = planWalkTimeToday,
     )
 
     class MainDispatcherRule(

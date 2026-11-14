@@ -6,6 +6,7 @@ import com.fangjet.weather.analytics.AnalyticsRepository
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
 import com.fangjet.weather.worker.NotificationKind
+import com.fangjet.weather.worker.WalkTimePlanner
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,6 +53,8 @@ class WelcomeViewModel internal constructor(
     private val remotelyEnabled: (NotificationKind) -> Boolean = { true },
     // Ticks on each Remote Config activation: the first launch's fetch often lands mid-onboarding.
     private val remoteConfigActivations: Flow<Int> = flowOf(0),
+    // Plans today's walk nudge once there's a dog (WalkTimePlanner.planToday).
+    private val planWalkTimeToday: suspend () -> Unit = {},
 ) : ViewModel() {
 
     @Inject
@@ -59,6 +62,7 @@ class WelcomeViewModel internal constructor(
         preferencesRepository: PreferencesRepository,
         analyticsRepository: AnalyticsRepository,
         remoteConfigRepository: RemoteConfigRepository,
+        walkTimePlanner: WalkTimePlanner,
     ) : this(
         hasSeenWelcomeOnce = preferencesRepository::hasSeenWelcomeOnce,
         notificationOnboardingDoneOnce = preferencesRepository::notificationOnboardingDoneOnce,
@@ -71,6 +75,7 @@ class WelcomeViewModel internal constructor(
         hasDogOnce = { preferencesRepository.showWalkCard.first() },
         remotelyEnabled = remoteConfigRepository::notificationsEnabled,
         remoteConfigActivations = remoteConfigRepository.activationCount,
+        planWalkTimeToday = walkTimePlanner::planToday,
     )
 
     /** null while the prefs read is in-flight. */
@@ -127,7 +132,11 @@ class WelcomeViewModel internal constructor(
     /** "Is there a dog at home?": the walk card only shows when there is. */
     fun answerHasDog(hasDog: Boolean) {
         _notificationPromise.update { it.copy(hasDog = hasDog) }
-        viewModelScope.launch { setShowWalkCard(hasDog) }
+        viewModelScope.launch {
+            setShowWalkCard(hasDog)
+            // Walk time follows the dog until it's chosen: today's nudge, if there's a forecast yet.
+            if (hasDog) planWalkTimeToday()
+        }
     }
 
     fun completeNotificationOnboarding() {

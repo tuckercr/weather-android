@@ -209,7 +209,9 @@ WorkManager, and CI on GitHub Actions.
     "Hurricane force winds from 2 PM. Get everyone inside before then." later. Otherwise likely
     storms in a later hour add "Storms from 4 PM." before the walk sentence, for everyone.
   - *Walk time* (only with a dog): the morning run plans a nudge for the day's best walk time, which
-    checks again when it's due and only goes if now is still a great time (and there's still a dog):
+    checks again when it's due and only goes if now is still a great time (and there's still a dog),
+    once a day at most. Turning Walk time on, or saying there's a dog, after 8:30 plans today's
+    nudge straight away from the cached forecast, when the best time is still ahead:
     "Time for a walk / 52° and partly cloudy in Knoxville. Sunny's waiting by the door." Bad air
     left today adds "Smoky air today, so a short one." Hurricane force wind in a forecast hour
     starting within 3 hours after the walk hour, the same day, adds "Hurricane force winds from
@@ -412,7 +414,7 @@ adb shell am broadcast -n com.fangjet.weather.debug/com.fangjet.weather.DebugNot
 ```
 
 **The real workers** run now, with live weather and the real rules, so they may post nothing: the
-walk nudge only when it's a great time for a walk right now (and there's a dog), rain only when the
+walk nudge only when it's a great time for a walk right now (and there's a dog, and no nudge has gone today), rain only when the
 15-minute forecast has rain within the hour, between 7 AM and 9 PM.
 
 ```bash
