@@ -75,7 +75,8 @@ class WalkCardTest {
 
     @Test
     fun `no good time soon says so`() {
-        assertEquals(WalkText(R.string.walk_none), walkDetail(advice(WalkRating.POOR)))
+        // The afternoon's wording; WalkAdvisorTest covers the morning's and the night's.
+        assertEquals(WalkText(R.string.walk_none_left_today), walkDetail(advice(WalkRating.POOR)))
     }
 
     // --- the caption: pavement when it's the reason ---
@@ -148,9 +149,13 @@ class WalkCardTest {
     // --- no caption ---
 
     @Test
-    fun `great, poor and okay without warm pavement have no caption`() {
+    fun `great and okay without warm pavement have no caption`() {
         assertNull(walkCaption(advice(WalkRating.GREAT, pavementNow = 30.0)))
-        assertNull(walkCaption(advice(WalkRating.POOR, pavementNow = 30.0, now = check(WalkReason.Rain(true), WalkLevel.WAIT))))
+        // Poor (no time to give) still says why: the rain, not the pavement.
+        assertEquals(
+            WalkText(R.string.walk_wait_rain),
+            walkCaption(advice(WalkRating.POOR, pavementNow = 30.0, now = check(WalkReason.Rain(true), WalkLevel.WAIT))),
+        )
         assertNull(walkCaption(advice(WalkRating.OKAY, pavementNow = 30.0, now = check(WalkReason.Dark, WalkLevel.WAIT))))
         assertNull(walkCaption(advice(WalkRating.OKAY)))
     }

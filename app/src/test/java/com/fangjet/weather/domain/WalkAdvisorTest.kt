@@ -3,7 +3,9 @@ package com.fangjet.weather.domain
 import com.fangjet.weather.R
 import com.fangjet.weather.model.WalkText
 import com.fangjet.weather.model.hourRange
+import com.fangjet.weather.model.walkCaption
 import com.fangjet.weather.model.walkCardContent
+import com.fangjet.weather.model.walkDetail
 import com.fangjet.weather.util.PavementBand
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -481,8 +483,32 @@ class WalkAdvisorTest {
     @Test
     fun `by day with nothing left today the card doesn't look to tomorrow`() {
         val card = nothingLeftToday(darkNow = false)
-        assertEquals(WalkText(R.string.walk_none_left_today), card.headline)
-        assertEquals(null, card.caption)
+        // 11 AM: the morning's headline, and still why.
+        assertEquals(WalkText(R.string.walk_none), card.headline)
+        assertEquals(WalkText(R.string.walk_wait_rain), card.caption)
+    }
+
+    @Test
+    fun `with no time to give the headline suits the time of day`() {
+        fun headline(
+            isNight: Boolean,
+            isMorning: Boolean,
+        ) = walkDetail(WalkAdvice(WalkRating.POOR, null, isNight = isNight, isMorning = isMorning))
+        assertEquals(WalkText(R.string.walk_none), headline(isNight = false, isMorning = true))
+        assertEquals(WalkText(R.string.walk_none_left_today), headline(isNight = false, isMorning = false))
+        assertEquals(WalkText(R.string.walk_none_tomorrow_either), headline(isNight = true, isMorning = false))
+        // Before dawn, the day ahead is today.
+        assertEquals(WalkText(R.string.walk_none), headline(isNight = true, isMorning = true))
+    }
+
+    @Test
+    fun `with no time to give a wait says why by day only`() {
+        val chilly = WalkCheck(listOf(WalkFactor(WalkReason.Cold, WalkLevel.WAIT)))
+        assertEquals(WalkText(R.string.walk_wait_cold), walkCaption(WalkAdvice(WalkRating.POOR, null, now = chilly)))
+        val showers = WalkCheck(listOf(WalkFactor(WalkReason.Rain(likely = false), WalkLevel.WAIT)))
+        assertEquals(WalkText(R.string.walk_wait_maybe_rain), walkCaption(WalkAdvice(WalkRating.POOR, null, now = showers)))
+        // At night now's reason isn't why tomorrow is no good.
+        assertEquals(null, walkCaption(WalkAdvice(WalkRating.POOR, null, now = chilly, isNight = true)))
     }
 
     @Test

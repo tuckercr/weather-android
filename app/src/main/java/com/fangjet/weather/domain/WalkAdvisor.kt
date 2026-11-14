@@ -93,16 +93,19 @@ data class WalkAdvice(
     val nextWindow: WalkWindow? = null,
     /** Dark now, by the clock: the walk card only looks to tomorrow then. */
     val isNight: Boolean = false,
-    /** Set by [todayOnly] when it left out a best time tomorrow: no good hours are left today. */
-    val tomorrowLeftOut: Boolean = false,
+    /**
+     * Before noon in the city: with no time to give, the card says it's not a good day for walkies in
+     * the morning and that there are no more walkies today after.
+     */
+    val isMorning: Boolean = false,
 ) {
     /** Hurricane force wind now or ahead: the card turns into a warning, shown even without a dog. */
     val isDanger: Boolean get() = rating == WalkRating.DANGER || warning is WalkWarning.Hurricane
 
     /**
      * What the walk card shows: today's walks only. Tomorrow's hours stay in only once it's night and
-     * nothing good is left today ("Tomorrow 7 to 10 AM"); by day the card says there are no more
-     * walkies today instead, and a second option tomorrow is left out after a time today. Same as
+     * nothing good is left today ("Tomorrow 7 to 10 AM"); by day the card gives no time instead, and
+     * a second option tomorrow is left out after a time today. Same as
      * iOS's `WalkAdvice.todayOnly`.
      */
     fun todayOnly(): WalkAdvice =
@@ -114,7 +117,6 @@ data class WalkAdvice(
                     bestTimeEpochSeconds = null,
                     bestTimeEndLabel = null,
                     nextWindow = null,
-                    tomorrowLeftOut = true,
                 )
             nextWindow?.isTomorrow == true && !bestTimeIsTomorrow -> copy(nextWindow = null)
             else -> this
@@ -225,8 +227,15 @@ fun walkAdviceFor(
         bestTimeEndLabel = if (bestIndex == null) null else spellEnd?.let { upcoming[it].timeLabel },
         nextWindow = nextWindow,
         isNight = darkNow,
+        isMorning = isMorning(nowEpochSeconds, utcOffsetSeconds),
     )
 }
+
+/** Before noon at the city's UTC offset. */
+private fun isMorning(
+    nowEpochSeconds: Long,
+    utcOffsetSeconds: Int,
+): Boolean = Instant.ofEpochSecond(nowEpochSeconds).atOffset(ZoneOffset.ofTotalSeconds(utcOffsetSeconds)).hour < 12
 
 /**
  * Hurricane force wind, or else likely thunderstorms, in the hours after the one under way and

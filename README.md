@@ -62,8 +62,10 @@ WorkManager, and CI on GitHub Actions.
   whatever the hourly forecast says. The best time is shown as its spell of good hours, up to the
   first hour that isn't good ("11 AM to 1 PM", "5 to 8 PM"; "Around 8 AM" when the forecast ends
   first). The card is about today's walks: only at night, with no good hours left today, does it
-  look to tomorrow ("Tomorrow 7 to 10 AM", judged in the city's own UTC offset); by day it says "No
-  more walkies today" instead. The next spell today is a second option for people who can't go
+  look to tomorrow ("Tomorrow 7 to 10 AM", judged in the city's own UTC offset). With no time to
+  give it says "Not a good day for walkies" before noon (city time), "No more walkies today" after,
+  and at night "No walkies tomorrow either"; by day the caption says why, even when it's only a
+  wait ("Rainy out.", "Chance of showers.", "Too chilly out."). The next spell today is a second option for people who can't go
   then: "Or 5 to 8 PM." (the title becomes "Best Walk Times"). After a walk now whose good spell ends
   within 6 hours, it's "Good again 5 to 8 PM." When now is only a wait, the caption says what's
   better by the best time: "The rain's gone by then.", "Cooler by then.", "Calmer by then." The paw is tinted by the rating, and a caption

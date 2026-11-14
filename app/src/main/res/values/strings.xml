@@ -410,6 +410,17 @@
     <string name="walk_none">Not a good day for walkies</string>
     <!-- The walk card's headline by day when no good walking hours are left today. -->
     <string name="walk_none_left_today">No more walkies today</string>
+    <!-- At night, with no good walking hours tomorrow either. -->
+    <string name="walk_none_tomorrow_either">No walkies tomorrow either</string>
+    <!-- Why there's no walk today, when the reason is only a wait. -->
+    <string name="walk_wait_rain">Rainy out.</string>
+    <string name="walk_wait_maybe_rain">Chance of showers.</string>
+    <string name="walk_wait_snow">Snowy out.</string>
+    <string name="walk_wait_maybe_snow">Chance of snow.</string>
+    <string name="walk_wait_maybe_storms">Chance of storms.</string>
+    <string name="walk_wait_wind">Very windy out.</string>
+    <string name="walk_wait_heat">Too warm out.</string>
+    <string name="walk_wait_cold">Too chilly out.</string>
     <!-- The walk card's title when it gives a second time for a walk. -->
     <string name="walk_title_two">Best Walk Times</string>
     <!-- A spell of good walking hours: "11 AM to 1 PM", or "5 to 8 PM" when both are in the same half of the day. -->
