@@ -27,7 +27,8 @@ data class WalkText(
  * a wait (the pavement, heat or cold, the air by its pollutant, a gale or storms) or else what clears
  * by the best time ("The rain's gone by then."), or the outlook after a walk now. Hurricane force
  * wind, now or in the next few hours, turns it into a warning, which shows even without a dog, and
- * likely storms in the next few hours are added to the caption. Built with the screen state; the
+ * likely storms in the next few hours are added to the caption. Only today's walks, unless it's night
+ * and none are left ([WalkAdvice.todayOnly]). Built with the screen state; the
  * card says it. Same wording as iOS's `WalkCardContent`.
  */
 data class WalkCardContent(
@@ -40,8 +41,10 @@ data class WalkCardContent(
     val caption: WalkText?,
 )
 
-fun walkCardContent(advice: WalkAdvice) =
-    WalkCardContent(
+/** [advice] is cut down to today's walks first ([WalkAdvice.todayOnly]). */
+fun walkCardContent(fullAdvice: WalkAdvice): WalkCardContent {
+    val advice = fullAdvice.todayOnly()
+    return WalkCardContent(
         rating = advice.rating,
         isDanger = advice.isDanger,
         title = when {
@@ -52,6 +55,7 @@ fun walkCardContent(advice: WalkAdvice) =
         headline = walkDetail(advice),
         caption = walkCaption(advice),
     )
+}
 
 /**
  * The card's sentence: hurricane force wind now or from an hour, walk now, around a time (today or
@@ -69,6 +73,7 @@ internal fun walkDetail(advice: WalkAdvice): WalkText =
         advice.bestTimeLabel != null && advice.bestTimeIsTomorrow ->
             WalkText(R.string.walk_around_tomorrow, listOf(advice.bestTimeLabel))
         advice.bestTimeLabel != null -> WalkText(R.string.walk_around, listOf(advice.bestTimeLabel))
+        advice.tomorrowLeftOut -> WalkText(R.string.walk_none_left_today)
         else -> WalkText(R.string.walk_none)
     }
 
@@ -123,11 +128,11 @@ internal fun secondWindow(advice: WalkAdvice): WalkText? {
     val time = window.endLabel?.let { hourRange(window.startLabel, it) } ?: WalkText(R.string.walk_window_around, listOf(window.startLabel))
     if (advice.rating == WalkRating.GREAT) {
         if (advice.outlook !is WalkOutlook.Until) return null
-        return WalkText(if (window.isTomorrow) R.string.walk_again_tomorrow else R.string.walk_again, listOf(time))
+        return WalkText(R.string.walk_again, listOf(time))
     }
     if (advice.bestTimeLabel == null) return null
-    val tomorrow = window.isTomorrow && !advice.bestTimeIsTomorrow
-    return WalkText(if (tomorrow) R.string.walk_or_tomorrow else R.string.walk_or, listOf(time))
+    // Today's second spell, or, at night with the best time tomorrow, tomorrow's ([WalkAdvice.todayOnly]).
+    return WalkText(R.string.walk_or, listOf(time))
 }
 
 /**

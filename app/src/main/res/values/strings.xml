@@ -408,6 +408,8 @@
     <string name="walk_around">Around %1$s</string>
     <string name="walk_around_tomorrow">Tomorrow around %1$s</string>
     <string name="walk_none">Not a good day for walkies</string>
+    <!-- The walk card's headline by day when no good walking hours are left today. -->
+    <string name="walk_none_left_today">No more walkies today</string>
     <!-- The walk card's title when it gives a second time for a walk. -->
     <string name="walk_title_two">Best Walk Times</string>
     <!-- A spell of good walking hours: "11 AM to 1 PM", or "5 to 8 PM" when both are in the same half of the day. -->
@@ -418,10 +420,8 @@
     <string name="walk_window_around">around %1$s</string>
     <!-- A second spell of good walking hours. %1$s is walk_range ("5 to 8 PM") or walk_window_around. -->
     <string name="walk_or">Or %1$s.</string>
-    <string name="walk_or_tomorrow">Or tomorrow %1$s.</string>
     <!-- After "Now is a great time" and when it ends: the next spell of good walking hours. -->
     <string name="walk_again">Good again %1$s.</string>
-    <string name="walk_again_tomorrow">Good again tomorrow %1$s.</string>
     <!-- Why the best time is better than now. -->
     <string name="walk_clears_rain">The rain\'s gone by then.</string>
     <string name="walk_clears_snow">The snow\'s gone by then.</string>

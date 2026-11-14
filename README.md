@@ -61,9 +61,10 @@ WorkManager, and CI on GitHub Actions.
   below the warm-pavement limit (estimated, with Open-Meteo); when it is raining now, now never counts,
   whatever the hourly forecast says. The best time is shown as its spell of good hours, up to the
   first hour that isn't good ("11 AM to 1 PM", "5 to 8 PM"; "Around 8 AM" when the forecast ends
-  first), and one on the city's next calendar day reads "Tomorrow 7 to 10 AM", judged in the city's
-  own UTC offset. The next spell in the day ahead is a second option for people who can't go then:
-  "Or 5 to 8 PM." (the title becomes "Best Walk Times"). After a walk now whose good spell ends
+  first). The card is about today's walks: only at night, with no good hours left today, does it
+  look to tomorrow ("Tomorrow 7 to 10 AM", judged in the city's own UTC offset); by day it says "No
+  more walkies today" instead. The next spell today is a second option for people who can't go
+  then: "Or 5 to 8 PM." (the title becomes "Best Walk Times"). After a walk now whose good spell ends
   within 6 hours, it's "Good again 5 to 8 PM." When now is only a wait, the caption says what's
   better by the best time: "The rain's gone by then.", "Cooler by then.", "Calmer by then." The paw is tinted by the rating, and a caption
   gives the reason when it's more than a wait: the pavement now ("Paw check: about 55° now. Too hot

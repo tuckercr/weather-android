@@ -91,9 +91,34 @@ data class WalkAdvice(
     val warning: WalkWarning? = null,
     val bestTimeEndLabel: String? = null,
     val nextWindow: WalkWindow? = null,
+    /** Dark now, by the clock: the walk card only looks to tomorrow then. */
+    val isNight: Boolean = false,
+    /** Set by [todayOnly] when it left out a best time tomorrow: no good hours are left today. */
+    val tomorrowLeftOut: Boolean = false,
 ) {
     /** Hurricane force wind now or ahead: the card turns into a warning, shown even without a dog. */
     val isDanger: Boolean get() = rating == WalkRating.DANGER || warning is WalkWarning.Hurricane
+
+    /**
+     * What the walk card shows: today's walks only. Tomorrow's hours stay in only once it's night and
+     * nothing good is left today ("Tomorrow 7 to 10 AM"); by day the card says there are no more
+     * walkies today instead, and a second option tomorrow is left out after a time today. Same as
+     * iOS's `WalkAdvice.todayOnly`.
+     */
+    fun todayOnly(): WalkAdvice =
+        when {
+            bestTimeIsTomorrow && !isNight ->
+                copy(
+                    bestTimeLabel = null,
+                    bestTimeIsTomorrow = false,
+                    bestTimeEpochSeconds = null,
+                    bestTimeEndLabel = null,
+                    nextWindow = null,
+                    tomorrowLeftOut = true,
+                )
+            nextWindow?.isTomorrow == true && !bestTimeIsTomorrow -> copy(nextWindow = null)
+            else -> this
+        }
 }
 
 private const val LOOKAHEAD_SLOTS = 24 // a day of hourly slots
@@ -199,6 +224,7 @@ fun walkAdviceFor(
         walkWarning(slots, check, nowEpochSeconds, thresholds),
         bestTimeEndLabel = if (bestIndex == null) null else spellEnd?.let { upcoming[it].timeLabel },
         nextWindow = nextWindow,
+        isNight = darkNow,
     )
 }
 
