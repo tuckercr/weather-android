@@ -1,5 +1,8 @@
 package com.fangjet.weather.model
 
+import com.fangjet.weather.analytics.CityAdded
+import com.fangjet.weather.analytics.CityAddedSource
+import com.fangjet.weather.analytics.CitySearchProvider
 import com.fangjet.weather.data.CityRepository
 import com.fangjet.weather.data.FakePosition
 import com.fangjet.weather.data.testCityRepository
@@ -117,6 +120,7 @@ class WeatherScreenStepsTest {
             idle()
 
             assertEquals(listOf(myLocation.label), cityList.locations.value.map { it.label })
+            assertEquals(listOf(CityAdded(CityAddedSource.MY_LOCATION, CitySearchProvider.OPENWEATHER)), citiesAdded)
         }
 
     @Test
@@ -184,12 +188,15 @@ class WeatherScreenStepsTest {
 
     // --- Helpers ---
 
+    /** city_added, as logged. */
+    private val citiesAdded = mutableListOf<CityAdded>()
+
     private fun kotlinx.coroutines.test.TestScope.idle() = mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
 
     private fun viewModel(locations: List<SavedLocation>) = viewModelAndCities(locations).first
 
     private fun viewModelAndCities(locations: List<SavedLocation>): Pair<WeatherForecastViewModel, CityRepository> {
-        val cities = testCityRepository(locations)
+        val cities = testCityRepository(locations, onCityAdded = { citiesAdded += it })
         val viewModel = WeatherForecastViewModel(
             repository = testLocationWeatherRepository(
                 fetchCurrentWeather = { units, location ->

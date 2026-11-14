@@ -3,6 +3,9 @@ package com.fangjet.weather.model
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fangjet.weather.analytics.AnalyticsRepository
+import com.fangjet.weather.analytics.OnboardingPermissionResult
+import com.fangjet.weather.analytics.OnboardingStepShown
+import com.fangjet.weather.data.DevicePermissions
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
 import com.fangjet.weather.worker.NotificationKind
@@ -46,7 +49,17 @@ class WelcomeViewModel internal constructor(
     private val setNotificationOnboardingDone: suspend () -> Unit,
     private val setLocationOnboardingDone: suspend () -> Unit,
     private val setShowWalkCard: suspend (Boolean) -> Unit = {},
-    private val onOnboardingComplete: () -> Unit = {},
+    // onboarding_complete, with the dog answer and how each permission question went.
+    private val onOnboardingComplete: (
+        hasDog: Boolean,
+        notifications: OnboardingPermissionResult,
+        location: OnboardingPermissionResult,
+    ) -> Unit = { _, _, _ -> },
+    // onboarding_step, once per step shown.
+    private val onStepShown: (OnboardingStepShown) -> Unit = {},
+    // Whether notifications and location are allowed now, for onboarding_complete.
+    private val notificationsHeld: () -> Boolean = { false },
+    private val locationHeld: () -> Boolean = { false },
     // The dog answer as saved, for a restored app's notification screen.
     private val hasDogOnce: suspend () -> Boolean = { true },
     // Remote Config's switch for each kind of notification.
@@ -62,6 +75,7 @@ class WelcomeViewModel internal constructor(
         preferencesRepository: PreferencesRepository,
         analyticsRepository: AnalyticsRepository,
         remoteConfigRepository: RemoteConfigRepository,
+        permissions: DevicePermissions,
         walkTimePlanner: WalkTimePlanner,
     ) : this(
         hasSeenWelcomeOnce = preferencesRepository::hasSeenWelcomeOnce,
@@ -72,6 +86,9 @@ class WelcomeViewModel internal constructor(
         setLocationOnboardingDone = preferencesRepository::setLocationOnboardingDone,
         setShowWalkCard = preferencesRepository::setShowWalkCard,
         onOnboardingComplete = analyticsRepository::logOnboardingComplete,
+        onStepShown = analyticsRepository::logOnboardingStep,
+        notificationsHeld = permissions::notificationsEnabled,
+        locationHeld = permissions::location,
         hasDogOnce = { preferencesRepository.showWalkCard.first() },
         remotelyEnabled = remoteConfigRepository::notificationsEnabled,
         remoteConfigActivations = remoteConfigRepository.activationCount,
@@ -122,6 +139,22 @@ class WelcomeViewModel internal constructor(
         }
     }
 
+    /** The step last logged as shown, so a recomposition or rotation doesn't log it again. */
+    private var stepLogged: OnboardingStepShown? = null
+
+    /** An onboarding screen is showing: logged when the step changes, not on every recomposition. */
+    fun stepShown(step: OnboardingStepShown) {
+        if (step == stepLogged) return
+        stepLogged = step
+        onStepShown(step)
+    }
+
+    /**
+     * Whether the system asked for notifications on the notification step (null: unknown, after the
+     * app was restarted mid-onboarding). "Not now" didn't ask.
+     */
+    private var notificationsAsked: Boolean? = null
+
     fun completeWelcome() {
         viewModelScope.launch {
             setHasSeenWelcome(true)
@@ -139,18 +172,28 @@ class WelcomeViewModel internal constructor(
         }
     }
 
-    fun completeNotificationOnboarding() {
+    /** The notification step is done: [asked] is whether the system dialog was shown. */
+    fun completeNotificationOnboarding(asked: Boolean = false) {
+        notificationsAsked = asked
         viewModelScope.launch {
             setNotificationOnboardingDone()
             _onboardingState.value = _onboardingState.value?.copy(notificationOnboardingDone = true)
         }
     }
 
-    fun completeLocationOnboarding() {
+    /**
+     * The location step is done, the last: [asked] is whether location was asked for and refused
+     * there (rather than skipped with "Enter a town or city manually").
+     */
+    fun completeLocationOnboarding(asked: Boolean = false) {
         viewModelScope.launch {
             setLocationOnboardingDone()
             _onboardingState.value = _onboardingState.value?.copy(locationOnboardingDone = true)
-            onOnboardingComplete()
+            onOnboardingComplete(
+                _notificationPromise.value.hasDog,
+                OnboardingPermissionResult.of(notificationsAsked, runCatching(notificationsHeld).getOrDefault(false)),
+                OnboardingPermissionResult.of(asked, runCatching(locationHeld).getOrDefault(false)),
+            )
         }
     }
 }

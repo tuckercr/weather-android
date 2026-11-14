@@ -56,6 +56,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fangjet.weather.BuildConfig
 import com.fangjet.weather.R
+import com.fangjet.weather.analytics.AnalyticsPermission
 import com.fangjet.weather.domain.UnitOverride
 import com.fangjet.weather.model.SettingsViewModel
 import kotlinx.coroutines.launch
@@ -152,7 +153,10 @@ fun SettingsRoute(
             } else {
                 SettingsLinkRow(
                     label = stringResource(R.string.settings_location_required),
-                    onClick = context::openAppDetailsSettings,
+                    onClick = {
+                        viewModel.openingAppSettingsFor(AnalyticsPermission.LOCATION)
+                        context.openAppDetailsSettings()
+                    },
                 )
             }
 

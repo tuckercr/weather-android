@@ -1,5 +1,7 @@
 package com.fangjet.weather.model
 
+import com.fangjet.weather.analytics.OnboardingPermissionResult
+import com.fangjet.weather.analytics.OnboardingStepShown
 import com.fangjet.weather.worker.NotificationKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -188,6 +190,90 @@ class WelcomeViewModelTest {
             assertEquals(true, vm.notificationPromise.value.rainEnabled)
         }
 
+    // --- Analytics ---
+
+    @Test
+    fun `each step shown is logged once, however often its screen recomposes`() {
+        val shown = mutableListOf<OnboardingStepShown>()
+        val vm = viewModel(onStepShown = { shown += it })
+
+        vm.stepShown(OnboardingStepShown.WELCOME)
+        vm.stepShown(OnboardingStepShown.WELCOME)
+        vm.stepShown(OnboardingStepShown.DOG)
+        vm.stepShown(OnboardingStepShown.NOTIFICATIONS)
+        vm.stepShown(OnboardingStepShown.NOTIFICATIONS)
+        vm.stepShown(OnboardingStepShown.LOCATION)
+
+        assertEquals(OnboardingStepShown.entries, shown)
+    }
+
+    private data class Completion(
+        val hasDog: Boolean,
+        val notifications: OnboardingPermissionResult,
+        val location: OnboardingPermissionResult,
+    )
+
+    /** Onboarding's end, as logged, after [steps] with notifications and location allowed or not. */
+    private fun completion(
+        notificationsHeld: Boolean = false,
+        locationHeld: Boolean = false,
+        steps: WelcomeViewModel.() -> Unit,
+    ): Completion? {
+        var completion: Completion? = null
+        val vm = viewModel(
+            hasDogOnce = { true },
+            onOnboardingComplete = { dog, notifications, location -> completion = Completion(dog, notifications, location) },
+            notificationsHeld = { notificationsHeld },
+            locationHeld = { locationHeld },
+        )
+        mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+        vm.steps()
+        mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+        return completion
+    }
+
+    @Test
+    fun `onboarding complete says what was answered`() {
+        // Both allowed when asked, with a dog.
+        assertEquals(
+            Completion(true, OnboardingPermissionResult.GRANTED, OnboardingPermissionResult.GRANTED),
+            completion(notificationsHeld = true, locationHeld = true) {
+                completeNotificationOnboarding(asked = true)
+                completeLocationOnboarding()
+            },
+        )
+        // Both refused when asked, and no dog.
+        assertEquals(
+            Completion(false, OnboardingPermissionResult.DENIED, OnboardingPermissionResult.DENIED),
+            completion {
+                answerHasDog(false)
+                completeNotificationOnboarding(asked = true)
+                completeLocationOnboarding(asked = true)
+            },
+        )
+        // "Not now" and "Enter a town or city manually".
+        assertEquals(
+            Completion(true, OnboardingPermissionResult.SKIPPED, OnboardingPermissionResult.SKIPPED),
+            completion {
+                completeNotificationOnboarding(asked = false)
+                completeLocationOnboarding(asked = false)
+            },
+        )
+    }
+
+    @Test
+    fun `onboarding resumed after a restart reports what's allowed, or skipped`() {
+        // The notification step was done before the restart: its answer is unknown.
+        assertEquals(
+            Completion(true, OnboardingPermissionResult.GRANTED, OnboardingPermissionResult.SKIPPED),
+            completion(notificationsHeld = true) { completeLocationOnboarding() },
+        )
+        assertEquals(
+            Completion(true, OnboardingPermissionResult.SKIPPED, OnboardingPermissionResult.SKIPPED),
+            completion { completeLocationOnboarding() },
+        )
+    }
+
     private fun viewModel(
         hasSeenWelcomeOnce: suspend () -> Boolean = { false },
         notificationOnboardingDoneOnce: suspend () -> Boolean = { false },
@@ -199,6 +285,10 @@ class WelcomeViewModelTest {
         hasDogOnce: suspend () -> Boolean = { true },
         remotelyEnabled: (NotificationKind) -> Boolean = { true },
         remoteConfigActivations: Flow<Int> = flowOf(0),
+        onOnboardingComplete: (Boolean, OnboardingPermissionResult, OnboardingPermissionResult) -> Unit = { _, _, _ -> },
+        onStepShown: (OnboardingStepShown) -> Unit = {},
+        notificationsHeld: () -> Boolean = { false },
+        locationHeld: () -> Boolean = { false },
         planWalkTimeToday: suspend () -> Unit = {},
     ) = WelcomeViewModel(
         hasSeenWelcomeOnce = hasSeenWelcomeOnce,
@@ -211,6 +301,10 @@ class WelcomeViewModelTest {
         hasDogOnce = hasDogOnce,
         remotelyEnabled = remotelyEnabled,
         remoteConfigActivations = remoteConfigActivations,
+        onOnboardingComplete = onOnboardingComplete,
+        onStepShown = onStepShown,
+        notificationsHeld = notificationsHeld,
+        locationHeld = locationHeld,
         planWalkTimeToday = planWalkTimeToday,
     )
 

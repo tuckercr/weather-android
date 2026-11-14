@@ -1,5 +1,6 @@
 package com.fangjet.weather.data
 
+import com.fangjet.weather.analytics.CityAdded
 import com.fangjet.weather.domain.SavedLocation
 import io.mockk.coEvery
 import io.mockk.every
@@ -10,6 +11,7 @@ import kotlinx.coroutines.flow.flowOf
 internal fun testCityRepository(
     locations: List<SavedLocation> = emptyList(),
     activeIndex: Int = 0,
+    onCityAdded: (CityAdded) -> Unit = {},
 ): CityRepository {
     val preferences = mockk<PreferencesRepository>(relaxed = true)
     every { preferences.savedLocations } returns flowOf(locations)
@@ -17,7 +19,7 @@ internal fun testCityRepository(
     every { preferences.lastCity } returns flowOf(null)
     val geocoding = mockk<GeocodingRepository>(relaxed = true)
     coEvery { geocoding.searchCities(any()) } returns Result.success(emptyList())
-    return CityRepository(preferences, geocoding, onCityAdded = {})
+    return CityRepository(preferences, geocoding, onCityAdded = onCityAdded)
 }
 
 /** Where the phone is, faked: [here] while [granted], counting the reads. */

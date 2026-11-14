@@ -1,5 +1,7 @@
 package com.fangjet.weather.model
 
+import com.fangjet.weather.analytics.AnalyticsPermission
+import com.fangjet.weather.analytics.PermissionAskedFrom
 import com.fangjet.weather.data.AppPermissions
 import com.fangjet.weather.data.PreferencesRepository
 import com.fangjet.weather.data.RemoteConfigRepository
@@ -293,6 +295,98 @@ class SettingsViewModelTest {
             assertFalse(viewModel.followsMyLocation.value)
             job.cancel()
         }
+
+    // --- permission_changed ---
+
+    private data class PermissionChange(
+        val permission: AnalyticsPermission,
+        val granted: Boolean,
+        val from: PermissionAskedFrom,
+    )
+
+    private fun loggingViewModel(
+        permissions: AppPermissions,
+        changes: MutableList<PermissionChange>,
+    ) = SettingsViewModel(
+        mockk(relaxed = true),
+        remoteConfig(),
+        permissions,
+        onPermissionChanged = { permission, granted, from -> changes += PermissionChange(permission, granted, from) },
+    )
+
+    @Test
+    fun `follow my location logs each answer it asked for`() {
+        val permissions = FakePermissions(location = false, backgroundLocation = false)
+        val changes = mutableListOf<PermissionChange>()
+        val viewModel = loggingViewModel(permissions, changes)
+
+        viewModel.setFollowMyLocation(true)
+        assertEquals(FollowMyLocationRequest.FOREGROUND_LOCATION, viewModel.confirmFollowMyLocation())
+        permissions.location = true
+        viewModel.foregroundLocationAnswered(true)
+        viewModel.backgroundLocationAnswered(false)
+
+        assertEquals(
+            listOf(
+                PermissionChange(AnalyticsPermission.LOCATION, true, PermissionAskedFrom.FOLLOW_MY_LOCATION),
+                PermissionChange(AnalyticsPermission.LOCATION_ALWAYS, false, PermissionAskedFrom.FOLLOW_MY_LOCATION),
+            ),
+            changes,
+        )
+    }
+
+    @Test
+    fun `follow my location's trip to the app's settings is answered on the return`() {
+        val permissions = FakePermissions(backgroundLocation = false)
+        val changes = mutableListOf<PermissionChange>()
+        val viewModel = loggingViewModel(permissions, changes)
+        viewModel.backgroundLocationAnswered(false)
+        viewModel.backgroundLocationAnswered(false)
+        changes.clear()
+
+        assertEquals(FollowMyLocationRequest.APP_SETTINGS, viewModel.confirmFollowMyLocation())
+        permissions.backgroundLocation = true
+        viewModel.refreshPermissions()
+        // Only the return answers it, not every later resume.
+        viewModel.refreshPermissions()
+
+        assertEquals(listOf(PermissionChange(AnalyticsPermission.LOCATION_ALWAYS, true, PermissionAskedFrom.FOLLOW_MY_LOCATION)), changes)
+    }
+
+    @Test
+    fun `nothing is logged when follow my location has nothing to ask`() {
+        val changes = mutableListOf<PermissionChange>()
+        val viewModel = loggingViewModel(FakePermissions(backgroundLocation = true), changes)
+
+        viewModel.setFollowMyLocation(true)
+        assertEquals(FollowMyLocationRequest.NONE, viewModel.confirmFollowMyLocation())
+        viewModel.refreshPermissions()
+
+        assertEquals(emptyList<PermissionChange>(), changes)
+    }
+
+    @Test
+    fun `the settings rows' trips to the app's settings are answered on the return`() {
+        val permissions = FakePermissions(location = false, notifications = false)
+        val changes = mutableListOf<PermissionChange>()
+        val viewModel = loggingViewModel(permissions, changes)
+
+        viewModel.openingAppSettingsFor(AnalyticsPermission.NOTIFICATIONS)
+        permissions.notifications = true
+        viewModel.refreshPermissions()
+        viewModel.openingAppSettingsFor(AnalyticsPermission.LOCATION)
+        viewModel.refreshPermissions()
+        // A resume with no trip logs nothing.
+        viewModel.refreshPermissions()
+
+        assertEquals(
+            listOf(
+                PermissionChange(AnalyticsPermission.NOTIFICATIONS, true, PermissionAskedFrom.SETTINGS),
+                PermissionChange(AnalyticsPermission.LOCATION, false, PermissionAskedFrom.SETTINGS),
+            ),
+            changes,
+        )
+    }
 
     private class FakePermissions(
         var location: Boolean = true,

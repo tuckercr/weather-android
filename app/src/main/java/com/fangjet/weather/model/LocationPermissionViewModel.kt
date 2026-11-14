@@ -2,6 +2,9 @@ package com.fangjet.weather.model
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fangjet.weather.analytics.AnalyticsPermission
+import com.fangjet.weather.analytics.AnalyticsRepository
+import com.fangjet.weather.analytics.PermissionAskedFrom
 import com.fangjet.weather.data.LocationRepository
 import com.fangjet.weather.data.PermissionAnswer
 import com.fangjet.weather.domain.SavedLocation
@@ -37,10 +40,22 @@ sealed class LocationFetchState {
  */
 @HiltViewModel
 class LocationPermissionViewModel
-    @Inject
-    constructor(
+    internal constructor(
         private val location: LocationRepository,
+        // permission_changed for Add My Location's request, with its answer.
+        private val onAddMyLocationAnswer: (granted: Boolean) -> Unit = {},
     ) : ViewModel() {
+        @Inject
+        constructor(
+            location: LocationRepository,
+            analytics: AnalyticsRepository,
+        ) : this(
+            location = location,
+            onAddMyLocationAnswer = { granted ->
+                analytics.logPermissionChanged(AnalyticsPermission.LOCATION, granted, PermissionAskedFrom.ADD_MY_LOCATION)
+            },
+        )
+
         private val _state = MutableStateFlow<LocationFetchState>(LocationFetchState.Idle)
         val state: StateFlow<LocationFetchState> = _state.asStateFlow()
 
@@ -111,6 +126,7 @@ class LocationPermissionViewModel
         fun refreshAccess() {
             if (settingsTrip != SettingsTrip.AWAY) return
             settingsTrip = SettingsTrip.NONE
+            addMyLocationAnswered(hasLocationPermission())
             if (hasLocationPermission()) {
                 fetchLocation()
             } else {
@@ -119,8 +135,22 @@ class LocationPermissionViewModel
             }
         }
 
+        /**
+         * Add My Location has asked for access (the dialog, or the app's settings page after it) and
+         * awaits the answer, for analytics. Onboarding's request isn't counted here.
+         */
+        private var askingForAdd = false
+
+        /** Add My Location's answer is in: logged once. */
+        private fun addMyLocationAnswered(granted: Boolean) {
+            if (!askingForAdd) return
+            askingForAdd = false
+            onAddMyLocationAnswer(granted)
+        }
+
         /** The system request is going out: see [LocationRepository.permissionRequested]. */
         fun permissionRequestStarted() {
+            askingForAdd = adding
             location.permissionRequested()
         }
 
@@ -134,8 +164,12 @@ class LocationPermissionViewModel
             rationaleAfter: Boolean,
         ) {
             when (location.permissionAnswered(granted, rationaleBefore, rationaleAfter)) {
-                PermissionAnswer.GRANTED -> fetchLocation()
+                PermissionAnswer.GRANTED -> {
+                    addMyLocationAnswered(true)
+                    fetchLocation()
+                }
                 PermissionAnswer.REFUSED -> {
+                    addMyLocationAnswered(false)
                     adding = false
                     onPermissionDenied()
                 }

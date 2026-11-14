@@ -32,7 +32,8 @@ import timber.log.Timber
 
 @Composable
 fun OnboardingNotificationScreen(
-    onDone: () -> Unit,
+    // Whether the system was asked (the dialog shown): "Not now" didn't ask.
+    onDone: (asked: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     // The answer to the dog question just before: with a dog, the walk-time nudge is mentioned too.
     hasDog: Boolean = true,
@@ -48,7 +49,7 @@ fun OnboardingNotificationScreen(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
         Timber.d("permission result: granted=$granted")
-        onDone()
+        onDone(true)
     }
 
     OnboardingLayout(
@@ -61,7 +62,7 @@ fun OnboardingNotificationScreen(
                         permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     } else {
                         Timber.d("pre-Tiramisu device, skipping permission request")
-                        onDone()
+                        onDone(false)
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -71,7 +72,7 @@ fun OnboardingNotificationScreen(
             OutlinedButton(
                 onClick = {
                     Timber.d("user tapped Not now")
-                    onDone()
+                    onDone(false)
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {

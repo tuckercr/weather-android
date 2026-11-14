@@ -64,6 +64,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fangjet.weather.R
+import com.fangjet.weather.analytics.CityAdded
+import com.fangjet.weather.analytics.CityAddedSource
+import com.fangjet.weather.analytics.CitySearchProvider
 import com.fangjet.weather.domain.CitySuggestion
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.model.AddLocationAction
@@ -81,12 +84,13 @@ import com.fangjet.weather.ui.theme.CatsDogsTheme
  * empty weather screen. It was a bottom sheet with the saved list above the search, which put the
  * results under the keyboard. Same layout and rules as iOS's `Views/AddLocationView.swift`.
  *
- * [onAdd] gets the location to save and the name to confirm it with ("Malmö added").
+ * [onAdd] gets the location to save, the name to confirm it with ("Malmö added") and how it was
+ * added, for analytics.
  */
 @Composable
 fun AddLocationRoute(
     locations: List<SavedLocation>,
-    onAdd: (location: SavedLocation, name: String) -> Unit,
+    onAdd: (location: SavedLocation, name: String, added: CityAdded) -> Unit,
     onGoTo: (index: Int) -> Unit,
     onClose: () -> Unit,
     geoViewModel: GeoLocationViewModel = hiltViewModel(),
@@ -111,10 +115,23 @@ fun AddLocationRoute(
         locations = locations,
         onLocated = {
             leaving()
-            onAdd(it, it.label)
+            onAdd(it, it.label, CityAdded(CityAddedSource.MY_LOCATION))
         },
         viewModel = locationViewModel,
     )
+
+    fun addSuggestion(
+        suggestion: CitySuggestion,
+        source: CityAddedSource,
+    ) {
+        leaving()
+        onAdd(
+            SavedLocation(label = suggestion.label, latitude = suggestion.weatherLat, longitude = suggestion.weatherLon),
+            suggestion.name,
+            // Android's search is OpenWeather's.
+            CityAdded(source, CitySearchProvider.OPENWEATHER),
+        )
+    }
 
     AddLocationScreen(
         query = query,
@@ -123,16 +140,11 @@ fun AddLocationRoute(
         searchFailed = searchFailed,
         savedLocations = locations,
         onQueryChange = geoViewModel::onCityInputChange,
-        onAdd = { suggestion ->
-            leaving()
-            onAdd(
-                SavedLocation(label = suggestion.label, latitude = suggestion.weatherLat, longitude = suggestion.weatherLon),
-                suggestion.name,
-            )
-        },
+        onAdd = { suggestion -> addSuggestion(suggestion, CityAddedSource.SUGGESTION) },
+        onAddTypedMatch = { suggestion -> addSuggestion(suggestion, CityAddedSource.TYPED_MATCH) },
         onAddByName = { name ->
             leaving()
-            onAdd(SavedLocation(label = name, latitude = null, longitude = null), name)
+            onAdd(SavedLocation(label = name, latitude = null, longitude = null), name, CityAdded(CityAddedSource.TYPED_NAME))
         },
         onGoTo = { index ->
             leaving()
@@ -164,11 +176,13 @@ fun AddLocationScreen(
     // Shown while My Location isn't saved and location access is on or can be asked for.
     onAddMyLocation: (() -> Unit)? = null,
     locatingMyLocation: Boolean = false,
+    // The button and the keyboard's Search key adding the row that matches what was typed.
+    onAddTypedMatch: (CitySuggestion) -> Unit = onAdd,
 ) {
     val action = addLocationAction(query, suggestions, searching, searchFailed, savedLocations)
     val runAction: () -> Unit = {
         when (action) {
-            is AddLocationAction.Add -> onAdd(action.suggestion)
+            is AddLocationAction.Add -> onAddTypedMatch(action.suggestion)
             is AddLocationAction.GoTo -> onGoTo(action.index)
             is AddLocationAction.AddByName -> onAddByName(action.name)
             else -> Unit

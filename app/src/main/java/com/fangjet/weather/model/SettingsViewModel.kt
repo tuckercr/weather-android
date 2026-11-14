@@ -2,6 +2,9 @@ package com.fangjet.weather.model
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fangjet.weather.analytics.AnalyticsPermission
+import com.fangjet.weather.analytics.AnalyticsRepository
+import com.fangjet.weather.analytics.PermissionAskedFrom
 import com.fangjet.weather.data.AppPermissions
 import com.fangjet.weather.data.DevicePermissions
 import com.fangjet.weather.data.PreferencesRepository
@@ -46,6 +49,8 @@ class SettingsViewModel internal constructor(
     private val preferencesRepository: PreferencesRepository,
     private val remoteConfigRepository: RemoteConfigRepository,
     private val permissions: AppPermissions,
+    // permission_changed: the app asked for a permission here and the answer came back.
+    private val onPermissionChanged: (AnalyticsPermission, granted: Boolean, PermissionAskedFrom) -> Unit = { _, _, _ -> },
     // Plans today's walk nudge when Walk time or the dog is turned on (WalkTimePlanner.planToday).
     private val planWalkTimeToday: suspend () -> Unit = {},
 ) : ViewModel() {
@@ -54,8 +59,15 @@ class SettingsViewModel internal constructor(
         preferencesRepository: PreferencesRepository,
         remoteConfigRepository: RemoteConfigRepository,
         permissions: DevicePermissions,
+        analytics: AnalyticsRepository,
         walkTimePlanner: WalkTimePlanner,
-    ) : this(preferencesRepository, remoteConfigRepository, permissions as AppPermissions, walkTimePlanner::planToday)
+    ) : this(
+        preferencesRepository,
+        remoteConfigRepository,
+        permissions as AppPermissions,
+        analytics::logPermissionChanged,
+        walkTimePlanner::planToday,
+    )
 
     private val _permissionState = MutableStateFlow(readPermissions())
 
@@ -65,6 +77,30 @@ class SettingsViewModel internal constructor(
     /** Re-reads the permissions: on every resume, since they change in system settings. */
     fun refreshPermissions() {
         _permissionState.value = readPermissions()
+        backFromAppSettings()
+    }
+
+    /** What a trip to the app's system settings page was for, until the user is back. */
+    private var appSettingsTrip: Pair<AnalyticsPermission, PermissionAskedFrom>? = null
+
+    /**
+     * A row for a permission that's off (Settings' location, Notifications' notifications) is opening
+     * the app's settings page, where it can be allowed: the next resume brings the answer.
+     */
+    fun openingAppSettingsFor(permission: AnalyticsPermission) {
+        appSettingsTrip = permission to PermissionAskedFrom.SETTINGS
+    }
+
+    /** Back from the app's settings page: whether the permission it was opened for is on now. */
+    private fun backFromAppSettings() {
+        val (permission, from) = appSettingsTrip ?: return
+        appSettingsTrip = null
+        val granted = when (permission) {
+            AnalyticsPermission.NOTIFICATIONS -> permissions.notificationsEnabled()
+            AnalyticsPermission.LOCATION -> permissions.location()
+            AnalyticsPermission.LOCATION_ALWAYS -> permissions.backgroundLocation()
+        }
+        onPermissionChanged(permission, granted, from)
     }
 
     private fun readPermissions() =
@@ -195,7 +231,18 @@ class SettingsViewModel internal constructor(
             !permissions.location() -> FollowMyLocationRequest.FOREGROUND_LOCATION
             permissions.backgroundLocationRefusals() >= 2 -> FollowMyLocationRequest.APP_SETTINGS
             else -> FollowMyLocationRequest.BACKGROUND_LOCATION
+        }.also { request ->
+            // The app's settings page answers when the user is back ([refreshPermissions]).
+            if (request == FollowMyLocationRequest.APP_SETTINGS) {
+                appSettingsTrip = AnalyticsPermission.LOCATION_ALWAYS to PermissionAskedFrom.FOLLOW_MY_LOCATION
+            }
         }
+    }
+
+    /** The answer to "While using the app", asked first when turning Follow my location on without it. */
+    fun foregroundLocationAnswered(granted: Boolean) {
+        onPermissionChanged(AnalyticsPermission.LOCATION, granted, PermissionAskedFrom.FOLLOW_MY_LOCATION)
+        refreshPermissions()
     }
 
     fun dismissFollowMyLocationExplanation() {
@@ -205,6 +252,7 @@ class SettingsViewModel internal constructor(
     /** The answer to "Allow all the time", counted so the third try opens the app's settings. */
     fun backgroundLocationAnswered(granted: Boolean) {
         permissions.noteBackgroundLocationAnswer(granted)
+        onPermissionChanged(AnalyticsPermission.LOCATION_ALWAYS, granted, PermissionAskedFrom.FOLLOW_MY_LOCATION)
         refreshPermissions()
     }
 

@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fangjet.weather.R
+import com.fangjet.weather.analytics.AnalyticsPermission
 import com.fangjet.weather.model.FollowMyLocationRequest
 import com.fangjet.weather.model.SettingsViewModel
 import com.fangjet.weather.worker.NotificationKind
@@ -74,7 +75,10 @@ fun NotificationSettingsRoute(onNavigateBack: () -> Unit) {
             if (!permissions.notifications) {
                 SettingsLinkRow(
                     label = stringResource(R.string.settings_notifications_disabled),
-                    onClick = context::openAppDetailsSettings,
+                    onClick = {
+                        viewModel.openingAppSettingsFor(AnalyticsPermission.NOTIFICATIONS)
+                        context.openAppDetailsSettings()
+                    },
                 )
                 return@Column
             }
@@ -130,7 +134,9 @@ private fun FollowMyLocationRow(viewModel: SettingsViewModel) {
     )
     // Android only offers "Allow all the time" once "While using the app" is granted.
     val foregroundRequest = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-        if (result.values.any { it }) backgroundRequest.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        val granted = result.values.any { it }
+        viewModel.foregroundLocationAnswered(granted)
+        if (granted) backgroundRequest.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
     }
 
     SettingsSwitchRow(

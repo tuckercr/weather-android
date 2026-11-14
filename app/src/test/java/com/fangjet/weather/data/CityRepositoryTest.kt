@@ -1,5 +1,8 @@
 package com.fangjet.weather.data
 
+import com.fangjet.weather.analytics.CityAdded
+import com.fangjet.weather.analytics.CityAddedSource
+import com.fangjet.weather.analytics.CitySearchProvider
 import com.fangjet.weather.domain.CitySuggestion
 import com.fangjet.weather.domain.SavedLocation
 import io.mockk.coEvery
@@ -121,7 +124,7 @@ class CityRepositoryTest {
             )
             mainDispatcherRule.testDispatcher.scheduler.runCurrent()
 
-            viewModel.addLocation(denver)
+            viewModel.addLocation(denver, CityAdded(CityAddedSource.SUGGESTION))
             mainDispatcherRule.testDispatcher.scheduler.runCurrent()
 
             assertEquals(listOf(austin, denver), viewModel.locations.value)
@@ -140,7 +143,7 @@ class CityRepositoryTest {
             )
             mainDispatcherRule.testDispatcher.scheduler.runCurrent()
 
-            viewModel.addLocation(austin)
+            viewModel.addLocation(austin, CityAdded(CityAddedSource.SUGGESTION))
             mainDispatcherRule.testDispatcher.scheduler.runCurrent()
 
             assertEquals(listOf(austin, denver), viewModel.locations.value) // unchanged
@@ -150,18 +153,18 @@ class CityRepositoryTest {
         }
 
     @Test
-    fun `addLocation fires onCityAdded for new cities`() =
+    fun `addLocation fires onCityAdded for new cities, with how it was added`() =
         runTest {
-            var callCount = 0
+            val added = mutableListOf<CityAdded>()
             val viewModel = viewModel(
                 savedLocations = listOf(austin),
-                onCityAdded = { callCount++ },
+                onCityAdded = { added += it },
             )
             mainDispatcherRule.testDispatcher.scheduler.runCurrent()
 
-            viewModel.addLocation(denver)
+            viewModel.addLocation(denver, CityAdded(CityAddedSource.SUGGESTION, CitySearchProvider.OPENWEATHER))
             mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
-            assertEquals(1, callCount)
+            assertEquals(listOf(CityAdded(CityAddedSource.SUGGESTION, CitySearchProvider.OPENWEATHER)), added)
         }
 
     @Test
@@ -174,7 +177,7 @@ class CityRepositoryTest {
             )
             mainDispatcherRule.testDispatcher.scheduler.runCurrent()
 
-            viewModel.addLocation(austin)
+            viewModel.addLocation(austin, CityAdded(CityAddedSource.TYPED_NAME))
             assertEquals(0, callCount)
         }
 
@@ -491,7 +494,7 @@ class CityRepositoryTest {
         lastCity: String? = null,
         onSetSavedLocations: (List<SavedLocation>) -> Unit = {},
         onSetActiveIndex: (Int) -> Unit = {},
-        onCityAdded: () -> Unit = {},
+        onCityAdded: (CityAdded) -> Unit = {},
         geocodingRepo: GeocodingRepository = mockk<GeocodingRepository>(relaxed = true).also {
             coEvery { it.searchCities(any()) } returns Result.success(emptyList())
         },
