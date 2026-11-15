@@ -114,7 +114,10 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
   Play uploads, and App Store Connect or Play Console changes.
 - **Remote Config.** The template lives in the Android repo (`firebase/remoteconfig.template.json`).
   A key's default must match there, in Android's `remote_config_defaults.xml` and
-  `RemoteConfigRepository.kt`, and in iOS's `RemoteConfigRepository.swift`. Before deploying
+  `RemoteConfigRepository.kt`, and in iOS's `RemoteConfigRepository.swift`. The four
+  `walk_*_pavement_c` defaults are also in the table on the website's paw safety page
+  (`paw-safety/index.html` in tuckercr/sunny-misty-web): update it and deploy the site when they
+  change. Before deploying
   (`firebase deploy --only remoteconfig` from the Android repo), fetch what's live with
   `firebase remoteconfig:get -o <file>` and compare, so the deploy changes only what's intended.
 - **Timing.** For notifications and background work, check when they actually run on a device
