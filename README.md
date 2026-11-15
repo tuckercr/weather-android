@@ -553,6 +553,11 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `seasonal_themes_enabled` | boolean | `true` | Seasonal themes (Halloween, Thanksgiving); false switches them all off |
 | `seasonal_themes` | string | the built-in list | The themes as a JSON list (format: `SeasonalTheme`), replacing the list built into the apps (`res/raw/seasonal_themes.json`) when valid; empty keeps it. A new theme for a fixed date, a date range or an nth weekday needs no app update |
 
+The website's paw safety page (sunnyandmisty.com/paw-safety, `paw-safety/index.html` in
+tuckercr/sunny-misty-web) lists Paw Check's bands at the defaults of `walk_warm_pavement_c`,
+`walk_hot_pavement_c`, `walk_dangerous_pavement_c` and `walk_icy_pavement_c`. When one of those
+defaults changes, update that page in °C and °F and deploy the site.
+
 The walk and pet-mood thresholds are always Celsius, whatever units the user picks. A value outside
 its valid range (or a fractional value for a whole-number key) falls back to its default, and so
 does any pair that isn't strictly ordered (comfort min/max, walk hours start/end, pet cold/hot):
