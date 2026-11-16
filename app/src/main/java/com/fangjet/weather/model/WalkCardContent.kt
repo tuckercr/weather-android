@@ -27,8 +27,11 @@ data class WalkText(
  * a wait (the pavement, heat or cold, the air by its pollutant, a gale or storms) or else what clears
  * by the best time ("The rain's gone by then."), or the outlook after a walk now. Hurricane force
  * wind, now or in the next few hours, turns it into a warning, which shows even without a dog, and
- * likely storms in the next few hours are added to the caption. Built with the screen state; the
+ * likely storms in the next few hours are added to the caption. With no time to give, a wait's
+ * reason ("Rainy out."). Only today's walks, unless it's night
+ * and none are left ([WalkAdvice.todayOnly]). Built with the screen state; the
  * card says it. Same wording as iOS's `WalkCardContent`.
+ * sunnyandmisty.com/walk-card (unlisted, in the website repo) explains these rules: keep it in step.
  */
 data class WalkCardContent(
     /** Picks the paw's tint. */
@@ -40,8 +43,10 @@ data class WalkCardContent(
     val caption: WalkText?,
 )
 
-fun walkCardContent(advice: WalkAdvice) =
-    WalkCardContent(
+/** [advice] is cut down to today's walks first ([WalkAdvice.todayOnly]). */
+fun walkCardContent(fullAdvice: WalkAdvice): WalkCardContent {
+    val advice = fullAdvice.todayOnly()
+    return WalkCardContent(
         rating = advice.rating,
         isDanger = advice.isDanger,
         title = when {
@@ -52,6 +57,7 @@ fun walkCardContent(advice: WalkAdvice) =
         headline = walkDetail(advice),
         caption = walkCaption(advice),
     )
+}
 
 /**
  * The card's sentence: hurricane force wind now or from an hour, walk now, around a time (today or
@@ -69,7 +75,10 @@ internal fun walkDetail(advice: WalkAdvice): WalkText =
         advice.bestTimeLabel != null && advice.bestTimeIsTomorrow ->
             WalkText(R.string.walk_around_tomorrow, listOf(advice.bestTimeLabel))
         advice.bestTimeLabel != null -> WalkText(R.string.walk_around, listOf(advice.bestTimeLabel))
-        else -> WalkText(R.string.walk_none)
+        // No time to give: at night nothing good tomorrow either, by day none left today.
+        advice.isNight && !advice.isMorning -> WalkText(R.string.walk_none_tomorrow_either)
+        advice.isMorning -> WalkText(R.string.walk_none)
+        else -> WalkText(R.string.walk_none_left_today)
     }
 
 /**
@@ -85,7 +94,7 @@ internal fun walkCaption(advice: WalkAdvice): WalkText? {
     val parts = if (advice.rating == WalkRating.GREAT) {
         listOfNotNull(nowCaption(advice), secondWindow(advice))
     } else {
-        listOfNotNull(secondWindow(advice), nowCaption(advice) ?: clearsText(advice))
+        listOfNotNull(secondWindow(advice), nowCaption(advice) ?: clearsText(advice) ?: waitText(advice))
     }
     val caption = parts.reduceOrNull { first, then -> WalkText(R.string.walk_caption_and_more, listOf(first, then)) }
     if (warning !is WalkWarning.Storms) return caption
@@ -123,11 +132,11 @@ internal fun secondWindow(advice: WalkAdvice): WalkText? {
     val time = window.endLabel?.let { hourRange(window.startLabel, it) } ?: WalkText(R.string.walk_window_around, listOf(window.startLabel))
     if (advice.rating == WalkRating.GREAT) {
         if (advice.outlook !is WalkOutlook.Until) return null
-        return WalkText(if (window.isTomorrow) R.string.walk_again_tomorrow else R.string.walk_again, listOf(time))
+        return WalkText(R.string.walk_again, listOf(time))
     }
     if (advice.bestTimeLabel == null) return null
-    val tomorrow = window.isTomorrow && !advice.bestTimeIsTomorrow
-    return WalkText(if (tomorrow) R.string.walk_or_tomorrow else R.string.walk_or, listOf(time))
+    // Today's second spell, or, at night with the best time tomorrow, tomorrow's ([WalkAdvice.todayOnly]).
+    return WalkText(R.string.walk_or, listOf(time))
 }
 
 /**
@@ -145,6 +154,25 @@ private fun clearsText(advice: WalkAdvice): WalkText? {
         is WalkReason.Wind -> R.string.walk_clears_wind
         is WalkReason.Pavement -> R.string.walk_clears_pavement
         is WalkReason.Air -> R.string.walk_clears_air
+        else -> return null
+    }
+    return WalkText(res)
+}
+
+/**
+ * Why now isn't the time when there's no time to give and the reason is only a wait, so the card
+ * doesn't say "No more walkies today" with no why: "Rainy out." Null at night, when now's reason
+ * isn't why tomorrow is no good, and for a walk now.
+ */
+internal fun waitText(advice: WalkAdvice): WalkText? {
+    if (advice.rating == WalkRating.GREAT || advice.bestTimeLabel != null || advice.isNight) return null
+    val res = when (val reason = advice.now.reason) {
+        is WalkReason.Rain -> if (reason.likely) R.string.walk_wait_rain else R.string.walk_wait_maybe_rain
+        is WalkReason.Snow -> if (reason.likely) R.string.walk_wait_snow else R.string.walk_wait_maybe_snow
+        is WalkReason.Storms -> R.string.walk_wait_maybe_storms
+        is WalkReason.Wind -> R.string.walk_wait_wind
+        WalkReason.Heat -> R.string.walk_wait_heat
+        WalkReason.Cold -> R.string.walk_wait_cold
         else -> return null
     }
     return WalkText(res)

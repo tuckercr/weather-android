@@ -3,7 +3,9 @@ package com.fangjet.weather.domain
 import com.fangjet.weather.R
 import com.fangjet.weather.model.WalkText
 import com.fangjet.weather.model.hourRange
+import com.fangjet.weather.model.walkCaption
 import com.fangjet.weather.model.walkCardContent
+import com.fangjet.weather.model.walkDetail
 import com.fangjet.weather.util.PavementBand
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -443,7 +445,7 @@ class WalkAdvisorTest {
     }
 
     @Test
-    fun `a second option on the next day says tomorrow`() {
+    fun `the card leaves out a second option tomorrow`() {
         val advice = walkAdviceFor(
             15.0,
             listOf(
@@ -458,14 +460,79 @@ class WalkAdvisorTest {
             conditionNow = "Rain",
         )!!
         val card = walkCardContent(advice)
+        assertEquals(R.string.walk_title, card.title)
         assertEquals(WalkText(R.string.walk_range, listOf("1", "2 PM")), card.headline)
-        assertEquals(
-            and(
-                WalkText(R.string.walk_or_tomorrow, listOf(WalkText(R.string.walk_range, listOf("7", "8 AM")))),
-                WalkText(R.string.walk_clears_rain),
+        assertEquals(WalkText(R.string.walk_clears_rain), card.caption)
+    }
+
+    /** Now at 11 AM UTC, rain, then nothing good until 7 AM tomorrow. */
+    private fun nothingLeftToday(darkNow: Boolean) =
+        walkAdviceFor(
+            15.0,
+            listOf(
+                slot("11 AM", 15.0, 80, epoch = noonUtc - 3600),
+                slot("12 PM", 15.0, 80, epoch = noonUtc),
+                slot("7 AM", 15.0, 0, epoch = noonUtc + 19 * 3600),
+                slot("8 AM", 15.0, 80, epoch = noonUtc + 20 * 3600),
             ),
-            card.caption,
-        )
+            nowEpochSeconds = noonUtc - 3600,
+            conditionNow = "Rain",
+            darkNow = darkNow,
+        )!!.let(::walkCardContent)
+
+    @Test
+    fun `by day with nothing left today the card doesn't look to tomorrow`() {
+        val card = nothingLeftToday(darkNow = false)
+        // 11 AM: the morning's headline, and still why.
+        assertEquals(WalkText(R.string.walk_none), card.headline)
+        assertEquals(WalkText(R.string.walk_wait_rain), card.caption)
+    }
+
+    @Test
+    fun `with no time to give the headline suits the time of day`() {
+        fun headline(
+            isNight: Boolean,
+            isMorning: Boolean,
+        ) = walkDetail(WalkAdvice(WalkRating.POOR, null, isNight = isNight, isMorning = isMorning))
+        assertEquals(WalkText(R.string.walk_none), headline(isNight = false, isMorning = true))
+        assertEquals(WalkText(R.string.walk_none_left_today), headline(isNight = false, isMorning = false))
+        assertEquals(WalkText(R.string.walk_none_tomorrow_either), headline(isNight = true, isMorning = false))
+        // Before dawn, the day ahead is today.
+        assertEquals(WalkText(R.string.walk_none), headline(isNight = true, isMorning = true))
+    }
+
+    @Test
+    fun `with no time to give a wait says why by day only`() {
+        val chilly = WalkCheck(listOf(WalkFactor(WalkReason.Cold, WalkLevel.WAIT)))
+        assertEquals(WalkText(R.string.walk_wait_cold), walkCaption(WalkAdvice(WalkRating.POOR, null, now = chilly)))
+        val showers = WalkCheck(listOf(WalkFactor(WalkReason.Rain(likely = false), WalkLevel.WAIT)))
+        assertEquals(WalkText(R.string.walk_wait_maybe_rain), walkCaption(WalkAdvice(WalkRating.POOR, null, now = showers)))
+        // At night now's reason isn't why tomorrow is no good.
+        assertEquals(null, walkCaption(WalkAdvice(WalkRating.POOR, null, now = chilly, isNight = true)))
+    }
+
+    @Test
+    fun `at night with nothing left today the card gives tomorrow`() {
+        val card = nothingLeftToday(darkNow = true)
+        assertEquals(WalkText(R.string.walk_window_tomorrow, listOf(WalkText(R.string.walk_range, listOf("7", "8 AM")))), card.headline)
+    }
+
+    @Test
+    fun `a walk now ends with today's outlook, not tomorrow`() {
+        val card = walkAdviceFor(
+            15.0,
+            listOf(
+                slot("11 AM", 15.0, 0, epoch = noonUtc - 3600),
+                slot("12 PM", 15.0, 0, epoch = noonUtc),
+                slot("1 PM", 15.0, 80, epoch = noonUtc + 3600),
+                slot("2 PM", 15.0, 80, epoch = noonUtc + 2 * 3600),
+                slot("7 AM", 15.0, 0, epoch = noonUtc + 19 * 3600),
+                slot("8 AM", 15.0, 80, epoch = noonUtc + 20 * 3600),
+            ),
+            nowEpochSeconds = noonUtc - 3600,
+        )!!.let(::walkCardContent)
+        assertEquals(WalkText(R.string.walk_now), card.headline)
+        assertEquals(R.string.walk_title, card.title)
     }
 
     @Test
