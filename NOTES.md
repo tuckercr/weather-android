@@ -23,6 +23,12 @@ Finished items move to Done at the bottom.
       notification onboarding). SEARCH.md marks the changes building it on iOS made (11-06).
       When it's built, add the keys to `firebase/remoteconfig.template.json` with iOS's defaults;
       iOS reads them with in-app defaults, so nothing needs deploying first. (11-06)
+- [ ] **Test both apps on OpenWeather alone before release.** Turn `open_meteo_enabled` off (a
+      Remote Config change, or a debug build with it off) and check everything still works on the
+      fallback: the hero and forecast, the walk card, tiles, notifications and city search. The
+      Open-Meteo key change (11-16) moved every Open-Meteo request to the customer servers, so the
+      fallback is what users get if the key or the plan stops working. (11-16)
+
 ## Air quality
 
 - [ ] Review the copy without a dog ("Fresh air all round" … "Stay indoors") and with one
@@ -203,12 +209,15 @@ noted. Checked against the code, not fixed yet.
       settle: a governing-law section (the state FangJet LLC is registered in), whether the
       no-warranty and liability paragraphs need capitals to stand out, and that the App Store and
       Play listings don't promise more than the terms do. (11-09)
-- [ ] Licences: RainViewer is personal and educational use only, and Open-Meteo's free tier is
-      non-commercial. Emails were drafted on 10-24; no replies yet. Fallback: launch with
-      `radar_enabled` / `open_meteo_enabled` off in Remote Config. Plan (11-05): buy an Open-Meteo
-      licence before release; the new city search (SEARCH.md) depends on it too.
-- [ ] **Open-Meteo plan and API key.** Commercial use needs a paid plan (Standard 1M calls a
-      month, Professional 5M; prices only in the customer portal). A request counts as variables
+- [ ] Licences: RainViewer is personal and educational use only. An email was drafted on 10-24;
+      no reply yet. Fallback: launch with `radar_enabled` off in Remote Config. (Open-Meteo is
+      settled: the Standard plan was bought on 11-16, see below.)
+- [ ] **Open-Meteo plan and API key.** The Standard plan (1M calls a month) was bought on 11-16.
+      Both apps send its key to the customer servers (`customer-api.open-meteo.com` and the like):
+      built in from `Secrets.plist` / `local.properties` (`OPEN_METEO_API_KEY`, also a CI secret),
+      replaceable from Remote Config `open_meteo_api_key`, and release builds fail without it.
+      Still open: the proxy below, and watching usage on the dashboard. Professional is 5M calls;
+      prices are only in the customer portal. A request counts as variables
       divided by 10 once it asks for more than 10: the forecast is 1.7 calls, the current reading
       1.5, air quality 1 (it was 1.6 before the savings in Done, 11-10) and at most every 3 hours
       per city. Worked out on 11-10 for 200 active users, half iPhone and half Android:

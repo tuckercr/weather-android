@@ -25,6 +25,9 @@ val localProps = Properties().also { props ->
         ?.use { props.load(it) }
 }
 val owmApiKey: String = localProps.getProperty("OWM_API_KEY") ?: ""
+// The Open-Meteo commercial plan's key. Without it, requests go to the free hosts, which are for
+// non-commercial use only: fine for debug builds, not for a release.
+val openMeteoApiKey: String = localProps.getProperty("OPEN_METEO_API_KEY")?.trim() ?: ""
 
 // What a release APK or bundle would be missing. Without the key the app shows no weather, and
 // without the keystore it's unsigned, which Play won't take, so packaging a release stops here
@@ -32,6 +35,9 @@ val owmApiKey: String = localProps.getProperty("OWM_API_KEY") ?: ""
 val releaseProblems: List<String> =
     buildList {
         if (owmApiKey.isBlank()) add("OWM_API_KEY is missing, so the app would show no weather")
+        if (openMeteoApiKey.isBlank()) {
+            add("OPEN_METEO_API_KEY is missing, so Open-Meteo would be used without the commercial licence")
+        }
         val keystorePath = localProps.getProperty("KEYSTORE_PATH")
         when {
             keystorePath.isNullOrBlank() -> add("KEYSTORE_PATH is missing, so the release would be unsigned")
@@ -69,6 +75,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "OWM_API_KEY", "\"${owmApiKey.replace("\"", "\\\"")}\"")
+        buildConfigField("String", "OPEN_METEO_API_KEY", "\"${openMeteoApiKey.replace("\"", "\\\"")}\"")
     }
 
     signingConfigs {

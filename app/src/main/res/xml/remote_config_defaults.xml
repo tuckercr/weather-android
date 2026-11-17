@@ -74,6 +74,12 @@
         <key>openweather_api_key</key>
         <value></value>
     </entry>
+    <!-- Replacement Open-Meteo API key (the commercial plan's) for rotating a leaked one without an
+         update. Empty uses the key built into the app. -->
+    <entry>
+        <key>open_meteo_api_key</key>
+        <value></value>
+    </entry>
     <entry>
         <key>android_min_supported_version</key>
         <value></value>

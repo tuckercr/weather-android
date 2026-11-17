@@ -28,9 +28,21 @@ object AppConfigModule {
     @Singleton
     @Named(WeatherNetworkModule.OWM_API_KEY)
     fun provideOwmApiKey(remoteConfig: RemoteConfigRepository): String =
-        resolveOwmApiKey(remoteConfig.openWeatherApiKey(), BuildConfig.OWM_API_KEY)
+        resolveApiKey(remoteConfig.openWeatherApiKey(), BuildConfig.OWM_API_KEY)
 
-    internal fun resolveOwmApiKey(
+    /**
+     * The Open-Meteo commercial plan's key: Remote Config `open_meteo_api_key` when set, otherwise the
+     * key built into the app (blank in builds without it, which then use the free hosts). Read once
+     * per process, like the OpenWeather key. Same as iOS's `Config/AppConfig.swift`.
+     */
+    @Provides
+    @Singleton
+    @Named(WeatherNetworkModule.OPEN_METEO_API_KEY)
+    fun provideOpenMeteoApiKey(remoteConfig: RemoteConfigRepository): String =
+        resolveApiKey(remoteConfig.openMeteoApiKey(), BuildConfig.OPEN_METEO_API_KEY)
+
+    /** The Remote Config key when it isn't blank, otherwise the one built into the app. */
+    internal fun resolveApiKey(
         remoteKey: String?,
         bundledKey: String,
     ): String = remoteKey?.trim()?.takeIf { it.isNotEmpty() } ?: bundledKey.trim()

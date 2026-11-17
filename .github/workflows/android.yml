@@ -26,11 +26,16 @@ jobs:
     - name: Write local.properties
       env:
         OWM_API_KEY: ${{ secrets.OWM_API_KEY }}
+        OPEN_METEO_API_KEY: ${{ secrets.OPEN_METEO_API_KEY }}
         KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: |
         echo "OWM_API_KEY=$OWM_API_KEY" >> local.properties
+        # The release build needs the Open-Meteo commercial key; debug builds use the free hosts.
+        if [ -n "$OPEN_METEO_API_KEY" ]; then
+          echo "OPEN_METEO_API_KEY=$OPEN_METEO_API_KEY" >> local.properties
+        fi
         if [ -n "$KEYSTORE_PASSWORD" ]; then
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/catsanddogs-release.jks
           echo "KEYSTORE_PATH=${{ github.workspace }}/catsanddogs-release.jks" >> local.properties

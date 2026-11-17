@@ -4,13 +4,13 @@ import com.fangjet.weather.data.remote.dto.OpenMeteoCurrentResponse
 import com.fangjet.weather.data.remote.dto.OpenMeteoDailyDto
 import com.fangjet.weather.data.remote.dto.OpenMeteoHourlyDto
 import com.fangjet.weather.data.remote.dto.OpenMeteoResponse
+import com.fangjet.weather.di.WeatherNetworkModule
 import com.fangjet.weather.domain.DayForecast
 import com.fangjet.weather.domain.QuarterHour
 import com.fangjet.weather.domain.WeatherUnits
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.time.Instant
@@ -19,10 +19,11 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 
 /**
- * True hourly forecast from Open-Meteo (free, no API key), including UV index and the solar
+ * True hourly forecast from Open-Meteo (the commercial plan, [OpenMeteoEndpoint]), including UV index and the solar
  * radiation used to estimate pavement heat. Needs coordinates; name-only cities fall back to
  * OpenWeatherMap in [WeatherRepository].
  */
@@ -30,6 +31,7 @@ import javax.inject.Singleton
 class OpenMeteoForecastSource @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val json: Json,
+    @Named(WeatherNetworkModule.OPEN_METEO_API_KEY) private val apiKey: String = "",
 ) {
     /** The forecast, with the city's time zone, which picks its air quality scale. */
     suspend fun fetch(
@@ -85,9 +87,8 @@ class OpenMeteoForecastSource @Inject constructor(
     ): Result<T> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val url = BASE_URL
-                    .toHttpUrl()
-                    .newBuilder()
+                val url = OpenMeteoEndpoint
+                    .builder(OpenMeteoEndpoint.FORECAST, apiKey)
                     .addQueryParameter("latitude", latitude.toString())
                     .addQueryParameter("longitude", longitude.toString())
                     .apply { fields.forEach { (name, value) -> addQueryParameter(name, value) } }
@@ -104,7 +105,6 @@ class OpenMeteoForecastSource @Inject constructor(
         }
 
     companion object {
-        private const val BASE_URL = "https://api.open-meteo.com/v1/forecast"
         private const val FORECAST_DAYS = 7
         private const val HOURLY_FIELDS =
             "temperature_2m,apparent_temperature,precipitation_probability,weather_code," +
