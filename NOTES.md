@@ -6,12 +6,20 @@ Finished items move to Done at the bottom.
 
 ## Do soon
 
-- [ ] **App Store submission.** The listing is filled in (10-31). Before Add for Review: publish
-      App Privacy (it asks you to confirm the answers), answer Content Rights once the licences
-      below are settled, and pick a build on the version page. Release is set to manual. The
-      App Store Connect version is still called 1.0: rename it to the build's version (build N is
-      1.0.N from build 8 on; build 7 is 1.0.6) before submitting: a version page only offers builds
-      with its own number. (11-03)
+- [ ] **App Store submission.** The listing is filled in (10-31), and the product page header
+      (`screenshots/app-store/header-5244x2950.png`) is on version 1.0 (11-17). Before Add for
+      Review: add Diagnostics > Crash Data (App Functionality, not linked) to App Privacy for
+      Crashlytics, then publish it (it asks you to confirm the answers); answer Content Rights once
+      the licences below are settled; and pick a build on the version page. Release is set to
+      manual. The App Store Connect version is still called 1.0: rename it to the build's version
+      (build N is 1.0.N; build 9 is 1.0.9, the first with the Open-Meteo key, and build 10 will be
+      the first with Crashlytics) before submitting: a version page only offers builds with its own
+      number. (11-03, updated 11-17)
+- [ ] **Play production release.** Build 5 (1.0.5, the first with the Open-Meteo key) replaced
+      build 4 in the production release on 11-17; it's saved but not sent for review. Managed
+      publishing is on (11-17), so once Google approves it, it waits in Publishing overview until
+      it's published by hand, and publishing update emails are on. Send it for review after the
+      OpenWeather test below. (11-17)
 - [ ] **App Store review notes: what "Always" is for** (Settings › Notifications › Follow my
       location). The Play side, the background location declaration with its video, was filled in
       on 11-10 and goes to Google with the first review. (11-03)
@@ -23,24 +31,25 @@ Finished items move to Done at the bottom.
       notification onboarding). SEARCH.md marks the changes building it on iOS made (11-06).
       When it's built, add the keys to `firebase/remoteconfig.template.json` with iOS's defaults;
       iOS reads them with in-app defaults, so nothing needs deploying first. (11-06)
-- [ ] **Test both apps on OpenWeather alone before release.** Turn `open_meteo_enabled` off (a
-      Remote Config change, or a debug build with it off) and check everything still works on the
-      fallback: the hero and forecast, the walk card, tiles, notifications and city search. The
+- [ ] **Test both apps on OpenWeather alone before release.** Check everything still works on
+      the fallback: the hero and forecast, the walk card, tiles, notifications and city search. The
       Open-Meteo key change (11-16) moved every Open-Meteo request to the customer servers, so the
-      fallback is what users get if the key or the plan stops working. (11-16)
+      fallback is what users get if the key or the plan stops working. Set up 11-17: Remote Config
+      turns `open_meteo_enabled` off for debug builds only (the "Android debug builds" and "iOS
+      debug builds" conditions; iOS debug builds send a `build_type` custom signal), debug builds
+      say "Using OpenWeather service" at the bottom of the weather screen, and fresh debug builds
+      are on both our phones. When the test is done, remove the two conditional values from
+      `firebase/remoteconfig.template.json` and deploy, or debug builds stay on OpenWeather. (11-16)
 - [ ] **Check Open-Meteo usage on 11-20.** The key has been in use since 11-17: TestFlight build 9,
       Android build 5 and the debug builds on our phones. Read the calls a day on the customer
       portal's dashboard, divide by the people using those builds, and compare with the 11-10
       estimate in "Open-Meteo plan and API key" (Android about 52 calls a user a day, iPhone about
       31). If it's well above, raise `weather_refresh_interval_minutes` or move to Professional
       before release. Repeat a week after launch. (11-17)
-- [ ] **Crashlytics on iOS, for the next release.** Android has had it all along (the Crashlytics
-      Gradle plugin, collection on in release builds only, with the R8 mapping uploaded on
-      release builds). iOS has only Analytics and Remote Config, so iPhone crashes are seen only in
-      Xcode's Organizer and TestFlight. Add it with the dSYM upload run script (Firebase stays on
-      12.x), off in debug builds as on Android, and add crash data to App Store App Privacy. Check
-      that Play's Data safety already declares crash logs and diagnostics for Android. (11-16,
-      corrected 11-17: it said neither app had it)
+- [ ] **Before iOS crash reports reach testers:** deploy the website's privacy policy
+      (sunny-misty-web #12, crash reports from both apps) and add Crash Data to App Privacy (see
+      App Store submission). Also check that Play's Data safety declares crash logs and
+      diagnostics: Android has sent Crashlytics reports from release builds all along. (11-17)
 
 ## Air quality
 
@@ -405,6 +414,13 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Crashlytics on iOS** (11-17, weather-iOS #141): FirebaseCrashlytics from the Firebase 12
+      package, on in release builds and off in debug builds as on Android, with a Release-only
+      build phase that uploads the dSYM. It runs `upload-symbols --build-phase` in the foreground:
+      Firebase's `run` script uploads in the background, and that upload was lost when `xcodebuild`
+      exited (a test crash arrived without its dSYM). Crash data is in the privacy manifest and the
+      App Privacy answers in `listing.md`. Android has had Crashlytics in release builds all
+      along; the 11-16 note saying neither app had it was wrong.
 - [x] **Privacy policy lists the new analytics** (11-12): sunnyandmisty.com/privacy says what
       the apps record (the onboarding and permission answers, notification opens, the weather
       error's service and request, and the user properties) and that none of it includes a
