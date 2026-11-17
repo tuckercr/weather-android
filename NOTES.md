@@ -23,6 +23,12 @@ Finished items move to Done at the bottom.
       notification onboarding). SEARCH.md marks the changes building it on iOS made (11-06).
       When it's built, add the keys to `firebase/remoteconfig.template.json` with iOS's defaults;
       iOS reads them with in-app defaults, so nothing needs deploying first. (11-06)
+- [ ] **Crashlytics in both apps, for the next release.** Only Analytics and Remote Config are
+      in now, so crashes are seen only in Xcode's Organizer, TestFlight and Play Console's
+      Android vitals. Add Crashlytics on both: iOS needs the dSYM upload run script (Firebase
+      stays on 12.x), Android the Crashlytics Gradle plugin with the R8 mapping upload. Update
+      App Store App Privacy and Play's Data safety (crash logs, diagnostics) to match. (11-16)
+
 ## Air quality
 
 - [ ] Review the copy without a dog ("Fresh air all round" … "Stay indoors") and with one
