@@ -28,6 +28,12 @@ Finished items move to Done at the bottom.
       fallback: the hero and forecast, the walk card, tiles, notifications and city search. The
       Open-Meteo key change (11-16) moved every Open-Meteo request to the customer servers, so the
       fallback is what users get if the key or the plan stops working. (11-16)
+- [ ] **Check Open-Meteo usage on 11-20.** The key has been in use since 11-17: TestFlight build 9,
+      Android build 5 and the debug builds on our phones. Read the calls a day on the customer
+      portal's dashboard, divide by the people using those builds, and compare with the 11-10
+      estimate in "Open-Meteo plan and API key" (Android about 52 calls a user a day, iPhone about
+      31). If it's well above, raise `weather_refresh_interval_minutes` or move to Professional
+      before release. Repeat a week after launch. (11-17)
 - [ ] **Crashlytics in both apps, for the next release.** Only Analytics and Remote Config are
       in now, so crashes are seen only in Xcode's Organizer, TestFlight and Play Console's
       Android vitals. Add Crashlytics on both: iOS needs the dSYM upload run script (Firebase
@@ -139,6 +145,15 @@ noted. Checked against the code, not fixed yet.
       a pull to refresh (which reads the position since 11-06). Doing it on the 30-minute tick as
       well would catch up without a pull, at the cost of a location fix every half hour while the
       app is open. Both apps. (11-06)
+- [ ] **My Location after location access is turned off.** Allow location, then turn it off in
+      the phone's settings: My Location stays in the city list and on screen, showing the last
+      place it found as if it were current, and the briefing can still go to it. Seen on a debug
+      build on a phone (11-17); check both apps. Better: when a refresh or a return to the app
+      finds access off, say so on My Location (a note like the stale banner: location is off, with
+      Turn on, which opens settings, and Remove), stop moving it and stop treating the old place
+      as where the user is, and make the next saved city the notification city while access is
+      off. Decide whether to drop My Location after a while with no access, and what an
+      "Approximate" or "Ask every time" grant should do. (11-17)
 - [ ] Android Settings: the location row could ask once more in the app before sending people to
       system settings (Android allows two prompts). (10-28)
 - [ ] **My Location in the background, opt-in.** Built for the first release as the Follow my
@@ -280,7 +295,6 @@ noted. Checked against the code, not fixed yet.
 
 - [ ] On an Android device: the full-width odd tile and the Air quality tile now read from the
       forecast (both only checked on iOS so far). (10-30)
-- [ ] Reverse case: My Location showing, then location permission revoked. (10-28)
 - [ ] "Open Settings" from iOS notification and location settings on a real iPhone. (10-28)
 - [ ] Listen to new spoken text with VoiceOver and TalkBack. (10-28)
 - [ ] Check on a device: the Remote Config switches hiding notification types, the Walk time
