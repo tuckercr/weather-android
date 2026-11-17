@@ -144,8 +144,16 @@ class RemoteConfigRepository @Inject constructor(
      * Null when unset or blank; the key built into the app is used then. Not a secret: Remote
      * Config values reach every device.
      */
-    fun openWeatherApiKey(): String? =
-        value(KEY_OPENWEATHER_API_KEY)
+    fun openWeatherApiKey(): String? = apiKey(KEY_OPENWEATHER_API_KEY)
+
+    /**
+     * Replacement Open-Meteo API key, so a leaked key can be rotated without an app update. Null
+     * when unset or blank; the key built into the app is used then. Not a secret either.
+     */
+    fun openMeteoApiKey(): String? = apiKey(KEY_OPEN_METEO_API_KEY)
+
+    private fun apiKey(key: String): String? =
+        value(key)
             ?.let { runCatching { it.asString() }.getOrNull() }
             ?.trim()
             ?.takeIf { it.isNotEmpty() }
@@ -355,6 +363,7 @@ class RemoteConfigRepository @Inject constructor(
         const val DEFAULT_AIR_QUALITY_ENABLED = true
 
         const val KEY_OPENWEATHER_API_KEY = "openweather_api_key"
+        const val KEY_OPEN_METEO_API_KEY = "open_meteo_api_key"
 
         const val KEY_ANDROID_MIN_SUPPORTED_VERSION = "android_min_supported_version"
         const val KEY_ANDROID_MIN_RECOMMENDED_VERSION = "android_min_recommended_version"

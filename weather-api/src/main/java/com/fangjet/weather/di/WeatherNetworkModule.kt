@@ -21,6 +21,9 @@ object WeatherNetworkModule {
     /** Qualifier name for the OpenWeatherMap API key string binding. */
     const val OWM_API_KEY = "owm_api_key"
 
+    /** Qualifier name for the Open-Meteo commercial API key string binding (blank uses the free hosts). */
+    const val OPEN_METEO_API_KEY = "open_meteo_api_key"
+
     private const val BASE_URL = "https://api.openweathermap.org/"
 
     @Provides

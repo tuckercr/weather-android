@@ -2,6 +2,7 @@ package com.fangjet.weather.data
 
 import com.fangjet.weather.data.remote.dto.AirQualityHourlyDto
 import com.fangjet.weather.data.remote.dto.AirQualityHourlyResponse
+import com.fangjet.weather.di.WeatherNetworkModule
 import com.fangjet.weather.domain.AirQuality
 import com.fangjet.weather.domain.AirQuality.Pollutant
 import com.fangjet.weather.domain.AirQuality.Scale
@@ -9,17 +10,18 @@ import com.fangjet.weather.domain.AirQualityHours
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 
-/** Hourly air quality from Open-Meteo's air quality endpoint: free, keyless and worldwide. */
+/** Hourly air quality from Open-Meteo's air quality endpoint, worldwide ([OpenMeteoEndpoint]). */
 @Singleton
 class AirQualitySource @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val json: Json,
+    @Named(WeatherNetworkModule.OPEN_METEO_API_KEY) private val apiKey: String = "",
 ) {
     /**
      * Each hour's air quality for the next three days (the walk planner's day ahead), by its start in
@@ -56,9 +58,8 @@ class AirQualitySource @Inject constructor(
     ): Result<T> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val url = BASE_URL
-                    .toHttpUrl()
-                    .newBuilder()
+                val url = OpenMeteoEndpoint
+                    .builder(OpenMeteoEndpoint.AIR_QUALITY, apiKey)
                     .addQueryParameter("latitude", latitude.toString())
                     .addQueryParameter("longitude", longitude.toString())
                     // The response's time zone picks the scale (European or US) when it isn't given.
@@ -73,7 +74,6 @@ class AirQualitySource @Inject constructor(
         }
 
     companion object {
-        private const val BASE_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
         /**
          * Each hour's reading on [scale], by default the one for the response's time zone. Only that
