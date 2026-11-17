@@ -28,6 +28,11 @@ Finished items move to Done at the bottom.
       fallback: the hero and forecast, the walk card, tiles, notifications and city search. The
       Open-Meteo key change (11-16) moved every Open-Meteo request to the customer servers, so the
       fallback is what users get if the key or the plan stops working. (11-16)
+- [ ] **Crashlytics in both apps, for the next release.** Only Analytics and Remote Config are
+      in now, so crashes are seen only in Xcode's Organizer, TestFlight and Play Console's
+      Android vitals. Add Crashlytics on both: iOS needs the dSYM upload run script (Firebase
+      stays on 12.x), Android the Crashlytics Gradle plugin with the R8 mapping upload. Update
+      App Store App Privacy and Play's Data safety (crash logs, diagnostics) to match. (11-16)
 
 ## Air quality
 
