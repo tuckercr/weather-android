@@ -251,10 +251,21 @@ On tablets and in landscape, the pets sit beside today's details and the week sp
    ```
    OWM_API_KEY=your_key_here
    ```
-3. Build and run. New keys may take up to 2 hours to activate.
+3. For a release, also add the Open-Meteo commercial plan's key (from the subscription email or
+   the [customer portal](https://dashboard.open-meteo.com/login)):
+   ```
+   OPEN_METEO_API_KEY=your_key_here
+   ```
+   With it, Open-Meteo requests go to the customer hosts (`customer-api.open-meteo.com`,
+   `customer-air-quality-api.open-meteo.com`) with the key as `apikey`. Without it they go to the
+   free hosts, which are for non-commercial use only: fine for debug builds.
+4. Build and run. New OpenWeather keys may take up to 2 hours to activate.
 
-The key is injected at build time into `BuildConfig.OWM_API_KEY`. On GitHub it is stored as an
-Actions secret and injected automatically, so no key lives in the repository.
+The keys are injected at build time into `BuildConfig.OWM_API_KEY` and
+`BuildConfig.OPEN_METEO_API_KEY`. On GitHub they are stored as the `OWM_API_KEY` and
+`OPEN_METEO_API_KEY` Actions secrets and injected automatically, so no key lives in the repository.
+Remote Config's `openweather_api_key` and `open_meteo_api_key` can replace either key without an
+update.
 
 Firebase is optional: without `app/google-services.json` the app builds and runs normally, with
 Remote Config falling back to its in-app defaults and analytics and crash reporting doing nothing.
@@ -276,8 +287,9 @@ The app supports Android 10+ (minSdk 29) and targets SDK 37. From the command li
 
 Release builds are minified and resource-shrunk with R8, and signed with the keystore that
 `local.properties` names in `KEYSTORE_PATH`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD`.
-A release APK or bundle won't build without those or without `OWM_API_KEY`: the build stops at the
-start and lists what's missing, rather than producing an unsigned app or one with no weather. Debug
+A release APK or bundle won't build without those or without `OWM_API_KEY` and `OPEN_METEO_API_KEY`:
+the build stops at the start and lists what's missing, rather than producing an unsigned app, one
+with no weather or one using Open-Meteo's free, non-commercial hosts. Debug
 builds, tests and lint don't need them. CI writes these from the `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`,
 and `KEY_PASSWORD` Actions secrets when they are set, and uploads the debug and release APKs as
 build artifacts.
@@ -309,7 +321,7 @@ emulator with a clean status bar:
 | Persistence | DataStore Preferences | Onboarding flags, saved cities, active city, unit override, the walk card and *Share usage statistics* settings, per-city cache |
 | Analytics | Firebase Analytics, Remote Config, Crashlytics | Optional; no-op without `google-services.json`. No advertising ID; user opt-out and a remote kill switch; Crashlytics in release builds only |
 | Modules | `:app`, `:weather-api` | API DTOs, parsing, and the weather, geocoding, and radar repositories split into `:weather-api`, which stays free of Firebase (`ForecastSourcePolicy` carries `open_meteo_enabled` in from the app) |
-| Data sources | OpenWeatherMap `/weather` & `/forecast` + Geocoding; Open-Meteo 7-day hourly forecast; RainViewer radar frames; OpenStreetMap tiles | Free tiers; Open-Meteo, RainViewer, and OpenStreetMap need no key |
+| Data sources | OpenWeatherMap `/weather` & `/forecast` + Geocoding; Open-Meteo 7-day hourly forecast; RainViewer radar frames; OpenStreetMap tiles | OpenWeatherMap free tier; Open-Meteo Standard plan (commercial, 1M calls a month, `OPEN_METEO_API_KEY`); RainViewer and OpenStreetMap need no key |
 | CI | GitHub Actions | ktlint, Android Lint, JVM unit tests, debug and release builds, and Compose UI tests (API 34 emulator) on every push to and pull request against `master` |
 
 ## App flow
@@ -532,6 +544,7 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `open_meteo_enabled` | boolean | `true` | The current reading and forecasts for cities with coordinates come from Open-Meteo; false falls back to OpenWeatherMap's reading and 3-hourly forecast by lat/lon (foreground, background refresh, and notifications) |
 | `air_quality_enabled` | boolean | `true` | Fetches hourly air quality after the Open-Meteo forecast (at most every 3 hours per city); false hides the Air quality tile and the walk planner ignores the air |
 | `openweather_api_key` | string | `""` | Replacement OpenWeather API key, used from the next app start; empty uses the key built into the app. Lets a leaked key be rotated without an update. Not secret: Remote Config values reach every device |
+| `open_meteo_api_key` | string | `""` | Replacement Open-Meteo API key (the commercial plan's), used from the next app start; empty uses the key built into the app. Lets a leaked key be rotated without an update. Not secret: Remote Config values reach every device |
 | `android_min_supported_version` | string | `""` | Below this version (e.g. `1.1`) the app shows only "Time for an update" until it's updated. Empty never asks. iOS has its own key |
 | `android_min_recommended_version` | string | `""` | Below this version a banner under the city tabs suggests updating; "Not now" hides it for a week. Empty never asks |
 | `daily_weather_notifications_enabled` | boolean | `true` | The 8:30 AM morning briefing; false skips it (the morning run still plans the walk-time nudge) and hides its switch in Settings |

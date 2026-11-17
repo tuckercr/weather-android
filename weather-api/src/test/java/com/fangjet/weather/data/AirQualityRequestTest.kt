@@ -304,4 +304,34 @@ class AirQualityRequestTest {
 
         assertEquals(hours, json.decodeFromString(AirQualityHours.serializer(), json.encodeToString(AirQualityHours.serializer(), hours)))
     }
+
+    @Test
+    fun `with the commercial key both requests go to the customer hosts`() {
+        val forecast = FakeHttp(forecastBody("Europe/London"))
+        val air = FakeHttp(europeanAirBody)
+        val repository = WeatherRepository(
+            mockk<OpenWeatherApi>(),
+            OpenMeteoForecastSource(forecast.client, json, apiKey = "key123"),
+            "test-key",
+            ZoneOffset.UTC,
+            Json,
+            forecastSourcePolicy = { true },
+            airQuality = AirQualitySource(air.client, json, apiKey = "key123"),
+        )
+
+        runBlocking {
+            repository.fetchForecastWithAirQuality(WeatherUnits.METRIC, latitude = 51.5, longitude = -0.1) { now }.getOrThrow()
+        }
+
+        assertTrue(forecast.urls.isNotEmpty())
+        assertTrue(air.urls.isNotEmpty())
+        forecast.urls.forEach {
+            assertEquals("customer-api.open-meteo.com", it.host)
+            assertEquals("key123", it.queryParameter("apikey"))
+        }
+        air.urls.forEach {
+            assertEquals("customer-air-quality-api.open-meteo.com", it.host)
+            assertEquals("key123", it.queryParameter("apikey"))
+        }
+    }
 }

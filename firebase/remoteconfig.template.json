@@ -60,6 +60,11 @@
       "valueType": "STRING",
       "description": "Replacement OpenWeather API key, used by both apps from their next launch. Empty uses the key built into each app. Not secret: Remote Config values reach every device."
     },
+    "open_meteo_api_key": {
+      "defaultValue": { "value": "" },
+      "valueType": "STRING",
+      "description": "Replacement Open-Meteo API key (the commercial plan's), used by both apps from their next launch. Empty uses the key built into each app. Not secret: Remote Config values reach every device."
+    },
     "open_meteo_enabled": {
       "defaultValue": { "value": "true" },
       "valueType": "BOOLEAN",
