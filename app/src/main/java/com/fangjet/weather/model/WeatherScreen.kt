@@ -42,6 +42,8 @@ data class WeatherScreenConfig(
     val nextRainEnabled: Boolean = true,
     val rainOutlookSettings: RainOutlookSettings = RainOutlookSettings(),
     val airQualityEnabled: Boolean = true,
+    /** Remote Config `open_meteo_enabled`: which service the forecast is asked of. */
+    val openMeteoEnabled: Boolean = true,
     val hourlyForecastEnabled: Boolean = true,
     val radarEnabled: Boolean = true,
     val weekForecastEnabled: Boolean = true,
@@ -162,6 +164,12 @@ data class WeatherScreenState(
     /** The Today tiles, worked out from [tiles] and the reading. */
     val todayTiles: TodayTilesState,
     val showsRadar: Boolean,
+    /**
+     * The weather service Remote Config chose, shown at the bottom of debug builds to check a
+     * condition reached the phone. It's the setting, not where this reading came from: a city with
+     * no coordinates, or Open-Meteo failing, still gets OpenWeather. Same as iOS.
+     */
+    val weatherService: String = "Open-Meteo",
     /** Null when the rest of the week is switched off, or there's nothing to show for it. */
     val week: WeekSection?,
 ) {
@@ -313,6 +321,7 @@ private fun weatherScreenState(
             switches = config.todayTiles,
         ),
         showsRadar = config.radarEnabled,
+        weatherService = if (config.openMeteoEnabled) "Open-Meteo" else "OpenWeather",
         week = when {
             !config.weekForecastEnabled -> null
             upcomingDays.isNotEmpty() -> WeekSection.Days(upcomingDays)

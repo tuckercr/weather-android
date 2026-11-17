@@ -1,4 +1,16 @@
 {
+  "conditions": [
+    {
+      "name": "Android debug builds",
+      "expression": "app.id == '1:302098119166:android:b48c2f5b162bc95eade8af'",
+      "tagColor": "ORANGE"
+    },
+    {
+      "name": "iOS debug builds",
+      "expression": "app.id == '1:302098119166:ios:a131ac7303da3f78ade8af' && app.customSignal['build_type'].exactlyMatches(['debug'])",
+      "tagColor": "ORANGE"
+    }
+  ],
   "parameters": {
     "weather_refresh_interval_minutes": {
       "defaultValue": { "value": "90" },
@@ -67,8 +79,12 @@
     },
     "open_meteo_enabled": {
       "defaultValue": { "value": "true" },
+      "conditionalValues": {
+        "Android debug builds": { "value": "false" },
+        "iOS debug builds": { "value": "false" }
+      },
       "valueType": "BOOLEAN",
-      "description": "Use Open-Meteo for forecasts of cities with coordinates; off falls back to OpenWeatherMap"
+      "description": "Use Open-Meteo for forecasts of cities with coordinates; off falls back to OpenWeatherMap. Off for debug builds while the OpenWeather fallback is tested"
     },
     "daily_weather_notifications_enabled": {
       "defaultValue": { "value": "true" },
