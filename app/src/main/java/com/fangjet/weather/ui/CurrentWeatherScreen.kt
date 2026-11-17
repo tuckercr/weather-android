@@ -99,6 +99,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import com.fangjet.weather.BuildConfig
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
@@ -391,6 +392,16 @@ fun CurrentWeatherScreen(
                                     state = state,
                                     location = location,
                                     onForecastRetry = onRetry,
+                                )
+                            }
+                            if (BuildConfig.DEBUG) {
+                                // Debug builds only, to check which service Remote Config chose.
+                                Text(
+                                    text = "Using ${state.weatherService} service",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth(),
                                 )
                             }
                         }
