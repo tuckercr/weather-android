@@ -34,11 +34,13 @@ Finished items move to Done at the bottom.
       estimate in "Open-Meteo plan and API key" (Android about 52 calls a user a day, iPhone about
       31). If it's well above, raise `weather_refresh_interval_minutes` or move to Professional
       before release. Repeat a week after launch. (11-17)
-- [ ] **Crashlytics in both apps, for the next release.** Only Analytics and Remote Config are
-      in now, so crashes are seen only in Xcode's Organizer, TestFlight and Play Console's
-      Android vitals. Add Crashlytics on both: iOS needs the dSYM upload run script (Firebase
-      stays on 12.x), Android the Crashlytics Gradle plugin with the R8 mapping upload. Update
-      App Store App Privacy and Play's Data safety (crash logs, diagnostics) to match. (11-16)
+- [ ] **Crashlytics on iOS, for the next release.** Android has had it all along (the Crashlytics
+      Gradle plugin, collection on in release builds only, with the R8 mapping uploaded on
+      release builds). iOS has only Analytics and Remote Config, so iPhone crashes are seen only in
+      Xcode's Organizer and TestFlight. Add it with the dSYM upload run script (Firebase stays on
+      12.x), off in debug builds as on Android, and add crash data to App Store App Privacy. Check
+      that Play's Data safety already declares crash logs and diagnostics for Android. (11-16,
+      corrected 11-17: it said neither app had it)
 
 ## Air quality
 
