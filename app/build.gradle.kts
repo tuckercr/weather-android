@@ -69,7 +69,7 @@ android {
         minSdk = 29
         targetSdk = 37
         // Build N is version 1.0.N: bump this for every Play upload.
-        val build = 4
+        val build = 5
         versionCode = build
         versionName = "1.0.$build"
 
