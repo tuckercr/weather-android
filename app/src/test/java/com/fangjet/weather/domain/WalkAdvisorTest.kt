@@ -619,5 +619,9 @@ class WalkAdvisorTest {
     }
 }
 
-/** The advice without the verdict behind it, to compare with an expected rating and time. */
-private fun WalkAdvice?.withoutCheck(): WalkAdvice? = this?.copy(now = WalkCheck.CLEAR)
+/**
+ * The advice without the verdict behind it, to compare with an expected rating and time. Without
+ * isMorning too: it comes from the clock when the test runs, as these calls don't pass
+ * nowEpochSeconds, so comparing it failed before noon UTC. The headline tests set the time.
+ */
+private fun WalkAdvice?.withoutCheck(): WalkAdvice? = this?.copy(now = WalkCheck.CLEAR, isMorning = false)
