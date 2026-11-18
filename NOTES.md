@@ -14,11 +14,6 @@ Finished items move to Done at the bottom.
       Open-Meteo key, and build 10 is the first with Crashlytics) before submitting: a version page
       only offers builds with its own number. App Privacy is published with Crash Data (11-17), and build 10 is with the external
       Family group, waiting for Beta App Review. (11-03, updated 11-17)
-- [ ] **Play production release.** Build 5 (1.0.5, the first with the Open-Meteo key) replaced
-      build 4 in the production release on 11-17; it's saved but not sent for review. Managed
-      publishing is on (11-17), so once Google approves it, it waits in Publishing overview until
-      it's published by hand, and publishing update emails are on. Send it for review after the
-      OpenWeather test below. (11-17)
 - [ ] **App Store review notes: what "Always" is for** (Settings › Notifications › Follow my
       location). The Play side, the background location declaration with its video, was filled in
       on 11-10 and goes to Google with the first review. (11-03)
@@ -279,8 +274,8 @@ noted. Checked against the code, not fixed yet.
       availability in Pricing and Availability. (10-31)
 - [ ] Store screenshot captions in the pets' voice. (10-26)
 - [ ] Plan for supporting the app after launch. (10-31)
-- [ ] Website store buttons need the real App Store and Play links on launch day, ideally the
-      official badges. (10-27)
+- [ ] Website store buttons: the App Store link on launch day, ideally with the official badges.
+      The Play buttons point to the listing since 11-18 (sunny-misty-web #13). (10-27)
 - Debug builds can show either update prompt: launch iOS with `-updatePrompt required` (or
   `recommended`); on Android,
   `adb shell am start -n com.fangjet.weather.debug/com.fangjet.weather.MainActivity --es updatePrompt required`.
@@ -402,6 +397,10 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **Play production release** (11-18): 1.0.5 (build 5, the first with the Open-Meteo key) is
+      live on Google Play in every country, with managed publishing on. The website's Play buttons
+      point to the listing (sunny-misty-web #13, deployed 11-18 with the Walk times page and the
+      walk card wording).
 - [x] **App Privacy and Data safety checked for crash reports and analytics** (11-17). App Store
       App Privacy adds Diagnostics > Crash Data (App Functionality, not linked, no tracking) and is
       published. Play Data safety already covered both apps' analytics and Android's crash reports:
