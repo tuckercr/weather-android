@@ -6,12 +6,6 @@ Finished items move to Done at the bottom.
 
 ## Do soon
 
-- [ ] **App Store review.** Version 1.0.10 (build 10) was submitted on 11-18 and is Waiting for
-      Review (up to 48 hours; Apple emails the result). Release is manual: once approved, release
-      it by hand, then set `ios_app_store_url` in Remote Config and put the App Store link on the
-      website. The review notes explain what "Always" location is for (Follow my location).
-      Content Rights is answered, and App Privacy is published with Crash Data. (11-03, updated
-      11-18)
 - [ ] **Android: the city search in SEARCH.md**, assigned to a new developer. iOS has had it since
       11-06, so until it lands the apps differ: Open-Meteo prefix search with the OpenWeather
       fallback, filtering, county labels, sorting with the size guard, text after a comma, US ZIP
@@ -263,14 +257,12 @@ noted. Checked against the code, not fixed yet.
 - [ ] App Store App Privacy: My Location's coordinates also go to the phone's place lookup
       (Apple's) to name it. The privacy policy on sunnyandmisty.com says so since 11-06, and Play
       Data safety (filled in 11-10) declares location for app functionality. (11-06)
-- [ ] Set `ios_app_store_url` in Remote Config to `https://apps.apple.com/app/id6827945995` once the
-      app is live. Until then the iOS update screen has no Update button. (10-30)
 - [ ] Mac: the iPad app isn't offered on Apple silicon Macs. Try it on a Mac, then tick Mac
       availability in Pricing and Availability. (10-31)
 - [ ] Store screenshot captions in the pets' voice. (10-26)
 - [ ] Plan for supporting the app after launch. (10-31)
-- [ ] Website store buttons: the App Store link on launch day, ideally with the official badges.
-      The Play buttons point to the listing since 11-18 (sunny-misty-web #13). (10-27)
+- [ ] Website store buttons: both point to the stores since 11-18 but are plain text buttons;
+      swap in the official App Store and Google Play badges. (10-27, updated 11-18)
 - Debug builds can show either update prompt: launch iOS with `-updatePrompt required` (or
   `recommended`); on Android,
   `adb shell am start -n com.fangjet.weather.debug/com.fangjet.weather.MainActivity --es updatePrompt required`.
@@ -392,6 +384,10 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **App Store launch** (11-18): Apple approved 1.0.10 the day it was submitted and it was
+      released by hand the same evening (https://apps.apple.com/app/id6827945995).
+      `ios_app_store_url` points there in Remote Config (deployed 11-18) and in the iOS in-app
+      default, and the website's App Store buttons replace TestFlight (deployed 11-18).
 - [x] **App Store submission** (11-18): the version renamed to 1.0.10 with build 10, review
       notes on what "Always" location is for, Content Rights answered, and submitted for review.
 - [x] **Play production release** (11-18): 1.0.5 (build 5, the first with the Open-Meteo key) is
