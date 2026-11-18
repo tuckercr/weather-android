@@ -8,13 +8,12 @@ Finished items move to Done at the bottom.
 
 - [ ] **App Store submission.** The listing is filled in (10-31), and the product page header
       (`screenshots/app-store/header-5244x2950.png`) is on version 1.0 (11-17). Before Add for
-      Review: add Diagnostics > Crash Data (App Functionality, not linked) to App Privacy for
-      Crashlytics, then publish it (it asks you to confirm the answers); answer Content Rights once
-      the licences below are settled; and pick a build on the version page. Release is set to
-      manual. The App Store Connect version is still called 1.0: rename it to the build's version
-      (build N is 1.0.N; build 9 is 1.0.9, the first with the Open-Meteo key, and build 10 will be
-      the first with Crashlytics) before submitting: a version page only offers builds with its own
-      number. (11-03, updated 11-17)
+      Review: answer Content Rights once the licences below are settled, and pick a build on the
+      version page. Release is set to manual. The App Store Connect version is still called 1.0:
+      rename it to the build's version (build N is 1.0.N; build 9 is 1.0.9, the first with the
+      Open-Meteo key, and build 10 is the first with Crashlytics) before submitting: a version page
+      only offers builds with its own number. App Privacy is published with Crash Data (11-17), and build 10 is with the external
+      Family group, waiting for Beta App Review. (11-03, updated 11-17)
 - [ ] **Play production release.** Build 5 (1.0.5, the first with the Open-Meteo key) replaced
       build 4 in the production release on 11-17; it's saved but not sent for review. Managed
       publishing is on (11-17), so once Google approves it, it waits in Publishing overview until
@@ -46,10 +45,6 @@ Finished items move to Done at the bottom.
       estimate in "Open-Meteo plan and API key" (Android about 52 calls a user a day, iPhone about
       31). If it's well above, raise `weather_refresh_interval_minutes` or move to Professional
       before release. Repeat a week after launch. (11-17)
-- [ ] **Before iOS crash reports reach testers:** deploy the website's privacy policy
-      (sunny-misty-web #12, crash reports from both apps) and add Crash Data to App Privacy (see
-      App Store submission). Also check that Play's Data safety declares crash logs and
-      diagnostics: Android has sent Crashlytics reports from release builds all along. (11-17)
 
 ## Air quality
 
@@ -226,23 +221,16 @@ noted. Checked against the code, not fixed yet.
 
 ## Store and release
 
-- [ ] **Merge the website's `privacy/analytics-detail` branch** (11-12). The privacy page that
-      lists the new analytics is live, deployed on its own on top of the site that was live then
-      (the home page refresh, sunny-misty-web #6, is still not deployed). Until the branch is in
-      main, a deploy from main would put the old privacy page back.
-- [ ] **Play Data safety and the new analytics** (11-12): check its app interactions answer
-      covers the onboarding and permission answers, notification opens and the user properties.
-      App Store App Privacy already declares Product Interaction, not linked to the user (checked
-      11-12; the answers are still to be published, see App Store submission).
 - [ ] **Terms of use: a lawyer's review before release.** The page is at sunnyandmisty.com/terms
       (11-09), linked from Settings › About in both apps, and says the walk advice and warnings are
       a guide from forecasts that can be wrong, not a severe weather warning service. Still to
       settle: a governing-law section (the state FangJet LLC is registered in), whether the
       no-warranty and liability paragraphs need capitals to stand out, and that the App Store and
       Play listings don't promise more than the terms do. (11-09)
-- [ ] Licences: RainViewer is personal and educational use only. An email was drafted on 10-24;
-      no reply yet. Fallback: launch with `radar_enabled` off in Remote Config. (Open-Meteo is
-      settled: the Standard plan was bought on 11-16, see below.)
+- [ ] **Licences: RainViewer, review on 12-01.** Its free feed is personal and educational use
+      only; an email was drafted on 10-24, with no reply. Decided 11-17: launch using it without a
+      commercial licence for now, and review that on 12-01. Fallback: `radar_enabled` off in Remote
+      Config. (Open-Meteo is settled: the Standard plan was bought on 11-16, see below.)
 - [ ] **Open-Meteo plan and API key.** The Standard plan (1M calls a month) was bought on 11-16.
       Both apps send its key to the customer servers (`customer-api.open-meteo.com` and the like):
       built in from `Secrets.plist` / `local.properties` (`OPEN_METEO_API_KEY`, also a CI secret),
@@ -414,6 +402,15 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **App Privacy and Data safety checked for crash reports and analytics** (11-17). App Store
+      App Privacy adds Diagnostics > Crash Data (App Functionality, not linked, no tracking) and is
+      published. Play Data safety already covered both apps' analytics and Android's crash reports:
+      app interactions (optional, Analytics) for the onboarding and permission answers,
+      notification opens and the user properties; crash logs, diagnostics and device IDs
+      (required, Analytics); location for app functionality. Nothing shared, nothing for ads.
+      The privacy policy (sunny-misty-web #12, live 11-17) lists every event and user property,
+      and crash reports from both apps. The website's `privacy/analytics-detail` branch is in
+      main; main also holds the Walk times page (#10) and walk card wording (#11), not yet live.
 - [x] **Crashlytics on iOS** (11-17, weather-iOS #141): FirebaseCrashlytics from the Firebase 12
       package, on in release builds and off in debug builds as on Android, with a Release-only
       build phase that uploads the dSYM. It runs `upload-symbols --build-phase` in the foreground:
