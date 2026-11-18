@@ -6,17 +6,12 @@ Finished items move to Done at the bottom.
 
 ## Do soon
 
-- [ ] **App Store submission.** The listing is filled in (10-31), and the product page header
-      (`screenshots/app-store/header-5244x2950.png`) is on version 1.0 (11-17). Before Add for
-      Review: answer Content Rights once the licences below are settled, and pick a build on the
-      version page. Release is set to manual. The App Store Connect version is still called 1.0:
-      rename it to the build's version (build N is 1.0.N; build 9 is 1.0.9, the first with the
-      Open-Meteo key, and build 10 is the first with Crashlytics) before submitting: a version page
-      only offers builds with its own number. App Privacy is published with Crash Data (11-17), and build 10 is with the external
-      Family group, waiting for Beta App Review. (11-03, updated 11-17)
-- [ ] **App Store review notes: what "Always" is for** (Settings › Notifications › Follow my
-      location). The Play side, the background location declaration with its video, was filled in
-      on 11-10 and goes to Google with the first review. (11-03)
+- [ ] **App Store review.** Version 1.0.10 (build 10) was submitted on 11-18 and is Waiting for
+      Review (up to 48 hours; Apple emails the result). Release is manual: once approved, release
+      it by hand, then set `ios_app_store_url` in Remote Config and put the App Store link on the
+      website. The review notes explain what "Always" location is for (Follow my location).
+      Content Rights is answered, and App Privacy is published with Crash Data. (11-03, updated
+      11-18)
 - [ ] **Android: the city search in SEARCH.md**, assigned to a new developer. iOS has had it since
       11-06, so until it lands the apps differ: Open-Meteo prefix search with the OpenWeather
       fallback, filtering, county labels, sorting with the size guard, text after a comma, US ZIP
@@ -397,6 +392,8 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **App Store submission** (11-18): the version renamed to 1.0.10 with build 10, review
+      notes on what "Always" location is for, Content Rights answered, and submitted for review.
 - [x] **Play production release** (11-18): 1.0.5 (build 5, the first with the Open-Meteo key) is
       live on Google Play in every country, with managed publishing on. The website's Play buttons
       point to the listing (sunny-misty-web #13, deployed 11-18 with the Walk times page and the
