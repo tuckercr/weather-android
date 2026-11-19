@@ -6,23 +6,6 @@ Finished items move to Done at the bottom.
 
 ## Do soon
 
-- [ ] **App Store submission.** The listing is filled in (10-31), and the product page header
-      (`screenshots/app-store/header-5244x2950.png`) is on version 1.0 (11-17). Before Add for
-      Review: add Diagnostics > Crash Data (App Functionality, not linked) to App Privacy for
-      Crashlytics, then publish it (it asks you to confirm the answers); answer Content Rights once
-      the licences below are settled; and pick a build on the version page. Release is set to
-      manual. The App Store Connect version is still called 1.0: rename it to the build's version
-      (build N is 1.0.N; build 9 is 1.0.9, the first with the Open-Meteo key, and build 10 will be
-      the first with Crashlytics) before submitting: a version page only offers builds with its own
-      number. (11-03, updated 11-17)
-- [ ] **Play production release.** Build 5 (1.0.5, the first with the Open-Meteo key) replaced
-      build 4 in the production release on 11-17; it's saved but not sent for review. Managed
-      publishing is on (11-17), so once Google approves it, it waits in Publishing overview until
-      it's published by hand, and publishing update emails are on. Send it for review after the
-      OpenWeather test below. (11-17)
-- [ ] **App Store review notes: what "Always" is for** (Settings › Notifications › Follow my
-      location). The Play side, the background location declaration with its video, was filled in
-      on 11-10 and goes to Google with the first review. (11-03)
 - [ ] **Android: the city search in SEARCH.md**, assigned to a new developer. iOS has had it since
       11-06, so until it lands the apps differ: Open-Meteo prefix search with the OpenWeather
       fallback, filtering, county labels, sorting with the size guard, text after a comma, US ZIP
@@ -46,10 +29,6 @@ Finished items move to Done at the bottom.
       estimate in "Open-Meteo plan and API key" (Android about 52 calls a user a day, iPhone about
       31). If it's well above, raise `weather_refresh_interval_minutes` or move to Professional
       before release. Repeat a week after launch. (11-17)
-- [ ] **Before iOS crash reports reach testers:** deploy the website's privacy policy
-      (sunny-misty-web #12, crash reports from both apps) and add Crash Data to App Privacy (see
-      App Store submission). Also check that Play's Data safety declares crash logs and
-      diagnostics: Android has sent Crashlytics reports from release builds all along. (11-17)
 
 ## Air quality
 
@@ -226,23 +205,16 @@ noted. Checked against the code, not fixed yet.
 
 ## Store and release
 
-- [ ] **Merge the website's `privacy/analytics-detail` branch** (11-12). The privacy page that
-      lists the new analytics is live, deployed on its own on top of the site that was live then
-      (the home page refresh, sunny-misty-web #6, is still not deployed). Until the branch is in
-      main, a deploy from main would put the old privacy page back.
-- [ ] **Play Data safety and the new analytics** (11-12): check its app interactions answer
-      covers the onboarding and permission answers, notification opens and the user properties.
-      App Store App Privacy already declares Product Interaction, not linked to the user (checked
-      11-12; the answers are still to be published, see App Store submission).
 - [ ] **Terms of use: a lawyer's review before release.** The page is at sunnyandmisty.com/terms
       (11-09), linked from Settings › About in both apps, and says the walk advice and warnings are
       a guide from forecasts that can be wrong, not a severe weather warning service. Still to
       settle: a governing-law section (the state FangJet LLC is registered in), whether the
       no-warranty and liability paragraphs need capitals to stand out, and that the App Store and
       Play listings don't promise more than the terms do. (11-09)
-- [ ] Licences: RainViewer is personal and educational use only. An email was drafted on 10-24;
-      no reply yet. Fallback: launch with `radar_enabled` off in Remote Config. (Open-Meteo is
-      settled: the Standard plan was bought on 11-16, see below.)
+- [ ] **Licences: RainViewer, review on 12-01.** Its free feed is personal and educational use
+      only; an email was drafted on 10-24, with no reply. Decided 11-17: launch using it without a
+      commercial licence for now, and review that on 12-01. Fallback: `radar_enabled` off in Remote
+      Config. (Open-Meteo is settled: the Standard plan was bought on 11-16, see below.)
 - [ ] **Open-Meteo plan and API key.** The Standard plan (1M calls a month) was bought on 11-16.
       Both apps send its key to the customer servers (`customer-api.open-meteo.com` and the like):
       built in from `Secrets.plist` / `local.properties` (`OPEN_METEO_API_KEY`, also a CI secret),
@@ -285,14 +257,21 @@ noted. Checked against the code, not fixed yet.
 - [ ] App Store App Privacy: My Location's coordinates also go to the phone's place lookup
       (Apple's) to name it. The privacy policy on sunnyandmisty.com says so since 11-06, and Play
       Data safety (filled in 11-10) declares location for app functionality. (11-06)
-- [ ] Set `ios_app_store_url` in Remote Config to `https://apps.apple.com/app/id6827945995` once the
-      app is live. Until then the iOS update screen has no Update button. (10-30)
 - [ ] Mac: the iPad app isn't offered on Apple silicon Macs. Try it on a Mac, then tick Mac
       availability in Pricing and Availability. (10-31)
 - [ ] Store screenshot captions in the pets' voice. (10-26)
 - [ ] Plan for supporting the app after launch. (10-31)
-- [ ] Website store buttons need the real App Store and Play links on launch day, ideally the
-      official badges. (10-27)
+- [ ] Website store buttons: both point to the stores since 11-18 but are plain text buttons;
+      swap in the official App Store and Google Play badges. (10-27, updated 11-18)
+- [ ] Store screenshots: a fresh iOS set (11-18) is in `screenshots/app-store/` of the iOS repo,
+      with a new `07-hot-pavement.png`. App Store Connect only takes new screenshots with the next
+      version, so upload them then, with the description's Follow my location line from
+      `docs/app-store/listing.md`. A fresh Play set (11-18, from 1.0.5) is in the Android repo's
+      `screenshots/play-store/`, with a new `03-hot-pavement` and eight phone shots instead of
+      seven; Play takes them any time from the store listing page, after a Play review. (11-18)
+- [ ] Website support page: "Why does Sunny say Potty breaks only?" only gives bad air as the
+      reason. The app also says it for storms, gales and extreme heat or cold, as the home page
+      does. (11-18)
 - Debug builds can show either update prompt: launch iOS with `-updatePrompt required` (or
   `recommended`); on Android,
   `adb shell am start -n com.fangjet.weather.debug/com.fangjet.weather.MainActivity --es updatePrompt required`.
@@ -414,6 +393,25 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **App Store launch** (11-18): Apple approved 1.0.10 the day it was submitted and it was
+      released by hand the same evening (https://apps.apple.com/app/id6827945995).
+      `ios_app_store_url` points there in Remote Config (deployed 11-18) and in the iOS in-app
+      default, and the website's App Store buttons replace TestFlight (deployed 11-18).
+- [x] **App Store submission** (11-18): the version renamed to 1.0.10 with build 10, review
+      notes on what "Always" location is for, Content Rights answered, and submitted for review.
+- [x] **Play production release** (11-18): 1.0.5 (build 5, the first with the Open-Meteo key) is
+      live on Google Play in every country, with managed publishing on. The website's Play buttons
+      point to the listing (sunny-misty-web #13, deployed 11-18 with the Walk times page and the
+      walk card wording).
+- [x] **App Privacy and Data safety checked for crash reports and analytics** (11-17). App Store
+      App Privacy adds Diagnostics > Crash Data (App Functionality, not linked, no tracking) and is
+      published. Play Data safety already covered both apps' analytics and Android's crash reports:
+      app interactions (optional, Analytics) for the onboarding and permission answers,
+      notification opens and the user properties; crash logs, diagnostics and device IDs
+      (required, Analytics); location for app functionality. Nothing shared, nothing for ads.
+      The privacy policy (sunny-misty-web #12, live 11-17) lists every event and user property,
+      and crash reports from both apps. The website's `privacy/analytics-detail` branch is in
+      main; main also holds the Walk times page (#10) and walk card wording (#11), not yet live.
 - [x] **Crashlytics on iOS** (11-17, weather-iOS #141): FirebaseCrashlytics from the Firebase 12
       package, on in release builds and off in debug builds as on Android, with a Release-only
       build phase that uploads the dSYM. It runs `upload-symbols --build-phase` in the foreground:
