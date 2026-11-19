@@ -29,6 +29,21 @@ Finished items move to Done at the bottom.
       estimate in "Open-Meteo plan and API key" (Android about 52 calls a user a day, iPhone about
       31). If it's well above, raise `weather_refresh_interval_minutes` or move to Professional
       before release. Repeat a week after launch. (11-17)
+- [ ] **Ask for a rating, in the next release of both apps.** Ratings are the biggest gap against
+      the rival pet weather apps (none yet, against 15 to 65,000), and both stores rank by them.
+      Use the system prompts: SwiftUI's `requestReview` (StoreKit) on iOS and the Play In-App
+      Review API on Android. Ask at a happy moment, such as after the app has been opened on a
+      few different days, and never after an error or with an old cached reading. The systems
+      decide whether it shows (iOS at most 3 times a year), so no prompt of our own before it.
+      Same rule on both apps; consider a Remote Config switch to turn it off. From the website's
+      SEO review. (11-19)
+- [ ] **New store wording, approved 11-19.** The name stays "Sunny & Misty: Pet Weather" on both
+      stores. App Store, with the next version (a subtitle can't change without one): subtitle
+      "Walk times, paw check & radar" and the keywords in iOS's `docs/app-store/listing.md`
+      ("dog" in, "radar" out to the subtitle). Play, any time from the store listing page: short
+      description "Pet weather that picks the best time to walk the dog, with paw check and radar"
+      (78/80), so it says "weather" and "radar". Ask before changing either store. From the
+      website's SEO review. (11-19)
 
 ## Air quality
 
