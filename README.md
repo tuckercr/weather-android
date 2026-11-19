@@ -724,3 +724,7 @@ versions use the same locale heuristic).
 - Text meets WCAG AA contrast: the light theme's primary is `#01579B`, and in dark mode the paw and
   icons keep their contrast against the cards.
 - Layouts reflow at the largest font sizes.
+
+## Author
+
+Built by [Colin Tucker](https://fangjet.com), a senior Android engineer. More projects at [fangjet.com/projects](https://fangjet.com/projects).
