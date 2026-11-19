@@ -266,7 +266,9 @@ noted. Checked against the code, not fixed yet.
 - [ ] Store screenshots: a fresh iOS set (11-18) is in `screenshots/app-store/` of the iOS repo,
       with a new `07-hot-pavement.png`. App Store Connect only takes new screenshots with the next
       version, so upload them then, with the description's Follow my location line from
-      `docs/app-store/listing.md`. The Play listing's Android screenshots are older too. (11-18)
+      `docs/app-store/listing.md`. A fresh Play set (11-18, from 1.0.5) is in the Android repo's
+      `screenshots/play-store/`, with a new `03-hot-pavement` and eight phone shots instead of
+      seven; Play takes them any time from the store listing page, after a Play review. (11-18)
 - [ ] Website support page: "Why does Sunny say Potty breaks only?" only gives bad air as the
       reason. The app also says it for storms, gales and extreme heat or cold, as the home page
       does. (11-18)
