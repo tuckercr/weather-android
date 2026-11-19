@@ -3,6 +3,7 @@ package com.fangjet.weather.analytics
 import com.fangjet.weather.data.RemoteConfigRepository
 import com.fangjet.weather.data.WeatherProvider
 import com.fangjet.weather.data.WeatherRequestKind
+import com.fangjet.weather.domain.ReviewPromptMoment
 import com.fangjet.weather.worker.NotificationKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -96,6 +97,15 @@ class AnalyticsRepository internal constructor(
         mapOf(PARAM_ERROR_KEY to errorKey, PARAM_PROVIDER to provider.key, PARAM_REQUEST to request.key),
     )
 
+    /**
+     * The app asked Play for the review sheet, at [moment], for the [requestNumber]th time. Play
+     * doesn't say whether it showed or what was given.
+     */
+    fun logReviewPromptRequested(
+        moment: ReviewPromptMoment,
+        requestNumber: Int,
+    ) = log(EVENT_REVIEW_PROMPT_REQUESTED, mapOf(PARAM_MOMENT to moment.key, PARAM_REQUEST_NUMBER to requestNumber))
+
     /** The user properties ([AnalyticsUserProperties]), behind the same gates as the events. */
     fun setUserProperties(properties: Map<String, String>) {
         runCatching {
@@ -105,7 +115,7 @@ class AnalyticsRepository internal constructor(
 
     private fun log(
         event: String,
-        params: Map<String, String> = emptyMap(),
+        params: Map<String, Any> = emptyMap(),
     ) {
         runCatching {
             if (collection.shareUsageStatistics == null) {
@@ -130,6 +140,7 @@ class AnalyticsRepository internal constructor(
         const val EVENT_PERMISSION_CHANGED = "permission_changed"
         const val EVENT_NOTIFICATION_OPENED = "notification_opened"
         const val EVENT_WEATHER_ERROR = "weather_error"
+        const val EVENT_REVIEW_PROMPT_REQUESTED = "review_prompt_requested"
 
         const val PARAM_STEP = "step"
         const val PARAM_HAS_DOG = "has_dog"
@@ -143,6 +154,8 @@ class AnalyticsRepository internal constructor(
         const val PARAM_KIND = "kind"
         const val PARAM_ERROR_KEY = "error_key"
         const val PARAM_REQUEST = "request"
+        const val PARAM_MOMENT = "moment"
+        const val PARAM_REQUEST_NUMBER = "request_number"
 
         const val YES = "yes"
         const val NO = "no"

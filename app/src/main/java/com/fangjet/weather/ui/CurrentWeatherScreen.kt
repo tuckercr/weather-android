@@ -57,6 +57,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -98,6 +99,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.repeatOnLifecycle
 import com.fangjet.weather.BuildConfig
 import com.fangjet.weather.R
@@ -109,6 +111,8 @@ import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.WeatherUnits
 import com.fangjet.weather.model.LoadingState
 import com.fangjet.weather.model.LocationPermissionViewModel
+import com.fangjet.weather.model.ReviewPromptScreen
+import com.fangjet.weather.model.ReviewPromptViewModel
 import com.fangjet.weather.model.UpdatePromptViewModel
 import com.fangjet.weather.model.WeatherForecastViewModel
 import com.fangjet.weather.model.WeatherScreen
@@ -208,6 +212,20 @@ fun CurrentWeatherRoute(
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) { viewModel.recheckWhileStale() }
     }
 
+    // The ratings prompt is told what's on screen; the activity launches Play's sheet when it's time.
+    // This destination is resumed only while it's the one in front (not under Settings or Add
+    // location) and the app is in the foreground; onboarding and the update screen never show it.
+    val reviewPrompt = hiltViewModel<ReviewPromptViewModel>(viewModelStoreOwner = activity)
+    var dayDetailOpen by remember { mutableStateOf(false) }
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
+    val reviewPromptScreen = ReviewPromptScreen.of(
+        screen = screen,
+        isRefreshing = isRefreshing,
+        inFront = lifecycleState.isAtLeast(Lifecycle.State.RESUMED) && updatePrompt == UpdatePrompt.NONE && !dayDetailOpen,
+    )
+    LaunchedEffect(reviewPromptScreen) { reviewPrompt.screenChanged(reviewPromptScreen) }
+    DisposableEffect(reviewPrompt) { onDispose { reviewPrompt.screenChanged(ReviewPromptScreen.HIDDEN) } }
+
     val context = LocalContext.current
     LaunchedEffect(viewModel) {
         viewModel.addMyLocationFailed.collect {
@@ -239,6 +257,7 @@ fun CurrentWeatherRoute(
                 }
             },
             onRefresh = viewModel::pulledToRefresh,
+            onDayDetailOpenChange = { dayDetailOpen = it },
             onRetry = viewModel::retry,
         )
     }
@@ -259,6 +278,8 @@ fun CurrentWeatherScreen(
     onRefresh: () -> Unit = {},
     // Under the city tabs: the update banner, when a newer version is recommended.
     topBanner: @Composable () -> Unit = {},
+    // Whether a day's detail sheet is open over the screen.
+    onDayDetailOpenChange: (Boolean) -> Unit = {},
     onRetry: () -> Unit,
 ) {
     Scaffold(
@@ -392,6 +413,7 @@ fun CurrentWeatherScreen(
                                     state = state,
                                     location = location,
                                     onForecastRetry = onRetry,
+                                    onDayDetailOpenChange = onDayDetailOpenChange,
                                 )
                             }
                             if (BuildConfig.DEBUG) {
@@ -455,6 +477,7 @@ private fun CurrentWeatherContent(
     modifier: Modifier = Modifier,
     location: SavedLocation? = null,
     onForecastRetry: () -> Unit = {},
+    onDayDetailOpenChange: (Boolean) -> Unit = {},
 ) {
     val weather = state.weather
     val todayForecast = state.today
@@ -649,6 +672,11 @@ private fun CurrentWeatherContent(
 
     selectedDay?.let { day ->
         DayDetailBottomSheet(day = day) { selectedDay = null }
+    }
+    val dayDetailOpen = selectedDay != null
+    DisposableEffect(dayDetailOpen) {
+        onDayDetailOpenChange(dayDetailOpen)
+        onDispose { if (dayDetailOpen) onDayDetailOpenChange(false) }
     }
 }
 

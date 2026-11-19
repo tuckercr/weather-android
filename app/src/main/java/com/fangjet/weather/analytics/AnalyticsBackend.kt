@@ -10,9 +10,10 @@ import javax.inject.Singleton
 
 /** The analytics SDK, behind an interface so the gates in front of it can be unit tested. */
 interface AnalyticsBackend {
+    /** [params] values are strings or whole numbers. */
     fun logEvent(
         name: String,
-        params: Map<String, String>,
+        params: Map<String, Any>,
     )
 
     /** A user property, attached to the install's later events for filtering reports. */
@@ -40,10 +41,22 @@ class FirebaseAnalyticsBackend @Inject constructor() : AnalyticsBackend {
 
     override fun logEvent(
         name: String,
-        params: Map<String, String>,
+        params: Map<String, Any>,
     ) {
         runCatching {
-            val bundle = if (params.isEmpty()) null else Bundle().apply { params.forEach { (k, v) -> putString(k, v) } }
+            val bundle = if (params.isEmpty()) {
+                null
+            } else {
+                Bundle().apply {
+                    params.forEach { (k, v) ->
+                        when (v) {
+                            is Int -> putLong(k, v.toLong())
+                            is Long -> putLong(k, v)
+                            else -> putString(k, v.toString())
+                        }
+                    }
+                }
+            }
             analytics?.logEvent(name, bundle)
         }.onFailure { Timber.w(it, "Analytics event %s not logged", name) }
     }

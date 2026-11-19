@@ -161,6 +161,9 @@ dependencies {
     // Location services
     implementation(libs.play.services.location)
 
+    // Play's in-app review sheet (the ratings prompt)
+    implementation(libs.play.review.ktx)
+
     // Logging
     implementation(libs.timber)
 

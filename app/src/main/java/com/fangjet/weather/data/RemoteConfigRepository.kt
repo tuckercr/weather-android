@@ -4,6 +4,7 @@ import android.content.Context
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.RainOutlookSettings
+import com.fangjet.weather.domain.ReviewPromptSettings
 import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.SeasonalThemes
 import com.fangjet.weather.domain.TodayTileSwitches
@@ -215,6 +216,26 @@ class RemoteConfigRepository @Inject constructor(
      */
     fun analyticsEnabled(): Boolean = boolean(KEY_ANALYTICS_ENABLED) ?: DEFAULT_ANALYTICS_ENABLED
 
+    /**
+     * The ratings prompt (`ReviewPromptPolicy`), with the same keys and defaults as iOS. Off for the
+     * first release.
+     */
+    fun reviewPromptSettings(): ReviewPromptSettings {
+        val defaults = ReviewPromptSettings.DEFAULT
+        return reviewPromptSettings(
+            enabled = boolean(KEY_REVIEW_PROMPT_ENABLED) ?: defaults.enabled,
+            minDaysInstalled = double(KEY_REVIEW_PROMPT_MIN_DAYS_INSTALLED),
+            minActiveDays = double(KEY_REVIEW_PROMPT_MIN_ACTIVE_DAYS),
+            // Read without string(), which treats an empty value as unset: here empty never asks.
+            moments = value(KEY_REVIEW_PROMPT_MOMENTS)?.let { runCatching { it.asString() }.getOrNull() },
+            delaySeconds = double(KEY_REVIEW_PROMPT_DELAY_SECONDS),
+            oncePerVersion = boolean(KEY_REVIEW_PROMPT_ONCE_PER_VERSION) ?: defaults.oncePerVersion,
+            cooldownDays = double(KEY_REVIEW_PROMPT_COOLDOWN_DAYS),
+            maxRequests = double(KEY_REVIEW_PROMPT_MAX_REQUESTS),
+            onNotificationOpen = boolean(KEY_REVIEW_PROMPT_ON_NOTIFICATION_OPEN) ?: defaults.onNotificationOpen,
+        )
+    }
+
     /** Counts activations of newly fetched values, so callers can read Remote Config again. */
     val activationCount: Flow<Int> = activations
 
@@ -368,5 +389,54 @@ class RemoteConfigRepository @Inject constructor(
         const val KEY_ANDROID_MIN_SUPPORTED_VERSION = "android_min_supported_version"
         const val KEY_ANDROID_MIN_RECOMMENDED_VERSION = "android_min_recommended_version"
         const val DEFAULT_OPEN_METEO_ENABLED = true
+
+        const val KEY_REVIEW_PROMPT_ENABLED = "review_prompt_enabled"
+        const val KEY_REVIEW_PROMPT_MIN_DAYS_INSTALLED = "review_prompt_min_days_installed"
+        const val KEY_REVIEW_PROMPT_MIN_ACTIVE_DAYS = "review_prompt_min_active_days"
+        const val KEY_REVIEW_PROMPT_MOMENTS = "review_prompt_moments"
+        const val KEY_REVIEW_PROMPT_DELAY_SECONDS = "review_prompt_delay_seconds"
+        const val KEY_REVIEW_PROMPT_ONCE_PER_VERSION = "review_prompt_once_per_version"
+        const val KEY_REVIEW_PROMPT_COOLDOWN_DAYS = "review_prompt_cooldown_days"
+        const val KEY_REVIEW_PROMPT_MAX_REQUESTS = "review_prompt_max_requests"
+        const val KEY_REVIEW_PROMPT_ON_NOTIFICATION_OPEN = "review_prompt_on_notification_open"
+
+        /**
+         * Each number is a whole number in its range, otherwise the default, so a bad console value
+         * can't make the app ask sooner or more often than it should. Same as iOS.
+         */
+        internal fun reviewPromptSettings(
+            enabled: Boolean,
+            minDaysInstalled: Double?,
+            minActiveDays: Double?,
+            moments: String?,
+            delaySeconds: Double?,
+            oncePerVersion: Boolean,
+            cooldownDays: Double?,
+            maxRequests: Double?,
+            onNotificationOpen: Boolean,
+        ): ReviewPromptSettings {
+            val defaults = ReviewPromptSettings.DEFAULT
+            return ReviewPromptSettings(
+                enabled = enabled,
+                minDaysInstalled = wholeIn(minDaysInstalled, ReviewPromptSettings.MIN_DAYS_INSTALLED_RANGE, defaults.minDaysInstalled),
+                minActiveDays = wholeIn(minActiveDays, ReviewPromptSettings.MIN_ACTIVE_DAYS_RANGE, defaults.minActiveDays),
+                moments = ReviewPromptSettings.momentsFromList(moments),
+                delaySeconds = wholeIn(delaySeconds, ReviewPromptSettings.DELAY_SECONDS_RANGE, defaults.delaySeconds),
+                oncePerVersion = oncePerVersion,
+                cooldownDays = wholeIn(cooldownDays, ReviewPromptSettings.COOLDOWN_DAYS_RANGE, defaults.cooldownDays),
+                maxRequests = wholeIn(maxRequests, ReviewPromptSettings.MAX_REQUESTS_RANGE, defaults.maxRequests),
+                onNotificationOpen = onNotificationOpen,
+            )
+        }
+
+        /** [value] when it's a whole number in [range], otherwise [default]. */
+        private fun wholeIn(
+            value: Double?,
+            range: IntRange,
+            default: Int,
+        ): Int =
+            value
+                ?.takeIf { it.isFinite() && it == Math.floor(it) && it >= range.first && it <= range.last }
+                ?.toInt() ?: default
     }
 }

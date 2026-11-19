@@ -206,4 +206,42 @@
         <key>seasonal_themes</key>
         <value></value>
     </entry>
+    <!-- The ratings prompt (ReviewPromptPolicy): Play's in-app review sheet at a happy moment for
+         someone who keeps coming back. Off for the first release. Same keys and defaults as iOS. -->
+    <entry>
+        <key>review_prompt_enabled</key>
+        <value>false</value>
+    </entry>
+    <entry>
+        <key>review_prompt_min_days_installed</key>
+        <value>7</value>
+    </entry>
+    <entry>
+        <key>review_prompt_min_active_days</key>
+        <value>5</value>
+    </entry>
+    <entry>
+        <key>review_prompt_moments</key>
+        <value>great_walk,pleasant_weather</value>
+    </entry>
+    <entry>
+        <key>review_prompt_delay_seconds</key>
+        <value>3</value>
+    </entry>
+    <entry>
+        <key>review_prompt_once_per_version</key>
+        <value>true</value>
+    </entry>
+    <entry>
+        <key>review_prompt_cooldown_days</key>
+        <value>120</value>
+    </entry>
+    <entry>
+        <key>review_prompt_max_requests</key>
+        <value>3</value>
+    </entry>
+    <entry>
+        <key>review_prompt_on_notification_open</key>
+        <value>false</value>
+    </entry>
 </defaultsMap>

@@ -3,6 +3,7 @@ package com.fangjet.weather.analytics
 import com.fangjet.weather.data.RemoteConfigRepository
 import com.fangjet.weather.data.WeatherProvider
 import com.fangjet.weather.data.WeatherRequestKind
+import com.fangjet.weather.domain.ReviewPromptMoment
 import com.fangjet.weather.worker.NotificationKind
 import io.mockk.coEvery
 import io.mockk.every
@@ -132,6 +133,9 @@ class AnalyticsRepositoryTest {
                 mapOf("error_key" to "offline", "provider" to "open_meteo", "request" to "air_quality"),
             )
         }
+        verify {
+            backend.logEvent("review_prompt_requested", mapOf("moment" to "great_walk", "request_number" to 2))
+        }
         verify { backend.setUserProperty("has_dog", "no") }
     }
 
@@ -146,6 +150,7 @@ class AnalyticsRepositoryTest {
         assertEquals(listOf("open_meteo", "openweather"), CitySearchProvider.entries.map { it.key })
         assertEquals(listOf("open_meteo", "openweather"), WeatherProvider.entries.map { it.key })
         assertEquals(listOf("current", "forecast", "air_quality"), WeatherRequestKind.entries.map { it.key })
+        assertEquals(listOf("great_walk", "pleasant_weather"), ReviewPromptMoment.entries.map { it.key })
     }
 
     @Test
@@ -202,6 +207,7 @@ class AnalyticsRepositoryTest {
         analytics.logPermissionChanged(AnalyticsPermission.LOCATION_ALWAYS, granted = true, from = PermissionAskedFrom.FOLLOW_MY_LOCATION)
         analytics.logNotificationOpened(NotificationKind.MORNING_BRIEFING)
         analytics.logWeatherError("offline", WeatherProvider.OPEN_METEO, WeatherRequestKind.AIR_QUALITY)
+        analytics.logReviewPromptRequested(ReviewPromptMoment.GREAT_WALK, requestNumber = 2)
         analytics.setUserProperties(mapOf("has_dog" to "no"))
     }
 
