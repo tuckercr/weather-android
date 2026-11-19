@@ -236,13 +236,13 @@ WorkManager, and CI on GitHub Actions.
 
 | Pets, walk time & hourly | Today tiles & air quality | Radar & rest of week | Day detail | Settings |
 |---|---|---|---|---|
-| ![Sunny and Misty react to the weather, with best walk time and the hourly strip](./screenshots/current.png) | ![Today's tiles: feels like, wind, humidity and Paw check in pairs, then Air quality, daylight and Misty's View across the full width](./screenshots/today.png) | ![Animated RainViewer radar and the rest of the week](./screenshots/forecast.png) | ![Hour-by-hour temperature and rain chance for a day](./screenshots/day.png) | ![Settings with units, I have a dog and notifications](./screenshots/settings.png) |
+| ![Sunny and Misty in the sun on a clear day in Tokyo, with "Now is a great time" and the hourly strip](./screenshots/current.png) | ![Today's tiles in Alice Springs: feels like, wind, Fluff Factor and Paw check at about 146°, dangerously hot, in pairs, then Air quality and daylight across the full width](./screenshots/today.png) | ![Animated RainViewer radar with rain over Japan, and the rest of the week](./screenshots/forecast.png) | ![Hour-by-hour temperature and rain chance for a day](./screenshots/day.png) | ![Settings with units, I have a dog and notifications](./screenshots/settings.png) |
 
 On tablets and in landscape, the pets sit beside today's details and the week splits into two columns:
 
 ![Phone in landscape on a rainy day, with the pets beside today's details](./screenshots/landscape.png)
 
-![Tablet layout with the pets beside today's tiles, Air quality across the full width](./screenshots/tablet.png)
+![Tablet in portrait: Kanazawa in drizzle, with the pets beside today's tiles, then the hourly strip and the rain chart](./screenshots/tablet.png)
 
 ## Getting started
 
@@ -300,11 +300,14 @@ build artifacts.
 emulator with a clean status bar:
 
 - Phone, 1080 × 1920 (9:16; Play rejects anything longer than 2:1, so not the Pixel's 1080 × 2400).
-  Upload in this order: `01-welcome`, `02-today` (the walk times and a second option),
-  `03-walk-tiles` (the tiles and Paw Check), `04-night`, `05-radar-week`, `06-day-detail`,
-  `07-settings`. Retaken 11-12 with build 4.
-- Tablet: `tablet-01` (1600 × 2560, portrait) and `tablet-02` (2560 × 1600, landscape), for both
-  the 7-inch and 10-inch tablet slots.
+  Upload in this order: `01-welcome`, `02-today` (Tokyo, "Now is a great time"),
+  `03-hot-pavement` (Alice Springs, Paw check about 146°, dangerously hot), `04-tiles`,
+  `05-night` (Los Angeles at night, with tomorrow's walk times and a second option),
+  `06-radar-week` (rain over Japan), `07-day-detail`, `08-settings`. Retaken 11-18 with the
+  1.0.5 release build (the one on Google Play), live weather and a 9:41 demo status bar.
+- Tablet, on the Medium_Tablet emulator: `tablet-01` (1600 × 2560, portrait, Kanazawa in drizzle)
+  and `tablet-02` (2560 × 1600, landscape, Beijing with very unhealthy air: "Smoky air. Potty
+  breaks only."), for both the 7-inch and 10-inch tablet slots.
 
 ## Architecture & tech stack
 
