@@ -177,7 +177,7 @@
       "description": "iOS versions below this show an update banner; Not now hides it for a week. Blank never asks."
     },
     "ios_app_store_url": {
-      "defaultValue": { "value": "" },
+      "defaultValue": { "value": "https://apps.apple.com/app/id6827945995" },
       "valueType": "STRING",
       "description": "App Store link for the iOS Update button. Blank: the update screen says to update from the App Store."
     },
