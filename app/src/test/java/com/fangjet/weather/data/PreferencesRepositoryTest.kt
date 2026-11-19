@@ -8,6 +8,7 @@ import com.fangjet.weather.domain.AirQuality
 import com.fangjet.weather.domain.AirQualityHours
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
+import com.fangjet.weather.domain.ReviewPromptHistory
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.UnitOverride
 import com.fangjet.weather.domain.WeatherUnits
@@ -362,5 +363,27 @@ class PreferencesRepositoryTest {
 
             store.edit { it[intPreferencesKey("active_location_index")] = 3 }
             assertEquals(3, PreferencesRepository(store, json).activeLocationIndex.first())
+        }
+
+    // --- the ratings prompt ---
+
+    @Test
+    fun `the review prompt history is saved`() =
+        runTest {
+            val prefs = repository()
+            assertEquals(ReviewPromptHistory(), prefs.reviewPromptHistory())
+            val history = ReviewPromptHistory(
+                activeDays = 4,
+                lastActiveDay = 86_400_000,
+                requests = 1,
+                lastRequestAt = 90_000_000,
+                lastRequestVersion = "1.1",
+            )
+            prefs.setReviewPromptHistory(history)
+            assertEquals(history, prefs.reviewPromptHistory())
+
+            val updated = prefs.updateReviewPromptHistory { it.copy(activeDays = it.activeDays + 1) }
+            assertEquals(5, updated.activeDays)
+            assertEquals(updated, prefs.reviewPromptHistory())
         }
 }

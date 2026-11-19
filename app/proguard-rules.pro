@@ -22,3 +22,6 @@
 -keep class * extends androidx.room.RoomDatabase {
     <init>();
 }
+# Play review-ktx 2.0.2 marks a lambda with an annotation from a newer play-services-basement than
+# the one Firebase and location bring in. It is only an annotation, so nothing is missing at run time.
+-dontwarn com.google.android.gms.common.annotation.NoNullnessRewrite

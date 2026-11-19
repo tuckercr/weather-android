@@ -3,6 +3,8 @@ package com.fangjet.weather.data
 import android.content.Context
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.RainOutlookSettings
+import com.fangjet.weather.domain.ReviewPromptMoment
+import com.fangjet.weather.domain.ReviewPromptSettings
 import com.google.android.gms.tasks.OnCompleteListener
 import com.google.android.gms.tasks.Task
 import com.google.firebase.Firebase
@@ -215,6 +217,33 @@ class RemoteConfigRepositoryTest {
     }
 
     @Test
+    fun `the ratings prompt reads its keys, and an empty moments list never asks`() {
+        firebaseInitialised(true)
+        val repo = RemoteConfigRepository(context)
+        assertEquals(ReviewPromptSettings.DEFAULT, repo.reviewPromptSettings())
+
+        set(RemoteConfigRepository.KEY_REVIEW_PROMPT_ENABLED, "true")
+        set(RemoteConfigRepository.KEY_REVIEW_PROMPT_MIN_DAYS_INSTALLED, "14")
+        set(RemoteConfigRepository.KEY_REVIEW_PROMPT_DELAY_SECONDS, "2.0")
+        set(RemoteConfigRepository.KEY_REVIEW_PROMPT_MAX_REQUESTS, "lots")
+        set(RemoteConfigRepository.KEY_REVIEW_PROMPT_MOMENTS, " great_walk ")
+        set(RemoteConfigRepository.KEY_REVIEW_PROMPT_ON_NOTIFICATION_OPEN, "true")
+        assertEquals(
+            ReviewPromptSettings(
+                enabled = true,
+                minDaysInstalled = 14,
+                delaySeconds = 2,
+                moments = setOf(ReviewPromptMoment.GREAT_WALK),
+                onNotificationOpen = true,
+            ),
+            repo.reviewPromptSettings(),
+        )
+
+        set(RemoteConfigRepository.KEY_REVIEW_PROMPT_MOMENTS, "")
+        assertEquals(emptySet<ReviewPromptMoment>(), repo.reviewPromptSettings().moments)
+    }
+
+    @Test
     fun `temperatures leave out the unit unless Remote Config says true`() {
         firebaseInitialised(true)
         val repo = RemoteConfigRepository(context)
@@ -313,6 +342,7 @@ class RemoteConfigRepositoryTest {
         assertNull(repo.openWeatherApiKey())
         assertEquals(PetWeatherThresholds.DEFAULT, repo.petWeatherThresholds())
         assertEquals(RainOutlookSettings(enabled = true, hours = 10, minChance = 20), repo.rainOutlookSettings())
+        assertEquals(ReviewPromptSettings.DEFAULT, repo.reviewPromptSettings())
     }
 
     /** A value that parses like Remote Config's own: numbers and booleans throw on junk. */

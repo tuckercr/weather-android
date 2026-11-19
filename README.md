@@ -180,6 +180,18 @@ WorkManager, and CI on GitHub Actions.
 - **Update prompts**: below `android_min_supported_version` the app shows only "Time for an update";
   below `android_min_recommended_version` a banner offers the update, and *Not now* hides it for a
   week. Both open the Play Store listing.
+- **Ratings prompt**: Play's in-app review sheet, never a button, asked for at a happy moment (the
+  walk card's "Now is a great time", or the pets sunny or fair by day) for someone who keeps coming
+  back: at least `review_prompt_min_days_installed` days after install and
+  `review_prompt_min_active_days` different days with the weather screen shown. Only with fresh
+  weather on the screen and nothing over it (Settings, Add location, a day's details, the update
+  banner), nothing bad in the walk verdict, and after the moment has stayed on screen for
+  `review_prompt_delay_seconds`. Not in a visit that a permission request or another dialog
+  interrupted, nor (unless `review_prompt_on_notification_open`) one that started from a
+  notification. At most once per version, `review_prompt_cooldown_days` apart and
+  `review_prompt_max_requests` times in all. Play decides whether the sheet actually shows and never
+  says, so the counts are of asks. Off until `review_prompt_enabled` is turned on. Same rules as iOS
+  (`domain/ReviewPrompt.kt`, `model/ReviewPromptViewModel.kt`).
 - **Weather icons** bundled as vector drawables, drawn in the pets' style with their navy outline so
   they read on light and dark cards. Night icons show the moon's phase for that hour, worked out
   from the date (no API).
@@ -321,7 +333,7 @@ emulator with a clean status bar:
 | Networking | Retrofit + OkHttp + kotlinx.serialization | Suspend functions, no RxJava |
 | Radar | RainViewer + OpenStreetMap tiles | Animated precipitation loop stitched on a Compose `Canvas`; frame speed via Remote Config |
 | Images | Coil, vector drawables | Coil loads the radar and base-map tiles; the weather icons are bundled vector drawables |
-| Persistence | DataStore Preferences | Onboarding flags, saved cities, active city, unit override, the walk card and *Share usage statistics* settings, per-city cache |
+| Persistence | DataStore Preferences | Onboarding flags, saved cities, active city, unit override, the walk card and *Share usage statistics* settings, per-city cache, the ratings prompt's counts |
 | Analytics | Firebase Analytics, Remote Config, Crashlytics | Optional; no-op without `google-services.json`. No advertising ID; user opt-out and a remote kill switch; Crashlytics in release builds only |
 | Modules | `:app`, `:weather-api` | API DTOs, parsing, and the weather, geocoding, and radar repositories split into `:weather-api`, which stays free of Firebase (`ForecastSourcePolicy` carries `open_meteo_enabled` in from the app) |
 | Data sources | OpenWeatherMap `/weather` & `/forecast` + Geocoding; Open-Meteo 7-day hourly forecast; RainViewer radar frames; OpenStreetMap tiles | OpenWeatherMap free tier; Open-Meteo Standard plan (commercial, 1M calls a month, `OPEN_METEO_API_KEY`); RainViewer and OpenStreetMap need no key |
@@ -446,6 +458,24 @@ adb shell am broadcast -n com.fangjet.weather.debug/com.fangjet.weather.DebugNot
 device connected, add `-s <serial>` after `adb`. Forcing the scheduled job with
 `adb shell cmd jobscheduler run` doesn't work: WorkManager won't run work before its time.
 
+### Trying the ratings prompt
+
+Debug builds can ask once per launch, a few seconds after the weather shows, whatever the counts and
+Remote Config say (iOS: launch argument `-reviewPromptForce YES`). `-S` stops the app first, so this
+is a fresh launch:
+
+```bash
+adb shell am start -S -n com.fangjet.weather.debug/com.fangjet.weather.MainActivity --ez reviewPromptForce true
+```
+
+The app asks and logs `review_prompt_requested`, but Play only shows the real sheet to an app
+installed from Play, so a debug build installed with adb gets nothing. To see the sheet, install a
+release build from the internal test track (or internal app sharing), with the `review_prompt_`
+keys loosened by a Remote Config condition that only matches the testers (the debug extra doesn't
+reach a release build): the internal track has no quota, so the sheet shows every time it's asked,
+unless the Play account has already reviewed the app.
+Production installs are rationed by Play, whatever the app asks.
+
 ## Analytics & privacy
 
 Sunny & Misty reports a handful of **anonymous app-usage events** and **user properties**:
@@ -467,6 +497,7 @@ on iOS, so both platforms report into the same dashboards.
 | `permission_changed` | `permission` (`notifications`, `location`, `location_always`), `result` (`granted`, `denied`), `from` (`settings`, `add_my_location`, `follow_my_location`) | Outside onboarding, the app asked for a permission and the answer came back: a system dialog, or a trip to the app's page in system settings. `settings`: the Settings and Notifications rows for location or notifications that are off, which open that page; `add_my_location`: Add My Location on Add location; `follow_my_location`: the Follow my location switch asking for "While using the app" and then "Allow all the time". Not logged when nothing was asked (already allowed) |
 | `notification_opened` | `kind` (`briefing`, `walk`, `rain`) | The app was opened by tapping the morning briefing, a walk nudge or a rain alert. Each notification's tap carries its kind; it's logged once per tap, not again on rotation or when reopened from Recents |
 | `weather_error` | `error_key` (`offline`, `rate_limited`, `server_error`, `city_not_found`, `missing_api_key`, `bad_api_key`, `generic`), `provider` (`open_meteo`, `openweather`), `request` (`current`, `forecast`, `air_quality`) | A request to a weather service failed |
+| `review_prompt_requested` | `moment` (`great_walk`, `pleasant_weather`), `request_number` (a whole number: 1 for the first ask) | The app asked Play for the review sheet at a happy moment. Play doesn't say whether it showed or what was given |
 
 **`weather_error` changed meaning** with `provider` and `request`. It used to be logged by the weather
 screen when a current-weather or forecast load failed. It is now logged by the data layer
@@ -571,6 +602,15 @@ validated: a missing or bad value falls back to the default rather than crashing
 | `tile_uv_enabled` | boolean | `false` | The UV index tile; while off, UV stays in the Daylight tile's header (it still gets its own tile when there's no Daylight tile) |
 | `seasonal_themes_enabled` | boolean | `true` | Seasonal themes (Halloween, Thanksgiving); false switches them all off |
 | `seasonal_themes` | string | the built-in list | The themes as a JSON list (format: `SeasonalTheme`), replacing the list built into the apps (`res/raw/seasonal_themes.json`) when valid; empty keeps it. A new theme for a fixed date, a date range or an nth weekday needs no app update |
+| `review_prompt_enabled` | boolean | `false` | The ratings prompt: true lets the app ask for Play's review sheet at a happy moment, by the rules in the other `review_prompt_` keys. Off for the first release |
+| `review_prompt_min_days_installed` | number | `7` | Calendar days since install before asking (never on the day of install); whole number, valid 1–365 |
+| `review_prompt_min_active_days` | number | `5` | Different days the weather screen was shown before asking; whole number, valid 1–100 |
+| `review_prompt_moments` | string | `great_walk,pleasant_weather` | The moments that can ask, comma-separated: `great_walk` (the walk card says now is a great time) and `pleasant_weather` (the pets sunny or fair by day). Unknown names are ignored; empty never asks |
+| `review_prompt_delay_seconds` | number | `3` | Seconds the moment must stay on screen, unchanged, before asking; whole number, valid 0–30 |
+| `review_prompt_once_per_version` | boolean | `true` | Asks at most once per app version |
+| `review_prompt_cooldown_days` | number | `120` | Calendar days between asks; whole number, valid 30–365 |
+| `review_prompt_max_requests` | number | `3` | Asks in all, ever; 0 means no limit; whole number, valid 0–20 |
+| `review_prompt_on_notification_open` | boolean | `false` | True lets a visit that started from a tapped notification ask; false leaves those visits alone |
 
 The website's paw safety page (sunnyandmisty.com/paw-safety, `paw-safety/index.html` in
 tuckercr/sunny-misty-web) lists Paw Check's bands at the defaults of `walk_warm_pavement_c`,
@@ -639,6 +679,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `AnalyticsUserPropertiesTest` | The user properties' values (briefings and walk nudges only when they'd arrive, location access, following, units, city count bands), and when they're set |
 | `:app` | `AnalyticsCollectionControllerTest` | SDK collection flag follows the opt-out and kill switch, at start and on change |
 | `:app` | `PetWeatherThresholdsTest` | Remote Config threshold validation: ranges, non-finite values, and pair ordering fallbacks |
+| `:app` | `ReviewPromptTest` | The ratings prompt's rule (days installed and active by the calendar, moments, interruptions and notification visits, once per version, cooldown, limit), its Remote Config validation, which weather screens are a happy moment, and the view model's delay, day counting and visits; the same cases as iOS |
 | `:app` | `PetMoodTest` | Pet mood selection by conditions, temperature, and night, with configurable hot/cold cut-offs; night captions by the city's local hour; fog, mist and haze as fog, never a mood |
 | `:app` | `HeroCaptionTest` | The cloudy mood's partly cloudy and fog captions (with and without a dog), their walk suggestions left out when now isn't the time, cold fog and a foggy night keeping their own captions, and no nap caption before noon city time |
 | `:app` | `WalkAdvisorTest` | Walk rating and best time: rain, comfort range, walking hours, daylight, raining now, pavement heat, imperial input, "tomorrow" in the city's calendar, 24-hour cap |

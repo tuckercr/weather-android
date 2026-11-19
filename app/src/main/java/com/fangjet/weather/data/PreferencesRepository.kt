@@ -13,6 +13,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.fangjet.weather.domain.AirQualityHours
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
+import com.fangjet.weather.domain.ReviewPromptHistory
 import com.fangjet.weather.domain.SavedLocation
 import com.fangjet.weather.domain.UnitOverride
 import com.fangjet.weather.domain.withMyLocationAt
@@ -337,6 +338,26 @@ class PreferencesRepository internal constructor(
         dataStore.edit { it[KEY_LAST_WALK_NUDGE_AT] = epochSeconds }
     }
 
+    /** The ratings prompt's counts ([ReviewPromptHistory]). Same as iOS's `PreferencesStore.reviewPromptHistory`. */
+    suspend fun reviewPromptHistory(): ReviewPromptHistory = decodeReviewPromptHistory(dataStore.data.first()[KEY_REVIEW_PROMPT_HISTORY])
+
+    suspend fun setReviewPromptHistory(history: ReviewPromptHistory) {
+        dataStore.edit { it[KEY_REVIEW_PROMPT_HISTORY] = json.encodeToString(history) }
+    }
+
+    /** Reads, changes and saves the history in one edit, and returns what was saved. */
+    suspend fun updateReviewPromptHistory(transform: (ReviewPromptHistory) -> ReviewPromptHistory): ReviewPromptHistory {
+        var saved = ReviewPromptHistory()
+        dataStore.edit { prefs ->
+            saved = transform(decodeReviewPromptHistory(prefs[KEY_REVIEW_PROMPT_HISTORY]))
+            prefs[KEY_REVIEW_PROMPT_HISTORY] = json.encodeToString(saved)
+        }
+        return saved
+    }
+
+    private fun decodeReviewPromptHistory(raw: String?): ReviewPromptHistory =
+        raw?.let { runCatching { json.decodeFromString<ReviewPromptHistory>(it) }.getOrNull() } ?: ReviewPromptHistory()
+
     suspend fun clearCache() {
         dataStore.edit {
             it.remove(KEY_WEATHER_CACHE)
@@ -377,5 +398,6 @@ class PreferencesRepository internal constructor(
         private val KEY_LAST_WALK_NUDGE_AT = longPreferencesKey("last_walk_nudge_at")
         private val KEY_UPDATE_BANNER_DISMISSED_AT = longPreferencesKey("update_banner_dismissed_at")
         private val KEY_MY_LOCATION_PLACE_NAME = stringPreferencesKey("my_location_place_name")
+        private val KEY_REVIEW_PROMPT_HISTORY = stringPreferencesKey("review_prompt_history")
     }
 }
