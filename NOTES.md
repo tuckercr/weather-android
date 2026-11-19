@@ -37,6 +37,13 @@ Finished items move to Done at the bottom.
       decide whether it shows (iOS at most 3 times a year), so no prompt of our own before it.
       Same rule on both apps; consider a Remote Config switch to turn it off. From the website's
       SEO review. (11-19)
+- [ ] **New store wording, approved 11-19.** The name stays "Sunny & Misty: Pet Weather" on both
+      stores. App Store, with the next version (a subtitle can't change without one): subtitle
+      "Walk times, paw check & radar" and the keywords in iOS's `docs/app-store/listing.md`
+      ("dog" in, "radar" out to the subtitle). Play, any time from the store listing page: short
+      description "Pet weather that picks the best time to walk the dog, with paw check and radar"
+      (78/80), so it says "weather" and "radar". Ask before changing either store. From the
+      website's SEO review. (11-19)
 
 ## Air quality
 
