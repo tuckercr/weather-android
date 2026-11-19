@@ -79,12 +79,8 @@
     },
     "open_meteo_enabled": {
       "defaultValue": { "value": "true" },
-      "conditionalValues": {
-        "Android debug builds": { "value": "false" },
-        "iOS debug builds": { "value": "false" }
-      },
       "valueType": "BOOLEAN",
-      "description": "Use Open-Meteo for forecasts of cities with coordinates; off falls back to OpenWeatherMap. Off for debug builds while the OpenWeather fallback is tested"
+      "description": "Use Open-Meteo for forecasts of cities with coordinates; off falls back to OpenWeatherMap"
     },
     "daily_weather_notifications_enabled": {
       "defaultValue": { "value": "true" },

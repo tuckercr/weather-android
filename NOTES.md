@@ -14,15 +14,6 @@ Finished items move to Done at the bottom.
       notification onboarding). SEARCH.md marks the changes building it on iOS made (11-06).
       When it's built, add the keys to `firebase/remoteconfig.template.json` with iOS's defaults;
       iOS reads them with in-app defaults, so nothing needs deploying first. (11-06)
-- [ ] **Test both apps on OpenWeather alone before release.** Check everything still works on
-      the fallback: the hero and forecast, the walk card, tiles, notifications and city search. The
-      Open-Meteo key change (11-16) moved every Open-Meteo request to the customer servers, so the
-      fallback is what users get if the key or the plan stops working. Set up 11-17: Remote Config
-      turns `open_meteo_enabled` off for debug builds only (the "Android debug builds" and "iOS
-      debug builds" conditions; iOS debug builds send a `build_type` custom signal), debug builds
-      say "Using OpenWeather service" at the bottom of the weather screen, and fresh debug builds
-      are on both our phones. When the test is done, remove the two conditional values from
-      `firebase/remoteconfig.template.json` and deploy, or debug builds stay on OpenWeather. (11-16)
 - [ ] **Check Open-Meteo usage on 11-20.** The key has been in use since 11-17: TestFlight build 9,
       Android build 5 and the debug builds on our phones. Read the calls a day on the customer
       portal's dashboard, divide by the people using those builds, and compare with the 11-10
@@ -281,12 +272,10 @@ noted. Checked against the code, not fixed yet.
 - [ ] Store screenshots: a fresh iOS set (11-18) is in `screenshots/app-store/` of the iOS repo,
       with a new `07-hot-pavement.png`. App Store Connect only takes new screenshots with the next
       version, so upload them then, with the description's Follow my location line from
-      `docs/app-store/listing.md`. A fresh Play set (11-18, from 1.0.5) is in the Android repo's
-      `screenshots/play-store/`, with a new `03-hot-pavement` and eight phone shots instead of
-      seven; Play takes them any time from the store listing page, after a Play review. (11-18)
-- [ ] Website support page: "Why does Sunny say Potty breaks only?" only gives bad air as the
-      reason. The app also says it for storms, gales and extreme heat or cold, as the home page
-      does. (11-18)
+      `docs/app-store/listing.md`. The fresh Play set (from 1.0.5, in the Android repo's
+      `screenshots/play-store/`: eight phone shots and the two tablet shots in both tablet slots)
+      was sent for review on 11-19. Managed publishing is on, so once Google approves it, publish
+      it from Publishing overview. (11-18, updated 11-19)
 - Debug builds can show either update prompt: launch iOS with `-updatePrompt required` (or
   `recommended`); on Android,
   `adb shell am start -n com.fangjet.weather.debug/com.fangjet.weather.MainActivity --es updatePrompt required`.
@@ -408,6 +397,12 @@ settings and permissions; and the domain rules are out of the UI layer. Still to
 
 ## Done
 
+- [x] **OpenWeather fallback tested** (11-19): both apps work on OpenWeather alone (debug builds
+      on both phones, 11-17 to 11-19). Remote Config's debug-build overrides of
+      `open_meteo_enabled` were removed and deployed on 11-19; the "Android debug builds" and "iOS
+      debug builds" conditions stay for the next test.
+- [x] **Website support page** (11-19): "Why does Sunny say Potty breaks only?" now gives every
+      reason the app has (storms, gales, heat, cold and bad air), not just bad air.
 - [x] **App Store launch** (11-18): Apple approved 1.0.10 the day it was submitted and it was
       released by hand the same evening (https://apps.apple.com/app/id6827945995).
       `ios_app_store_url` points there in Remote Config (deployed 11-18) and in the iOS in-app
