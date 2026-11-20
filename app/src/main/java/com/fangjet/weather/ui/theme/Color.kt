@@ -65,6 +65,10 @@ val PetSkyCold = Color(0xFFCFE3F5)
 
 // Grey for fog by day, whatever the mood under it; a foggy night keeps PetSkyNight.
 val PetSkyFog = Color(0xFFDDE3E7)
+
+// Smoky air by day (HeroSmoke): toast-brown in haze, grey-brown with ash. A smoky night keeps PetSkyNight.
+val PetSkySmoke = Color(0xFFE9DCC8)
+val PetSkyAsh = Color(0xFFDDD5CB)
 val PetSkyNight = Color(0xFF3C4A78)
 val PetInk = Color(0xFF0C447C)
 val PetInkOnNight = Color(0xFFF1EFE8)
@@ -118,6 +122,13 @@ val PetLeafVein = Color(0xFFFFF2E2)
 val PetPieCrust = Color(0xFFE8A23A)
 val PetPieTop = Color(0xFFD2862A)
 val PetSteam = Color(0xFFFFFFFF)
+
+// Smoke: a brown haze, the sun dulled to orange through it, and grey ash.
+val PetSmoke = Color(0xFFF4EADB)
+val PetSmokeNight = Color(0xFF8A7A66)
+val PetSmokeSun = Color(0xFFF0A868)
+val PetAsh = Color(0xFF888780)
+val PetAshDark = Color(0xFF5F5E5A)
 
 // "Showing weather from ..." banner over cached data (background, text: 8.9:1). Fixed in both
 // themes, like the hero card it sits above.

@@ -20,8 +20,10 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.fangjet.weather.analytics.AnalyticsRepository
 import com.fangjet.weather.analytics.AnalyticsUserPropertiesUpdater
 import com.fangjet.weather.analytics.notificationKindForOpenedKey
+import com.fangjet.weather.domain.HeroSmoke
 import com.fangjet.weather.model.ReviewPromptViewModel
 import com.fangjet.weather.model.UpdatePromptViewModel
+import com.fangjet.weather.model.heroSmokeDebugOverride
 import com.fangjet.weather.ui.UpdateRequiredScreen
 import com.fangjet.weather.ui.navigation.WeatherNavHost
 import com.fangjet.weather.ui.theme.CatsDogsTheme
@@ -60,6 +62,12 @@ class MainActivity : ComponentActivity() {
             UpdatePromptViewModel.debugOverride = when (intent.getStringExtra("updatePrompt")) {
                 "required" -> UpdatePrompt.REQUIRED
                 "recommended" -> UpdatePrompt.RECOMMENDED
+                else -> null
+            }
+            // adb shell am start -S -n com.fangjet.weather.debug/com.fangjet.weather.MainActivity --es heroSmoke haze
+            heroSmokeDebugOverride = when (intent.getStringExtra("heroSmoke")) {
+                "haze" -> HeroSmoke.HAZE
+                "ash" -> HeroSmoke.ASH
                 else -> null
             }
             // adb shell am start -S -n com.fangjet.weather.debug/com.fangjet.weather.MainActivity --ez reviewPromptForce true

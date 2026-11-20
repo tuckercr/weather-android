@@ -40,7 +40,15 @@ WorkManager, and CI on GitHub Actions.
   the sun, cloud, moon or frost, on a grey card by day, and the mood under it still dresses the pets
   and picks the caption. So cold fog keeps the scarves and the cold captions, a foggy night the
   night sky, and a grey day in fog gets fog captions ("Misty's kind of weather. Sunny's nose knows
-  the way."). Cold on its own shows frost sparkles rather than the snow's falling dots.
+  the way."). Smoky air is drawn the same way, in place of fog (`HeroSmoke`): when smoke (fine
+  particles) makes the air bad enough for potty breaks only (`walk_bad_air_band`), brown haze bands
+  with the sun dulled to an orange disc behind them, on a toast-brown card by day; at the worst
+  band, where the walk card says to stay in, grey ash falls too, on a grey-brown card. OpenWeather's
+  own "Smoke" and "Ash" conditions count, for cities without air quality, and a smoky night keeps
+  the night sky with the moon behind the haze. Debug builds can show it with
+  `adb shell am start -S -n com.fangjet.weather.debug/com.fangjet.weather.MainActivity --es heroSmoke haze`
+  (or `ash`; iOS: launch argument `-heroSmoke haze`). Cold on its own shows frost sparkles rather
+  than the snow's falling dots.
 - **Seasonal themes**: on Halloween (31 October) and Thanksgiving (the fourth Thursday of November),
   by the city's own date, the hero takes the theme's colours and caption, the cards below a warmer
   tint, and the scene the theme's decorations: bats, Misty's witch hat, Sunny's bandana and a
@@ -684,6 +692,7 @@ JVM unit tests (JUnit 4, MockK, and `kotlinx-coroutines-test`) live in `weather-
 | `:app` | `HeroCaptionTest` | The cloudy mood's partly cloudy and fog captions (with and without a dog), their walk suggestions left out when now isn't the time, cold fog and a foggy night keeping their own captions, and no nap caption before noon city time |
 | `:app` | `WalkAdvisorTest` | Walk rating and best time: rain, comfort range, walking hours, daylight, raining now, pavement heat, imperial input, "tomorrow" in the city's calendar, 24-hour cap |
 | `:app` | `WalkCheckTest` | The walk verdict's levels for wind (near gale to hurricane force), air (by `walk_bad_air_band`), pavement, heat, cold, storms, rain and the dark; the order of reasons; pollutant names; the walk card's captions and danger rating; hurricane and storm warnings ahead; the hero's reason captions and leaving out walk captions; the Air Quality tile following the walk rules |
+| `:app` | `HeroSmokeTest` | When the hero is smoky: haze for smoke at potty breaks only, ash at the worst band, not for a caveat, dust or ozone, smoke found behind a worse reason, and OpenWeather's Smoke and Ash; the same cases as iOS |
 | `:app` | `MoonPhaseTest` | The moon's phase from the date, checked against published phases |
 | `:app` | `WeatherIconTest` | Icon for each condition by day and night, moon phases, and southern-hemisphere mirroring |
 | `:app` | `CalmWindTest` | Calm wind reads as 0, and visibility at the 10 km cap reads as clear |

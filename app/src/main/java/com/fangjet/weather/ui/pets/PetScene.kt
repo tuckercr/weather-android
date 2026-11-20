@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import com.fangjet.weather.R
+import com.fangjet.weather.domain.HeroSmoke
 import com.fangjet.weather.domain.PetAccessory
 import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.SceneDecoration
@@ -41,6 +42,8 @@ import com.fangjet.weather.ui.LocalSouthernHemisphere
 import com.fangjet.weather.ui.MoonPhase
 import com.fangjet.weather.ui.moonPhaseAt
 import com.fangjet.weather.ui.screenNowEpochSeconds
+import com.fangjet.weather.ui.theme.PetAsh
+import com.fangjet.weather.ui.theme.PetAshDark
 import com.fangjet.weather.ui.theme.PetBandana
 import com.fangjet.weather.ui.theme.PetBat
 import com.fangjet.weather.ui.theme.PetBatNight
@@ -79,6 +82,7 @@ import com.fangjet.weather.ui.theme.PetRouterLight
 import com.fangjet.weather.ui.theme.PetScarf
 import com.fangjet.weather.ui.theme.PetScarfAlt
 import com.fangjet.weather.ui.theme.PetShine
+import com.fangjet.weather.ui.theme.PetSkyAsh
 import com.fangjet.weather.ui.theme.PetSkyCloudy
 import com.fangjet.weather.ui.theme.PetSkyCold
 import com.fangjet.weather.ui.theme.PetSkyFair
@@ -86,9 +90,13 @@ import com.fangjet.weather.ui.theme.PetSkyFog
 import com.fangjet.weather.ui.theme.PetSkyHot
 import com.fangjet.weather.ui.theme.PetSkyNight
 import com.fangjet.weather.ui.theme.PetSkyRain
+import com.fangjet.weather.ui.theme.PetSkySmoke
 import com.fangjet.weather.ui.theme.PetSkySnow
 import com.fangjet.weather.ui.theme.PetSkyStorm
 import com.fangjet.weather.ui.theme.PetSkySunny
+import com.fangjet.weather.ui.theme.PetSmoke
+import com.fangjet.weather.ui.theme.PetSmokeNight
+import com.fangjet.weather.ui.theme.PetSmokeSun
 import com.fangjet.weather.ui.theme.PetStar
 import com.fangjet.weather.ui.theme.PetSteam
 import com.fangjet.weather.ui.theme.PetStormCloud
@@ -161,6 +169,8 @@ fun PetScene(
     dark: Boolean = mood == PetMood.NIGHT,
     // Fog, mist or haze, drawn over the mood: see isFoggy.
     foggy: Boolean = false,
+    // Smoky air, drawn over the mood in place of fog: see HeroSmoke.
+    smoke: HeroSmoke? = null,
 ) {
     val description = stringResource(R.string.cd_pet_scene)
     val southernHemisphere = LocalSouthernHemisphere.current
@@ -170,7 +180,7 @@ fun PetScene(
             .aspectRatio(SCENE_W / SCENE_H)
             .semantics { contentDescription = description },
     ) {
-        drawPetScene(mood, size.width / SCENE_W, moonPhase, southernHemisphere, knockedOverRouter, decorations, dark, foggy)
+        drawPetScene(mood, size.width / SCENE_W, moonPhase, southernHemisphere, knockedOverRouter, decorations, dark, foggy, smoke)
     }
 }
 
@@ -187,14 +197,20 @@ private fun DrawScope.drawPetScene(
     decorations: Set<SceneDecoration> = emptySet(),
     dark: Boolean = mood == PetMood.NIGHT,
     foggy: Boolean = false,
+    smoke: HeroSmoke? = null,
 ) {
     fun p(
         x: Float,
         y: Float,
     ) = Offset(x * s, y * s)
 
-    // Fog takes the sky's place: no sun, cloud, moon or frost shows through it.
-    if (foggy) drawFog(FOG_BEHIND, dark, s) else drawSky(mood, s, ::p, moonPhase, southernHemisphere, dark)
+    // Smoke takes the sky's place, a dim sun (or moon) behind brown haze; fog does the same, with
+    // nothing showing through it.
+    when {
+        smoke != null -> drawSmokeBehind(smoke, moonPhase, southernHemisphere, dark, mood == PetMood.NIGHT, s, ::p)
+        foggy -> drawFog(FOG_BEHIND, dark, s)
+        else -> drawSky(mood, s, ::p, moonPhase, southernHemisphere, dark)
+    }
     if (SceneDecoration.BATS in decorations) drawBats(dark, s)
     if (SceneDecoration.AUTUMN_LEAVES in decorations) drawAutumnLeaves(dark, s)
     drawOval(PetGround, topLeft = p(20f, 132f), size = Size(220f * s, 16f * s))
@@ -207,18 +223,30 @@ private fun DrawScope.drawPetScene(
         drawAccessories(sceneAccessories(mood, decorations, dark), mood, s, ::p)
     }
     // And some in front, so the pets are half lost in it.
-    if (foggy) drawFog(FOG_IN_FRONT, dark, s)
+    when {
+        smoke != null -> drawSmokeInFront(smoke, mood == PetMood.NIGHT, s)
+        foggy -> drawFog(FOG_IN_FRONT, dark, s)
+    }
     if (knockedOverRouter) drawKnockedOverRouter(s, ::p)
 }
 
 /**
  * The hero card's colour for [mood]: grey in fog by day, since the mood's own sky colour (a cold
- * blue, a cloudy blue) says clear air. A foggy night keeps the night sky.
+ * blue, a cloudy blue) says clear air, and brown in smoke. A foggy or smoky night keeps the night
+ * sky. Same as iOS's `heroSkyColor`.
  */
 fun heroSkyColor(
     mood: PetMood,
     foggy: Boolean,
-): Color = if (foggy && mood != PetMood.NIGHT) PetSkyFog else mood.skyColor
+    smoke: HeroSmoke? = null,
+): Color =
+    when {
+        mood == PetMood.NIGHT -> mood.skyColor
+        smoke == HeroSmoke.HAZE -> PetSkySmoke
+        smoke == HeroSmoke.ASH -> PetSkyAsh
+        foggy -> PetSkyFog
+        else -> mood.skyColor
+    }
 
 /** A band of fog: left edge, top and width in scene units, and its height. */
 private class FogBand(
@@ -237,15 +265,87 @@ private fun DrawScope.drawFog(
     dark: Boolean,
     s: Float,
 ) {
-    val fog = PetCloud.copy(alpha = if (dark) 0.3f else 0.55f)
-    bands.forEach { band ->
-        drawRoundRect(
-            fog,
-            topLeft = Offset(band.x * s, band.y * s),
-            size = Size(band.width * s, band.height * s),
-            cornerRadius = CornerRadius(band.height / 2 * s),
-        )
+    drawBands(bands, PetCloud.copy(alpha = if (dark) 0.3f else 0.55f), s)
+}
+
+private fun DrawScope.drawBands(
+    bands: List<FogBand>,
+    color: Color,
+    s: Float,
+) = bands.forEach { band ->
+    drawRoundRect(
+        color,
+        topLeft = Offset(band.x * s, band.y * s),
+        size = Size(band.width * s, band.height * s),
+        cornerRadius = CornerRadius(band.height / 2 * s),
+    )
+}
+
+/**
+ * Smoke behind the pets: the sun dulled to an orange disc by day, the moon on the night card, haze
+ * bands, and for ash the first of the falling flakes. [nightCard] is the night mood's dark card,
+ * which takes darker haze and pale ash; every other card stays light, even after dark.
+ */
+private fun DrawScope.drawSmokeBehind(
+    smoke: HeroSmoke,
+    moonPhase: MoonPhase,
+    southernHemisphere: Boolean,
+    dark: Boolean,
+    nightCard: Boolean,
+    s: Float,
+    p: (Float, Float) -> Offset,
+) {
+    // After dark on a light card (rain at night, say) neither shows, as in fog: the moon's unlit
+    // side is drawn for the night sky.
+    if (nightCard) {
+        drawMoon(moonPhase, southernHemisphere, p(215f, 30f), 16f * s)
+    } else if (!dark) {
+        drawCircle(PetSmokeSun.copy(alpha = 0.8f), 18f * s, p(220f, 32f))
     }
+    drawBands(FOG_BEHIND, if (nightCard) PetSmokeNight.copy(alpha = 0.45f) else PetSmoke.copy(alpha = 0.8f), s)
+    if (smoke == HeroSmoke.ASH) drawAsh(ASH_BEHIND, nightCard, s)
+}
+
+/** Smoke in front of the pets, so they're half lost in it, and for ash more flakes, some on the ground. */
+private fun DrawScope.drawSmokeInFront(
+    smoke: HeroSmoke,
+    nightCard: Boolean,
+    s: Float,
+) {
+    drawBands(FOG_IN_FRONT, if (nightCard) PetSmokeNight.copy(alpha = 0.4f) else PetSmoke.copy(alpha = 0.65f), s)
+    if (smoke == HeroSmoke.ASH) drawAsh(ASH_IN_FRONT, nightCard, s)
+}
+
+// Flakes of ash: x, y and radius in scene units. A few are darker scraps.
+private val ASH_BEHIND = listOf(
+    Triple(24f, 16f, 2f),
+    Triple(64f, 34f, 1.6f),
+    Triple(112f, 12f, 2.2f),
+    Triple(150f, 50f, 1.6f),
+    Triple(246f, 66f, 2f),
+    Triple(16f, 70f, 1.6f),
+    Triple(186f, 18f, 1.8f),
+)
+private val ASH_IN_FRONT = listOf(
+    Triple(50f, 98f, 2f),
+    Triple(228f, 104f, 1.8f),
+    Triple(36f, 128f, 1.6f),
+    Triple(238f, 130f, 1.6f),
+    Triple(88f, 142f, 1.8f),
+    Triple(176f, 140f, 1.6f),
+)
+
+private fun DrawScope.drawAsh(
+    flakes: List<Triple<Float, Float, Float>>,
+    nightCard: Boolean,
+    s: Float,
+) = flakes.forEachIndexed { index, (x, y, r) ->
+    val color = when {
+        nightCard -> PetCatBelly.copy(alpha = 0.55f)
+        index % 3 == 0 -> PetAshDark
+        else -> PetAsh
+    }
+    drawCircle(color, r * s, Offset(x * s, y * s))
 }
 
 /**
