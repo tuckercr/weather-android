@@ -3,6 +3,7 @@ package com.fangjet.weather.model
 import com.fangjet.weather.domain.AirQuality
 import com.fangjet.weather.domain.CurrentWeather
 import com.fangjet.weather.domain.DayForecast
+import com.fangjet.weather.domain.HeroSmoke
 import com.fangjet.weather.domain.HourlySlot
 import com.fangjet.weather.domain.PetMood
 import com.fangjet.weather.domain.PetWeatherThresholds
@@ -11,6 +12,7 @@ import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.SeasonalThemes
 import com.fangjet.weather.domain.TodayTileSwitches
 import com.fangjet.weather.domain.WalkAdvice
+import com.fangjet.weather.domain.heroSmoke
 import com.fangjet.weather.domain.isFoggy
 import com.fangjet.weather.domain.isPrecipitating
 import com.fangjet.weather.domain.petMoodAt
@@ -134,6 +136,8 @@ data class WeatherScreenState(
     val mood: PetMood,
     /** Fog, mist or haze ([isFoggy]): the scene draws it over [mood], which still picks the pets' look. */
     val foggy: Boolean,
+    /** Smoky air ([heroSmoke]), drawn over [mood] in place of fog. */
+    val smoke: HeroSmoke?,
     /** Today's seasonal theme by the city's own date, so it ends by itself when its day does. */
     val seasonalTheme: SeasonalTheme?,
     /**
@@ -180,6 +184,12 @@ private fun localDateTime(
     epochSeconds: Long,
     offsetSeconds: Int,
 ): LocalDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(epochSeconds), ZoneOffset.ofTotalSeconds(offsetSeconds))
+
+/**
+ * Debug builds only: set by `adb shell am start ... --es heroSmoke haze` (or ash), to see the smoky
+ * hero whatever the air. Same as iOS's `-heroSmoke` launch argument.
+ */
+internal var heroSmokeDebugOverride: HeroSmoke? = null
 
 /** The hourly strip covers the next 24 hours. */
 const val HOURLY_STRIP_COUNT = 24
@@ -251,6 +261,7 @@ private fun weatherScreenState(
     val stripSlots = upcomingSlots.take(HOURLY_STRIP_COUNT)
     val nextRain = if (config.nextRainEnabled) nextRain(forecastDays.firstOrNull()?.quarterHours.orEmpty(), nowEpochSeconds) else null
     val walkAdvice = days?.let { walkAdviceForReading(weather, it, config.thresholds, nowEpochSeconds, hasDog) }
+    val smoke = heroSmokeDebugOverride ?: heroSmoke(walkAdvice?.now, weather.conditionMain)
     val hourNow = upcomingSlots.firstOrNull()
     val upcomingDays = if (today != null) forecastDays.drop(1) else forecastDays
     // A danger warning shows for everyone, dog or not.
@@ -276,6 +287,7 @@ private fun weatherScreenState(
         iconCodeNow = iconCodeNow,
         mood = mood,
         foggy = foggy,
+        smoke = smoke,
         seasonalTheme = seasonalTheme,
         dark = dark,
         heroCaption = heroCaption(

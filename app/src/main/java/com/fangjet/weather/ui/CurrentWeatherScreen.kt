@@ -506,7 +506,7 @@ private fun CurrentWeatherContent(
                             },
                         ),
                     colors = CardDefaults.cardColors(
-                        containerColor = seasonalTheme?.heroBackground(dark) ?: heroSkyColor(mood, state.foggy),
+                        containerColor = seasonalTheme?.heroBackground(dark) ?: heroSkyColor(mood, state.foggy, state.smoke),
                     ),
                 ) {
                     Column(
@@ -524,6 +524,7 @@ private fun CurrentWeatherContent(
                             decorations = seasonalTheme?.decorations.orEmpty(),
                             dark = dark,
                             foggy = state.foggy,
+                            smoke = state.smoke,
                         )
                         // Medium weight on the small lines so they hold up on the brighter hero colours.
                         Text(
