@@ -6,6 +6,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import retrofit2.Response
 
 class GeocodingRepositoryTest {
 
@@ -124,6 +125,15 @@ class GeocodingRepositoryTest {
             lastApiKey = apiKey
             throwable?.let { throw it }
             return response
+        }
+
+        override suspend fun searchGeocodingMeteo(
+            name: String,
+            count: Int,
+            language: String,
+            format: String
+        ): Response<OpenMeteoGeocodingResponse> {
+            return Response.success(OpenMeteoGeocodingResponse(emptyList()))
         }
     }
 }

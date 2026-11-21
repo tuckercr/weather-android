@@ -26,6 +26,7 @@ import com.fangjet.weather.model.WelcomeViewModel
 import com.fangjet.weather.ui.AddLocationRoute
 import com.fangjet.weather.ui.CurrentWeatherRoute
 import com.fangjet.weather.ui.LocationsRoute
+import com.fangjet.weather.ui.LocationsScreen
 import com.fangjet.weather.ui.NotificationSettingsRoute
 import com.fangjet.weather.ui.OnboardingDogScreen
 import com.fangjet.weather.ui.OnboardingLocationScreen
@@ -173,22 +174,23 @@ fun WeatherNavHost(
         composable(WeatherDestinations.NOTIFICATION_SETTINGS) {
             NotificationSettingsRoute(onNavigateBack = { navController.popBackStack() })
         }
-
-        composable(WeatherDestinations.LOCATIONS) { entry ->
-            val locationAdded by entry.savedStateHandle
-                .getStateFlow<String?>(LOCATION_ADDED, null)
+        composable(route = LocationsRoute.route) { entry ->
+            val locationAdded = entry.savedStateHandle
+                .getStateFlow<String?>(key = LOCATION_ADDED, initialValue = null)
                 .collectAsStateWithLifecycle()
-            LocationsRoute(
-                locations = cityListViewModel.locations.collectAsStateWithLifecycle().value,
-                onReorder = cityListViewModel::reorderLocations,
-                onRemove = cityListViewModel::removeLocation,
-                onNavigateBack = { navController.popBackStack() },
-                onAddLocation = {
-                    navController.navigate(WeatherDestinations.ADD_LOCATION) { launchSingleTop = true }
-                },
-                locationAdded = locationAdded,
-                onLocationAddedShown = { entry.savedStateHandle[LOCATION_ADDED] = null },
+
+            LocationsScreen(
+                viewModel = cityListViewModel,
+                onAddLocationClick = {
+                    navController.navigate(route = WeatherDestinations.ADD_LOCATION) { launchSingleTop = true }
+                }
             )
+
+            LaunchedEffect(locationAdded.value) {
+                locationAdded.value?.let {
+                    entry.savedStateHandle[LOCATION_ADDED] = null
+                }
+            }
         }
 
         // A screen of its own, closed with its X. Adding goes back to where it was opened from;

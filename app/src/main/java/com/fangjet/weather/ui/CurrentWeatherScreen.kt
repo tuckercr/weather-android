@@ -463,13 +463,12 @@ private fun EmptyLocationsState(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Button(onClick = onAddCityClick) {
-            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier)
             Spacer(modifier = Modifier.size(8.dp))
-            Text(stringResource(R.string.action_add_city))
+            Text(text = "Add City")
         }
     }
 }
-
 @Composable
 private fun CurrentWeatherContent(
     // Everything shown, worked out by the view model at its clock.
