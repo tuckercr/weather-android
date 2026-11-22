@@ -274,7 +274,7 @@ fun AddLocationScreen(
 
                 action == AddLocationAction.NotFound -> {
                     Text(
-                        text = stringResource(R.string.error_city_not_found),
+                        text = stringResource(id = R.string.error_city_not_found),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),

@@ -4,7 +4,6 @@ import android.content.Context
 import com.fangjet.weather.R
 import com.fangjet.weather.domain.PetWeatherThresholds
 import com.fangjet.weather.domain.RainOutlookSettings
-import com.fangjet.weather.domain.ReviewPromptSettings
 import com.fangjet.weather.domain.SeasonalTheme
 import com.fangjet.weather.domain.SeasonalThemes
 import com.fangjet.weather.domain.TodayTileSwitches
@@ -24,6 +23,7 @@ import kotlinx.coroutines.flow.update
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+
 
 /**
  * Server-tunable values from Firebase Remote Config (project `cats-dogs-weather`; the
@@ -145,16 +145,8 @@ class RemoteConfigRepository @Inject constructor(
      * Null when unset or blank; the key built into the app is used then. Not a secret: Remote
      * Config values reach every device.
      */
-    fun openWeatherApiKey(): String? = apiKey(KEY_OPENWEATHER_API_KEY)
-
-    /**
-     * Replacement Open-Meteo API key, so a leaked key can be rotated without an app update. Null
-     * when unset or blank; the key built into the app is used then. Not a secret either.
-     */
-    fun openMeteoApiKey(): String? = apiKey(KEY_OPEN_METEO_API_KEY)
-
-    private fun apiKey(key: String): String? =
-        value(key)
+    fun openWeatherApiKey(): String? =
+        value(KEY_OPENWEATHER_API_KEY)
             ?.let { runCatching { it.asString() }.getOrNull() }
             ?.trim()
             ?.takeIf { it.isNotEmpty() }
@@ -193,21 +185,20 @@ class RemoteConfigRepository @Inject constructor(
      */
     fun petWeatherThresholds(): PetWeatherThresholds =
         runCatching {
-            PetWeatherThresholds
-                .validated(
-                    hotPavementC = double(KEY_WALK_HOT_PAVEMENT_C),
-                    warmPavementC = double(KEY_WALK_WARM_PAVEMENT_C),
-                    icyPavementC = double(KEY_WALK_ICY_PAVEMENT_C),
-                    dangerousPavementC = double(KEY_WALK_DANGEROUS_PAVEMENT_C),
-                    maxRainChancePercent = wholeNumber(KEY_WALK_MAX_RAIN_CHANCE),
-                    comfortMinC = double(KEY_WALK_COMFORT_MIN_C),
-                    comfortMaxC = double(KEY_WALK_COMFORT_MAX_C),
-                    walkHoursStart = wholeNumber(KEY_WALK_HOURS_START),
-                    walkHoursEnd = wholeNumber(KEY_WALK_HOURS_END),
-                    petHotC = double(KEY_PET_HOT_THRESHOLD_C),
-                    petColdC = double(KEY_PET_COLD_THRESHOLD_C),
-                    badAirBand = wholeNumber(KEY_WALK_BAD_AIR_BAND),
-                ).copy(airQualityEnabled = airQualityEnabled())
+            PetWeatherThresholds.validated(
+                hotPavementC = double(KEY_WALK_HOT_PAVEMENT_C),
+                warmPavementC = double(KEY_WALK_WARM_PAVEMENT_C),
+                icyPavementC = double(KEY_WALK_ICY_PAVEMENT_C),
+                dangerousPavementC = double(KEY_WALK_DANGEROUS_PAVEMENT_C),
+                maxRainChancePercent = wholeNumber(KEY_WALK_MAX_RAIN_CHANCE),
+                comfortMinC = double(KEY_WALK_COMFORT_MIN_C),
+                comfortMaxC = double(KEY_WALK_COMFORT_MAX_C),
+                walkHoursStart = wholeNumber(KEY_WALK_HOURS_START),
+                walkHoursEnd = wholeNumber(KEY_WALK_HOURS_END),
+                petHotC = double(KEY_PET_HOT_THRESHOLD_C),
+                petColdC = double(KEY_PET_COLD_THRESHOLD_C),
+                badAirBand = wholeNumber(KEY_WALK_BAD_AIR_BAND),
+            )
         }.getOrDefault(PetWeatherThresholds.DEFAULT)
 
     /**
@@ -216,26 +207,6 @@ class RemoteConfigRepository @Inject constructor(
      */
     fun analyticsEnabled(): Boolean = boolean(KEY_ANALYTICS_ENABLED) ?: DEFAULT_ANALYTICS_ENABLED
 
-    /**
-     * The ratings prompt (`ReviewPromptPolicy`), with the same keys and defaults as iOS. Off for the
-     * first release.
-     */
-    fun reviewPromptSettings(): ReviewPromptSettings {
-        val defaults = ReviewPromptSettings.DEFAULT
-        return reviewPromptSettings(
-            enabled = boolean(KEY_REVIEW_PROMPT_ENABLED) ?: defaults.enabled,
-            minDaysInstalled = double(KEY_REVIEW_PROMPT_MIN_DAYS_INSTALLED),
-            minActiveDays = double(KEY_REVIEW_PROMPT_MIN_ACTIVE_DAYS),
-            // Read without string(), which treats an empty value as unset: here empty never asks.
-            moments = value(KEY_REVIEW_PROMPT_MOMENTS)?.let { runCatching { it.asString() }.getOrNull() },
-            delaySeconds = double(KEY_REVIEW_PROMPT_DELAY_SECONDS),
-            oncePerVersion = boolean(KEY_REVIEW_PROMPT_ONCE_PER_VERSION) ?: defaults.oncePerVersion,
-            cooldownDays = double(KEY_REVIEW_PROMPT_COOLDOWN_DAYS),
-            maxRequests = double(KEY_REVIEW_PROMPT_MAX_REQUESTS),
-            onNotificationOpen = boolean(KEY_REVIEW_PROMPT_ON_NOTIFICATION_OPEN) ?: defaults.onNotificationOpen,
-        )
-    }
-
     /** Counts activations of newly fetched values, so callers can read Remote Config again. */
     val activationCount: Flow<Int> = activations
 
@@ -243,11 +214,18 @@ class RemoteConfigRepository @Inject constructor(
      * Below this version the app is blocked until it's updated; below the recommended one a banner
      * asks. Separate from iOS's keys. Null (unset or blank) never asks.
      */
+
+    /** Used a getter function*/
     fun androidMinSupportedVersion(): String? = string(KEY_ANDROID_MIN_SUPPORTED_VERSION)
+
+    fun citySearchProvider(): String =
+        string(KEY_CITY_SEARCH_PROVIDER) ?: DEFAULT_CITY_SEARCH_PROVIDER
+
+    fun citySearchSizeRatio(): Double =
+        double(KEY_CITY_SEARCH_SIZE_RATIO) ?: DEFAULT_CITY_SEARCH_SIZE_RATIO
 
     fun androidMinRecommendedVersion(): String? = string(KEY_ANDROID_MIN_RECOMMENDED_VERSION)
 
-    /** [analyticsEnabled], re-emitted whenever newly activated Remote Config values may have changed it. */
     val analyticsEnabledUpdates: Flow<Boolean> =
         activations.map { analyticsEnabled() }.distinctUntilChanged()
 
@@ -260,14 +238,12 @@ class RemoteConfigRepository @Inject constructor(
             Firebase.remoteConfig.also { rc ->
                 rc.setConfigSettingsAsync(
                     remoteConfigSettings {
-                        // Fetch new values at most every hour in production.
                         minimumFetchIntervalInSeconds = 3600
                     },
                 )
                 rc.setDefaultsAsync(R.xml.remote_config_defaults).addOnCompleteListener { onActivated() }
                 rc.fetchAndActivate().addOnCompleteListener { task ->
                     if (!task.isSuccessful) {
-                        // Network failure, throttling, etc.: keep whatever was already activated.
                         Timber.w(task.exception, "Remote Config fetch failed; keeping current values")
                     }
                     onActivated()
@@ -279,12 +255,6 @@ class RemoteConfigRepository @Inject constructor(
 
     private fun onActivated() = activations.update { it + 1 }
 
-    /**
-     * Only values that actually exist (activated from the server or seeded from the in-app
-     * defaults). A key with no value reports the STATIC source, where `asBoolean()` would
-     * return `false` and `asLong()` `0` — on a cold first launch, before `setDefaultsAsync`
-     * has landed, that would switch analytics off. Returning null falls back to the default.
-     */
     private fun value(key: String): FirebaseRemoteConfigValue? =
         runCatching {
             remoteConfig?.getValue(key)?.takeIf { it.source != FirebaseRemoteConfig.VALUE_SOURCE_STATIC }
@@ -294,7 +264,6 @@ class RemoteConfigRepository @Inject constructor(
 
     private fun double(key: String): Double? = value(key)?.let { runCatching { it.asDouble() }.getOrNull() }
 
-    /** A NUMBER that must be a whole number ("7" or "7.0"); "7.5" or junk reads as missing. */
     private fun wholeNumber(key: String): Int? = double(key)?.takeIf { it.isFinite() && it == Math.floor(it) }?.toInt()
 
     private fun string(key: String): String? =
@@ -307,7 +276,7 @@ class RemoteConfigRepository @Inject constructor(
 
     companion object {
         const val KEY_REFRESH_INTERVAL = "weather_refresh_interval_minutes"
-        const val DEFAULT_REFRESH_INTERVAL_MINUTES = 90L
+        const val DEFAULT_REFRESH_INTERVAL_MINUTES = 30L
 
         const val KEY_RADAR_FRAME_INTERVAL = "radar_frame_interval_ms"
         const val DEFAULT_RADAR_FRAME_INTERVAL_MS = 850L
@@ -319,9 +288,6 @@ class RemoteConfigRepository @Inject constructor(
         const val KEY_WALK_TIME_NOTIFICATIONS_ENABLED = "walk_time_notifications_enabled"
         const val DEFAULT_WALK_TIME_NOTIFICATIONS_ENABLED = true
         const val KEY_RAIN_NOTIFICATIONS_ENABLED = "rain_notifications_enabled"
-
-        // Off for the first release: an alert only goes if a background refresh happens to run in
-        // the hour before the rain, which is hit or miss on an idle phone (NOTES.md).
         const val DEFAULT_RAIN_NOTIFICATIONS_ENABLED = false
 
         const val KEY_FOREGROUND_REFRESH_MIN_MINUTES = "foreground_refresh_min_minutes"
@@ -369,7 +335,9 @@ class RemoteConfigRepository @Inject constructor(
         const val DEFAULT_TEMPERATURE_UNITS_SHOWN = false
 
         const val KEY_OPEN_METEO_ENABLED = "open_meteo_enabled"
+        const val DEFAULT_OPEN_METEO_ENABLED = true
 
+        /** Added a companion object */
         const val KEY_AIR_QUALITY_ENABLED = "air_quality_enabled"
         const val KEY_TILE_FEELS_LIKE_ENABLED = "tile_feels_like_enabled"
         const val KEY_TILE_WIND_ENABLED = "tile_wind_enabled"
@@ -384,59 +352,18 @@ class RemoteConfigRepository @Inject constructor(
         const val DEFAULT_AIR_QUALITY_ENABLED = true
 
         const val KEY_OPENWEATHER_API_KEY = "openweather_api_key"
-        const val KEY_OPEN_METEO_API_KEY = "open_meteo_api_key"
 
         const val KEY_ANDROID_MIN_SUPPORTED_VERSION = "android_min_supported_version"
         const val KEY_ANDROID_MIN_RECOMMENDED_VERSION = "android_min_recommended_version"
-        const val DEFAULT_OPEN_METEO_ENABLED = true
 
-        const val KEY_REVIEW_PROMPT_ENABLED = "review_prompt_enabled"
-        const val KEY_REVIEW_PROMPT_MIN_DAYS_INSTALLED = "review_prompt_min_days_installed"
-        const val KEY_REVIEW_PROMPT_MIN_ACTIVE_DAYS = "review_prompt_min_active_days"
-        const val KEY_REVIEW_PROMPT_MOMENTS = "review_prompt_moments"
-        const val KEY_REVIEW_PROMPT_DELAY_SECONDS = "review_prompt_delay_seconds"
-        const val KEY_REVIEW_PROMPT_ONCE_PER_VERSION = "review_prompt_once_per_version"
-        const val KEY_REVIEW_PROMPT_COOLDOWN_DAYS = "review_prompt_cooldown_days"
-        const val KEY_REVIEW_PROMPT_MAX_REQUESTS = "review_prompt_max_requests"
-        const val KEY_REVIEW_PROMPT_ON_NOTIFICATION_OPEN = "review_prompt_on_notification_open"
+        // New keys and fallback defaults added here safely inside companion object:
+        const val KEY_CITY_SEARCH_PROVIDER = "city_search_provider"
+        const val DEFAULT_CITY_SEARCH_PROVIDER = "open-meteo"
 
-        /**
-         * Each number is a whole number in its range, otherwise the default, so a bad console value
-         * can't make the app ask sooner or more often than it should. Same as iOS.
-         */
-        internal fun reviewPromptSettings(
-            enabled: Boolean,
-            minDaysInstalled: Double?,
-            minActiveDays: Double?,
-            moments: String?,
-            delaySeconds: Double?,
-            oncePerVersion: Boolean,
-            cooldownDays: Double?,
-            maxRequests: Double?,
-            onNotificationOpen: Boolean,
-        ): ReviewPromptSettings {
-            val defaults = ReviewPromptSettings.DEFAULT
-            return ReviewPromptSettings(
-                enabled = enabled,
-                minDaysInstalled = wholeIn(minDaysInstalled, ReviewPromptSettings.MIN_DAYS_INSTALLED_RANGE, defaults.minDaysInstalled),
-                minActiveDays = wholeIn(minActiveDays, ReviewPromptSettings.MIN_ACTIVE_DAYS_RANGE, defaults.minActiveDays),
-                moments = ReviewPromptSettings.momentsFromList(moments),
-                delaySeconds = wholeIn(delaySeconds, ReviewPromptSettings.DELAY_SECONDS_RANGE, defaults.delaySeconds),
-                oncePerVersion = oncePerVersion,
-                cooldownDays = wholeIn(cooldownDays, ReviewPromptSettings.COOLDOWN_DAYS_RANGE, defaults.cooldownDays),
-                maxRequests = wholeIn(maxRequests, ReviewPromptSettings.MAX_REQUESTS_RANGE, defaults.maxRequests),
-                onNotificationOpen = onNotificationOpen,
-            )
-        }
-
-        /** [value] when it's a whole number in [range], otherwise [default]. */
-        private fun wholeIn(
-            value: Double?,
-            range: IntRange,
-            default: Int,
-        ): Int =
-            value
-                ?.takeIf { it.isFinite() && it == Math.floor(it) && it >= range.first && it <= range.last }
-                ?.toInt() ?: default
+        const val KEY_CITY_SEARCH_SIZE_RATIO = "city_search_size_ratio"
+        const val DEFAULT_CITY_SEARCH_SIZE_RATIO = 1.0
     }
 }
+
+
+

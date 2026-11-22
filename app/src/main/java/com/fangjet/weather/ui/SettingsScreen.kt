@@ -257,6 +257,15 @@ fun SettingsRoute(
                     .padding(top = 16.dp),
             )
 
+            Text(
+                text = "Location data based on GeoNames",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            )
             Spacer(modifier = Modifier.height(24.dp))
         }
     }

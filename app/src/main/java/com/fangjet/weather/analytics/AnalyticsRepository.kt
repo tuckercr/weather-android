@@ -65,6 +65,15 @@ class AnalyticsRepository internal constructor(
     fun logCityAdded(added: CityAdded) =
         log(EVENT_CITY_ADDED, mapOf(PARAM_SOURCE to added.source.key, PARAM_PROVIDER to added.provider.key))
 
+    fun logCityAdded(source: String, provider: String) =
+        log(
+            event = EVENT_CITY_ADDED,
+            params = mapOf(
+                PARAM_SOURCE to source,
+                PARAM_PROVIDER to provider,
+            ),
+        )
+
     fun logSettingsOpened() = log(EVENT_SETTINGS_OPENED)
 
     /**
@@ -85,7 +94,7 @@ class AnalyticsRepository internal constructor(
     )
 
     /** The app was opened by a tap on one of its notifications. */
-    internal fun logNotificationOpened(kind: NotificationKind) = log(EVENT_NOTIFICATION_OPENED, mapOf(PARAM_KIND to kind.openedKey))
+    fun logNotificationOpened(kind: NotificationKind) = log(EVENT_NOTIFICATION_OPENED, mapOf(PARAM_KIND to kind.openedKey))
 
     /** A request to a weather service failed, even if a fallback or the cache covered it. */
     fun logWeatherError(
@@ -115,7 +124,7 @@ class AnalyticsRepository internal constructor(
 
     private fun log(
         event: String,
-        params: Map<String, Any> = emptyMap(),
+        params: Map<String, String> = emptyMap(),
     ) {
         runCatching {
             if (collection.shareUsageStatistics == null) {
@@ -141,7 +150,6 @@ class AnalyticsRepository internal constructor(
         const val EVENT_NOTIFICATION_OPENED = "notification_opened"
         const val EVENT_WEATHER_ERROR = "weather_error"
         const val EVENT_REVIEW_PROMPT_REQUESTED = "review_prompt_requested"
-
         const val PARAM_STEP = "step"
         const val PARAM_HAS_DOG = "has_dog"
         const val PARAM_NOTIFICATIONS = "notifications"
@@ -156,7 +164,6 @@ class AnalyticsRepository internal constructor(
         const val PARAM_REQUEST = "request"
         const val PARAM_MOMENT = "moment"
         const val PARAM_REQUEST_NUMBER = "request_number"
-
         const val YES = "yes"
         const val NO = "no"
         const val RESULT_GRANTED = "granted"

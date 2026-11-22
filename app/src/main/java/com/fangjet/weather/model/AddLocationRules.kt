@@ -68,8 +68,14 @@ fun addLocationAction(
         }
     }
     val match = typedMatch(query, suggestions, sizeRatio) ?: return AddLocationAction.PickFromList
-    val index = saved.savedIndexOf(match)
-    return if (index >= 0) AddLocationAction.GoTo(match, index) else AddLocationAction.Add(match)
+
+    // 🌟 Task 4 Check: If there are multiple choices available, force the user to pick from the list
+    if (suggestions.size > 1) {
+        return AddLocationAction.PickFromList
+    }
+
+    val index = saved.savedIndexOf(suggestion = match)
+    return if (index >= 0) AddLocationAction.GoTo(suggestion = match, index) else AddLocationAction.Add(suggestion = match)
 }
 
 /**
